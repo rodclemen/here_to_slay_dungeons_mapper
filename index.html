@@ -16,15 +16,30 @@
         <div class="actions">
           <button id="reroll-btn" type="button">Reroll 6 Tiles</button>
           <button id="reset-btn" type="button">Reset Positions</button>
+          <button id="toggle-labels-btn" type="button">Show Numbers</button>
         </div>
       </header>
 
       <section class="workspace">
         <div id="board" class="board" aria-label="Placement board"></div>
         <aside class="sidebar">
-          <h2>Tile Tray</h2>
+          <div class="tray-head">
+            <h2>Tile Tray</h2>
+            <label class="theme-picker">
+              <span class="theme-label">Tile Set</span>
+              <select id="theme-select" aria-label="Tile Set">
+                <option value="molten">Molten</option>
+                <option value="overgrown">Overgrown</option>
+                <option value="dreamscape">Dreamscape</option>
+                <option value="nightmare">Nightmare</option>
+                <option value="submerged">Submerged</option>
+                <option value="deep_freeze">Deep Freeze</option>
+              </select>
+            </label>
+          </div>
           <p class="hint">Drag to board. Select tile and press <code>R</code>/<code>F</code> to rotate ±60°.</p>
           <div id="tray" class="tray"></div>
+          <div id="reserve-stack" class="reserve-stack" aria-label="Remaining tiles"></div>
           <div id="status" class="status" role="status" aria-live="polite"></div>
         </aside>
       </section>

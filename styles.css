@@ -58,6 +58,11 @@ body {
   gap: 8px;
 }
 
+#toggle-labels-btn {
+  width: 126px;
+  text-align: center;
+}
+
 button {
   border: 1px solid #8698a5;
   background: #ffffff;
@@ -130,8 +135,47 @@ button:hover {
   font-size: 1rem;
 }
 
+.tray-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.theme-picker select {
+  border: 1px solid #aeb8bf;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 6px 8px;
+  font-size: 0.8rem;
+}
+
+.theme-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .hint {
-  margin: 0;
+  margin: 52px 0 0;
   font-size: 0.83rem;
   color: var(--muted);
 }
@@ -140,6 +184,7 @@ button:hover {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+  margin-top: 30px;
   align-content: start;
   position: relative;
   overflow: visible;
@@ -155,6 +200,51 @@ button:hover {
   place-items: center;
   padding: 4px;
   overflow: visible;
+}
+
+.reserve-stack {
+  position: relative;
+  height: 212px;
+  border: 1px dashed #c4ced5;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.52);
+  overflow: hidden;
+  padding: 14px 0;
+}
+
+.reserve-card {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 130px;
+  height: 130px;
+  transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(var(--scale, 1));
+  z-index: var(--z);
+  border-radius: 8px;
+  pointer-events: none;
+  filter: none;
+}
+
+.reserve-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+  filter: saturate(0.88) brightness(0.96) drop-shadow(0 2px 4px rgba(16, 27, 35, 0.18));
+  -webkit-filter: saturate(0.88) brightness(0.96) drop-shadow(0 2px 4px rgba(16, 27, 35, 0.18));
+}
+
+.reserve-guide {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.reserve-guide-outline {
+  fill: none;
+  stroke: #000 !important;
+  stroke-width: 1 !important;
 }
 
 .status {
@@ -192,7 +282,7 @@ button:hover {
 
 .tile.dragging {
   cursor: grabbing;
-  box-shadow: 0 8px 16px rgba(20, 33, 42, 0.22);
+  box-shadow: none;
   z-index: 9999;
 }
 
@@ -209,23 +299,28 @@ button:hover {
   pointer-events: none;
 }
 
+.tile.dragging img {
+  filter: drop-shadow(0 8px 12px rgba(20, 33, 42, 0.24));
+  -webkit-filter: drop-shadow(0 8px 12px rgba(20, 33, 42, 0.24));
+}
+
 .tile-placement-overlay {
   position: absolute;
   inset: 0;
   border-radius: 12px;
-  opacity: 0;
+  display: none;
+  opacity: 1;
+  background: transparent;
   pointer-events: none;
-  transition: opacity 100ms ease, background-color 100ms ease;
+  transition: background-color 100ms ease;
 }
 
 .tile.valid-placement .tile-placement-overlay {
-  opacity: 1;
-  background: rgba(46, 160, 67, 0.28);
+  display: none;
 }
 
 .tile.invalid-placement .tile-placement-overlay {
-  opacity: 1;
-  background: rgba(180, 35, 24, 0.3);
+  display: none;
 }
 
 .tile-guide {
@@ -266,8 +361,24 @@ button:hover {
   opacity: 0;
 }
 
+body.show-guide-labels .tile-guide-labels text {
+  opacity: 1;
+}
+
 .tile-guide-outline {
   opacity: 0;
+}
+
+.tile.valid-placement .tile-guide-outline {
+  opacity: 1;
+  stroke: rgba(46, 160, 67, 0.95);
+  stroke-width: 2.2;
+}
+
+.tile.invalid-placement .tile-guide-outline {
+  opacity: 1;
+  stroke: rgba(180, 35, 24, 0.95);
+  stroke-width: 2.2;
 }
 
 .tile-controls {

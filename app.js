@@ -11,32 +11,39 @@ const MIN_CONTACT_POINTS = 4;
 const INVALID_RETURN_DELAY_MS = 10_000;
 const INVALID_DROP_PUSH_PX = 140;
 const TILE_START_NON_NUMERIC_POINTS = new Set([11, 12]);
-const TILESET_BASE_PATH = "./tiles/molten_overgrown";
+const BLOCKED_POINT_TOUCH_RADIUS = 4;
+const DEFAULT_THEME_ID = "molten";
+const THEME_OPTIONS = [
+  { id: "molten", label: "Molten", folder: "molten", prefix: "molten" },
+  { id: "overgrown", label: "Overgrown", folder: "overgrown", prefix: "overgrown" },
+  { id: "dreamscape", label: "Dreamscape", folder: "dreamscape", prefix: "dreamscape" },
+  { id: "nightmare", label: "Nightmare", folder: "nightmare", prefix: "nightmare" },
+  { id: "submerged", label: "Submerged", folder: "submerged", prefix: "submerged" },
+  { id: "deep_freeze", label: "Deep Freeze", folder: "deep_freeze", prefix: "deep_freeze" },
+];
 const TRAY_CENTER_X = TILE_SIZE / 2;
 const TRAY_CENTER_Y = TILE_SIZE / 2 + 10;
 
 const board = document.getElementById("board");
 const tray = document.getElementById("tray");
+const reserveStack = document.getElementById("reserve-stack");
+const themeSelect = document.getElementById("theme-select");
 const workspace = document.querySelector(".workspace");
 const statusEl = document.getElementById("status");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetBtn = document.getElementById("reset-btn");
+const toggleLabelsBtn = document.getElementById("toggle-labels-btn");
 const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
 
-const tileDefs = [
-  { id: "molten_entrance", src: `${TILESET_BASE_PATH}/molten_entrance.png`, required: true },
-  ...Array.from({ length: 9 }, (_, i) => ({
-    id: `tile${i + 1}`,
-    src: `${TILESET_BASE_PATH}/molten${i + 1}.png`,
-    required: false,
-  })),
-];
-
 const state = {
   tiles: new Map(),
   selectedTileId: null,
+  hoveredTileId: null,
+  selectedThemeId: DEFAULT_THEME_ID,
+  tileDefs: [],
+  showGuideLabels: false,
 };
 
 init().catch((error) => {
@@ -45,15 +52,19 @@ init().catch((error) => {
 });
 
 async function init() {
-  await loadTiles();
   bindGlobalControls();
-  startRound();
+  if (themeSelect) themeSelect.value = state.selectedThemeId;
+  await applyTheme(state.selectedThemeId, false);
 }
 
-async function loadTiles() {
-  for (const def of tileDefs) {
+async function loadTiles(themeId = state.selectedThemeId) {
+  const defs = buildTileDefs(themeId);
+  state.tileDefs = defs;
+  state.tiles.clear();
+  for (const def of defs) {
     const img = await loadImage(def.src);
     const shape = getOpaqueBounds(img);
+    const alphaMask = getAlphaMask(img);
     const faceGeometry = getFaceGeometry(img, SIDES);
 
     state.tiles.set(def.id, {
@@ -70,6 +81,7 @@ async function loadTiles() {
       drag: null,
       invalidReturnTimer: null,
       shape,
+      alphaMask,
       faceGeometry,
       sideLength: faceGeometry.avgSideLength,
       apothem: faceGeometry.avgOffset,
@@ -77,14 +89,70 @@ async function loadTiles() {
   }
 }
 
+function getThemeConfig(themeId) {
+  return THEME_OPTIONS.find((t) => t.id === themeId) || THEME_OPTIONS[0];
+}
+
+function buildTileDefs(themeId) {
+  const theme = getThemeConfig(themeId);
+  const basePath = `./tiles/${theme.folder}`;
+  return [
+    { id: "molten_entrance", src: `${basePath}/${theme.prefix}_entrance.png`, required: true },
+    ...Array.from({ length: 9 }, (_, i) => ({
+      id: `tile${i + 1}`,
+      src: `${basePath}/${theme.prefix}${i + 1}.png`,
+      required: false,
+    })),
+  ];
+}
+
+async function applyTheme(themeId, showStatus = true) {
+  const nextTheme = getThemeConfig(themeId);
+  const previousThemeId = state.selectedThemeId;
+  try {
+    state.selectedThemeId = nextTheme.id;
+    await loadTiles(nextTheme.id);
+    startRound();
+    if (showStatus) setStatus(`Theme set to ${nextTheme.label}.`);
+  } catch (error) {
+    console.error(error);
+    const previousTheme = getThemeConfig(previousThemeId);
+    state.selectedThemeId = previousTheme.id;
+    if (themeSelect) themeSelect.value = previousTheme.id;
+    if (previousTheme.id !== nextTheme.id) {
+      try {
+        await loadTiles(previousTheme.id);
+        startRound();
+      } catch (fallbackError) {
+        console.error(fallbackError);
+      }
+    }
+    setStatus(`Theme "${nextTheme.label}" assets are missing. Keeping ${previousTheme.label}.`, true);
+  }
+}
+
 function bindGlobalControls() {
   rerollBtn.addEventListener("click", () => startRound());
   resetBtn.addEventListener("click", () => resetPositions());
+  if (toggleLabelsBtn) {
+    toggleLabelsBtn.addEventListener("click", () => {
+      state.showGuideLabels = !state.showGuideLabels;
+      document.body.classList.toggle("show-guide-labels", state.showGuideLabels);
+      toggleLabelsBtn.textContent = state.showGuideLabels ? "Hide Numbers" : "Show Numbers";
+    });
+  }
+  if (themeSelect) {
+    themeSelect.addEventListener("change", async (event) => {
+      const nextThemeId = event.target.value;
+      await applyTheme(nextThemeId, true);
+    });
+  }
 
   document.addEventListener("keydown", (event) => {
-    if (!state.selectedTileId) return;
+    const activeTileId = state.hoveredTileId || state.selectedTileId;
+    if (!activeTileId) return;
 
-    const tile = state.tiles.get(state.selectedTileId);
+    const tile = state.tiles.get(activeTileId);
     if (!tile) return;
 
     if (event.key.toLowerCase() === "r") {
@@ -100,13 +168,13 @@ function bindGlobalControls() {
 function startRound() {
   clearBoard();
 
-  const candidateTiles = tileDefs.filter((t) => !t.required).map((t) => t.id);
+  const candidateTiles = state.tileDefs.filter((t) => !t.required).map((t) => t.id);
   const selectedIds = shuffle(candidateTiles).slice(0, 6);
 
   for (const tile of state.tiles.values()) {
     tile.active = tile.id === "molten_entrance" || selectedIds.includes(tile.id);
     tile.placed = false;
-    tile.rotation = 0;
+    tile.rotation = tile.id === "molten_entrance" ? 0 : randomTrayRotation();
   }
 
   renderActiveTiles();
@@ -119,7 +187,7 @@ function resetPositions() {
 
   for (const tile of state.tiles.values()) {
     if (!tile.active) continue;
-    tile.rotation = 0;
+    tile.rotation = tile.id === "molten_entrance" ? 0 : randomTrayRotation();
     tile.placed = false;
   }
 
@@ -134,7 +202,9 @@ function clearBoard() {
   }
   board.innerHTML = "";
   tray.innerHTML = "";
+  reserveStack.innerHTML = "";
   state.selectedTileId = null;
+  state.hoveredTileId = null;
 }
 
 function renderActiveTiles() {
@@ -159,6 +229,54 @@ function renderActiveTiles() {
 
     updateTileTransform(tile);
   }
+
+  renderInactiveTileStack();
+}
+
+function renderInactiveTileStack() {
+  const inactiveTiles = Array.from(state.tiles.values())
+    .filter((tile) => !tile.required && !tile.active)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const offsets = [
+    { x: -22, y: 22, rot: -13, z: 1, scale: 0.97 },
+    { x: 16, y: 8, rot: 9, z: 2, scale: 1.02 },
+    { x: -8, y: -10, rot: -4, z: 3, scale: 1.0 },
+  ];
+
+  for (let i = 0; i < inactiveTiles.length; i += 1) {
+    const tile = inactiveTiles[i];
+    const card = document.createElement("div");
+    card.className = "reserve-card";
+    const offset = offsets[i] || offsets[offsets.length - 1];
+    card.style.setProperty("--dx", `${offset.x}px`);
+    card.style.setProperty("--dy", `${offset.y}px`);
+    card.style.setProperty("--rot", `${offset.rot}deg`);
+    card.style.setProperty("--z", String(offset.z));
+    card.style.setProperty("--scale", String(offset.scale ?? 1));
+
+    const img = document.createElement("img");
+    img.src = tile.src;
+    img.alt = `${tile.id} (inactive)`;
+    img.draggable = false;
+    card.appendChild(img);
+    card.appendChild(createReserveGuideOverlay(tile));
+    reserveStack.appendChild(card);
+  }
+}
+
+function createReserveGuideOverlay(tile) {
+  const guidePoints = getGuideFacePoints(tile);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "reserve-guide");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("aria-hidden", "true");
+
+  const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  polygon.setAttribute("class", "reserve-guide-outline");
+  polygon.setAttribute("points", polygonPoints(guidePoints));
+  svg.appendChild(polygon);
+  return svg;
 }
 
 function placeStartTileAtCenter() {
@@ -186,7 +304,7 @@ function createTileElement(tile) {
   img.draggable = false;
   img.addEventListener("dragstart", (event) => event.preventDefault());
   body.appendChild(img);
-  body.appendChild(createPlacementOverlay());
+  body.appendChild(createPlacementOverlay(tile));
   body.appendChild(createTileGuideOverlay(tile));
   tileEl.appendChild(body);
   tile.bodyDom = body;
@@ -231,14 +349,28 @@ function createTileElement(tile) {
   });
 
   tileEl.addEventListener("click", () => selectTile(tile.id));
+  tileEl.addEventListener("mouseenter", () => {
+    state.hoveredTileId = tile.id;
+  });
+  tileEl.addEventListener("mouseleave", () => {
+    if (state.hoveredTileId === tile.id) state.hoveredTileId = null;
+  });
   tileEl.addEventListener("dragstart", (event) => event.preventDefault());
   return tileEl;
 }
 
-function createPlacementOverlay() {
+function createPlacementOverlay(tile) {
   const overlay = document.createElement("div");
   overlay.className = "tile-placement-overlay";
   overlay.setAttribute("aria-hidden", "true");
+  overlay.style.maskImage = `url("${tile.src}")`;
+  overlay.style.maskRepeat = "no-repeat";
+  overlay.style.maskPosition = "center";
+  overlay.style.maskSize = "contain";
+  overlay.style.webkitMaskImage = `url("${tile.src}")`;
+  overlay.style.webkitMaskRepeat = "no-repeat";
+  overlay.style.webkitMaskPosition = "center";
+  overlay.style.webkitMaskSize = "contain";
   return overlay;
 }
 
@@ -693,6 +825,7 @@ function finishDrop(tile) {
   } else {
     setStatus(`Placed ${tile.id} with ${result.count} point contacts.`);
   }
+  selectTile(null);
 }
 
 function rotateTile(tile, delta) {
@@ -736,8 +869,9 @@ function findBestContact(tile, otherTiles) {
     }
   }
 
+  const touchesBlockedAB = isTouchingMoltenEntranceBlockedPoints(tile);
   return {
-    valid: best.count >= MIN_CONTACT_POINTS,
+    valid: best.count >= MIN_CONTACT_POINTS && !touchesBlockedAB,
     count: best.count,
     other: best.other,
     match: best.match,
@@ -753,7 +887,8 @@ function getContactMatchDetails(a, b) {
   const bFaces = getContactFaces(b);
   const threshold = Math.min(a.sideLength, b.sideLength) * CONTACT_DISTANCE_RATIO;
 
-  if (isTouchingTileStartBlockedPoints(a, bFaces, threshold) || isTouchingTileStartBlockedPoints(b, aFaces, threshold)) {
+  const blockedTouchRadius = BLOCKED_POINT_TOUCH_RADIUS;
+  if (isTouchingTileStartBlockedPoints(a, b, blockedTouchRadius) || isTouchingTileStartBlockedPoints(b, a, blockedTouchRadius)) {
     return {
       count: 0,
       matchedPairs: [],
@@ -1017,24 +1152,62 @@ function isBlockedContactFace(tile, face) {
   );
 }
 
-function isTouchingTileStartBlockedPoints(tile, otherFaces, threshold) {
+function isTouchingTileStartBlockedPoints(tile, otherTile, touchRadius) {
   if (tile.id !== "molten_entrance") return false;
   const points = getGuideFacePoints(tile);
   const rotationRad = (tile.rotation * Math.PI) / 180;
   const cos = Math.cos(rotationRad);
   const sin = Math.sin(rotationRad);
-  const touchRadius = threshold * 1.05;
 
   for (const idx of TILE_START_NON_NUMERIC_POINTS) {
     const p = points[idx];
     if (!p) continue;
     const wx = tile.x + p.x * cos - p.y * sin;
     const wy = tile.y + p.x * sin + p.y * cos;
-    for (const f of otherFaces) {
-      if (Math.hypot(f.mx - wx, f.my - wy) <= touchRadius) return true;
-    }
+    if (isWorldPointOnOpaquePixel(otherTile, wx, wy, touchRadius)) return true;
   }
 
+  return false;
+}
+
+function isTouchingMoltenEntranceBlockedPoints(tile) {
+  if (!tile || tile.id === "molten_entrance") return false;
+  const entrance = state.tiles.get("molten_entrance");
+  if (!entrance || !entrance.placed) return false;
+  return isTouchingTileStartBlockedPoints(entrance, tile, BLOCKED_POINT_TOUCH_RADIUS);
+}
+
+function isWorldPointOnOpaquePixel(tile, wx, wy, radius = 0) {
+  if (!tile?.img || !tile.alphaMask) return false;
+  const theta = (tile.rotation * Math.PI) / 180;
+  const cos = Math.cos(theta);
+  const sin = Math.sin(theta);
+  const dx = wx - tile.x;
+  const dy = wy - tile.y;
+
+  // Inverse-rotate from world space into tile-local space.
+  const lx = dx * cos + dy * sin;
+  const ly = -dx * sin + dy * cos;
+
+  const iw = tile.alphaMask.width || 0;
+  const ih = tile.alphaMask.height || 0;
+  if (!iw || !ih) return false;
+
+  const pxCenter = ((lx / TILE_SIZE) + 0.5) * iw;
+  const pyCenter = ((ly / TILE_SIZE) + 0.5) * ih;
+  const sampleRadius = Math.max(0, Math.ceil((radius / TILE_SIZE) * Math.max(iw, ih)));
+
+  const x0 = Math.max(0, Math.floor(pxCenter - sampleRadius));
+  const x1 = Math.min(iw - 1, Math.ceil(pxCenter + sampleRadius));
+  const y0 = Math.max(0, Math.floor(pyCenter - sampleRadius));
+  const y1 = Math.min(ih - 1, Math.ceil(pyCenter + sampleRadius));
+
+  for (let y = y0; y <= y1; y += 1) {
+    for (let x = x0; x <= x1; x += 1) {
+      const alpha = tile.alphaMask.alpha[y * iw + x];
+      if (alpha >= 24) return true;
+    }
+  }
   return false;
 }
 
@@ -1045,10 +1218,11 @@ function getPlacedTiles() {
 function revertToTray(tile, message, warn = false) {
   clearInvalidReturnTimer(tile);
   tile.placed = false;
-  tile.rotation = 0;
+  tile.rotation = randomTrayRotation();
   positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
   updateTileParent(tile, tile.traySlot);
   updateTileTransform(tile);
+  selectTile(null);
   setPlacementFeedback(tile, null);
   setStatus(message, warn);
 }
@@ -1059,6 +1233,7 @@ function handleInvalidDrop(tile, placedTiles) {
   moveAwayFromPlacedTiles(tile, placedTiles);
   updateTileParent(tile, board);
   updateTileTransform(tile);
+  selectTile(null);
   setPlacementFeedback(tile, false);
   setStatus(
     `Invalid placement: this tile needs at least ${MIN_CONTACT_POINTS} point contacts. Returning to tray in 10s.`,
@@ -1068,10 +1243,11 @@ function handleInvalidDrop(tile, placedTiles) {
   tile.invalidReturnTimer = setTimeout(() => {
     tile.invalidReturnTimer = null;
     if (tile.placed) return;
-    tile.rotation = 0;
+    tile.rotation = randomTrayRotation();
     positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
     updateTileParent(tile, tile.traySlot);
     updateTileTransform(tile);
+    selectTile(null);
     setPlacementFeedback(tile, null);
     setStatus(`${tile.id} returned to tray after invalid placement.`, true);
   }, INVALID_RETURN_DELAY_MS);
@@ -1145,6 +1321,11 @@ function normalizeAngle(value) {
   return normalized < 0 ? normalized + 360 : normalized;
 }
 
+function randomTrayRotation() {
+  const steps = Math.floor(360 / ROTATION_STEP);
+  return Math.floor(Math.random() * steps) * ROTATION_STEP;
+}
+
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -1191,6 +1372,20 @@ function getOpaqueBounds(image) {
     maxY,
     radius: Math.max(radius, TILE_SIZE * 0.3),
   };
+}
+
+function getAlphaMask(image) {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0);
+  const { data, width, height } = ctx.getImageData(0, 0, image.width, image.height);
+  const alpha = new Uint8Array(width * height);
+  for (let i = 0; i < alpha.length; i += 1) {
+    alpha[i] = data[i * 4 + 3];
+  }
+  return { width, height, alpha };
 }
 
 function getFaceGeometry(image, sideCount) {
