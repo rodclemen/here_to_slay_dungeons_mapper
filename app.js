@@ -11,6 +11,9 @@ const MIN_CONTACT_POINTS = 4;
 const INVALID_RETURN_DELAY_MS = 10_000;
 const INVALID_DROP_PUSH_PX = 140;
 const TILE_START_NON_NUMERIC_POINTS = new Set([11, 12]);
+const TILESET_BASE_PATH = "./tiles/molten_overgrown";
+const TRAY_CENTER_X = TILE_SIZE / 2;
+const TRAY_CENTER_Y = TILE_SIZE / 2 + 10;
 
 const board = document.getElementById("board");
 const tray = document.getElementById("tray");
@@ -23,10 +26,10 @@ dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
 
 const tileDefs = [
-  { id: "tile_start", src: "./tile_start.png", required: true },
+  { id: "molten_entrance", src: `${TILESET_BASE_PATH}/molten_entrance.png`, required: true },
   ...Array.from({ length: 9 }, (_, i) => ({
     id: `tile${i + 1}`,
-    src: `./tile${i + 1}.png`,
+    src: `${TILESET_BASE_PATH}/molten${i + 1}.png`,
     required: false,
   })),
 ];
@@ -101,7 +104,7 @@ function startRound() {
   const selectedIds = shuffle(candidateTiles).slice(0, 6);
 
   for (const tile of state.tiles.values()) {
-    tile.active = tile.id === "tile_start" || selectedIds.includes(tile.id);
+    tile.active = tile.id === "molten_entrance" || selectedIds.includes(tile.id);
     tile.placed = false;
     tile.rotation = 0;
   }
@@ -141,7 +144,7 @@ function renderActiveTiles() {
     const tileEl = createTileElement(tile);
     tile.dom = tileEl;
 
-    if (tile.id === "tile_start") {
+    if (tile.id === "molten_entrance") {
       board.appendChild(tileEl);
       tile.placed = true;
     } else {
@@ -151,7 +154,7 @@ function renderActiveTiles() {
       tray.appendChild(slot);
       tile.traySlot = slot;
       tile.placed = false;
-      positionTile(tile, TILE_SIZE / 2, TILE_SIZE / 2);
+      positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
     }
 
     updateTileTransform(tile);
@@ -159,7 +162,7 @@ function renderActiveTiles() {
 }
 
 function placeStartTileAtCenter() {
-  const start = state.tiles.get("tile_start");
+  const start = state.tiles.get("molten_entrance");
   const rect = board.getBoundingClientRect();
   const x = rect.width / 2;
   const y = rect.height / 2;
@@ -193,7 +196,10 @@ function createTileElement(tile) {
 
   const leftBtn = document.createElement("button");
   leftBtn.type = "button";
-  leftBtn.textContent = "⟲";
+  leftBtn.className = "rotate-ccw";
+  const leftIcon = document.createElement("span");
+  leftIcon.textContent = "⟲";
+  leftBtn.appendChild(leftIcon);
   leftBtn.title = "Rotate -60°";
   leftBtn.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -202,7 +208,10 @@ function createTileElement(tile) {
 
   const rightBtn = document.createElement("button");
   rightBtn.type = "button";
-  rightBtn.textContent = "⟳";
+  rightBtn.className = "rotate-cw";
+  const rightIcon = document.createElement("span");
+  rightIcon.textContent = "⟳";
+  rightBtn.appendChild(rightIcon);
   rightBtn.title = "Rotate +60°";
   rightBtn.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -276,9 +285,9 @@ function createTileGuideOverlay(tile) {
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
     label.setAttribute("x", lx.toFixed(2));
     label.setAttribute("y", ly.toFixed(2));
-    if (tile.id === "tile_start" && i === 12) {
+    if (tile.id === "molten_entrance" && i === 12) {
       label.textContent = "A";
-    } else if (tile.id === "tile_start" && i === 11) {
+    } else if (tile.id === "molten_entrance" && i === 11) {
       label.textContent = "B";
     } else {
       label.textContent = String(i);
@@ -293,10 +302,10 @@ function createTileGuideOverlay(tile) {
 
 function getGuideFacePoints(tile) {
   const points = tile.faceGeometry.points.map((p) => ({ ...p }));
-  if (tile.id === "tile_start") {
+  if (tile.id === "molten_entrance") {
     const templateTile =
       state.tiles.get("tile1")
-      || Array.from(state.tiles.values()).find((t) => t.id !== "tile_start");
+      || Array.from(state.tiles.values()).find((t) => t.id !== "molten_entrance");
     if (!templateTile) return points;
 
     const templateBase = templateTile.faceGeometry.points.map((p) => ({ ...p }));
@@ -372,6 +381,12 @@ function getGuideFacePoints(tile) {
       points[14].x = -points[11].x;
       points[14].y = points[11].y;
     }
+    if (points[12]) {
+      points[12].x += 69;
+      points[12].y += 3;
+    }
+    if (points[14]) points.splice(14, 1);
+    if (points[13]) points.splice(13, 1);
     return points;
   }
 
@@ -614,7 +629,7 @@ function beginDrag(tile, event) {
 
       if (!isInsideBoard) {
         tile.placed = false;
-        positionTile(tile, TILE_SIZE / 2, TILE_SIZE / 2);
+        positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
         updateTileParent(tile, tile.traySlot);
         updateTileTransform(tile);
         setPlacementFeedback(tile, null);
@@ -642,17 +657,17 @@ function beginDrag(tile, event) {
 }
 
 function finishDrop(tile) {
-  if (tile.id === "tile_start") {
+  if (tile.id === "molten_entrance") {
     tile.placed = true;
     setPlacementFeedback(tile, null);
-    setStatus("tile_start placed. Now add the other 6 tiles.");
+    setStatus("molten_entrance placed. Now add the other 6 tiles.");
     return;
   }
 
   const placedTiles = getPlacedTiles().filter((t) => t.id !== tile.id);
 
   if (placedTiles.length === 0) {
-    revertToTray(tile, "Place tile_start first.");
+    revertToTray(tile, "Place molten_entrance first.");
     return;
   }
 
@@ -681,10 +696,10 @@ function finishDrop(tile) {
 }
 
 function rotateTile(tile, delta) {
-  if (tile.id === "tile_start") {
-    const hasOtherPlaced = getPlacedTiles().some((t) => t.id !== "tile_start");
+  if (tile.id === "molten_entrance") {
+    const hasOtherPlaced = getPlacedTiles().some((t) => t.id !== "molten_entrance");
     if (hasOtherPlaced) {
-      setStatus("tile_start rotation is locked once another tile is placed.", true);
+      setStatus("molten_entrance rotation is locked once another tile is placed.", true);
       return;
     }
   }
@@ -692,7 +707,7 @@ function rotateTile(tile, delta) {
   tile.rotation = normalizeAngle(tile.rotation + delta);
   updateTileTransform(tile);
 
-  if (tile.placed && tile.id !== "tile_start") {
+  if (tile.placed && tile.id !== "molten_entrance") {
     const placedTiles = getPlacedTiles().filter((t) => t.id !== tile.id);
     const result = findBestContact(tile, placedTiles);
     if (!result.valid) {
@@ -768,17 +783,8 @@ function getContactMatchDetails(a, b) {
 
   candidates.sort((x, y) => x.midpointDistance - y.midpointDistance || x.normalDot - y.normalDot);
 
-  const usedA = new Set();
-  const usedB = new Set();
-  let matchedFaces = 0;
-  const matchedPairs = [];
-  for (const c of candidates) {
-    if (usedA.has(c.i) || usedB.has(c.j)) continue;
-    usedA.add(c.i);
-    usedB.add(c.j);
-    matchedPairs.push({ i: c.i, j: c.j });
-    matchedFaces += 1;
-  }
+  const matchedPairs = getBestOrderedMatchedPairs(candidates, aFaces.length, bFaces.length);
+  const matchedFaces = matchedPairs.length;
 
   return {
     count: matchedFaces * 2,
@@ -786,6 +792,64 @@ function getContactMatchDetails(a, b) {
     aFaces,
     bFaces,
   };
+}
+
+function getBestOrderedMatchedPairs(candidates, aCount, bCount) {
+  if (!candidates.length) return [];
+
+  const byPair = new Map();
+  for (const c of candidates) {
+    const key = `${c.i}:${c.j}`;
+    const prev = byPair.get(key);
+    if (!prev || c.midpointDistance < prev.midpointDistance) {
+      byPair.set(key, c);
+    }
+  }
+
+  const mod = (n, size) => ((n % size) + size) % size;
+  let bestChain = [];
+  let bestDistance = Infinity;
+
+  for (const start of byPair.values()) {
+    for (const bStep of [1, -1]) {
+      const seen = new Set([`${start.i}:${start.j}`]);
+      const chain = [{ i: start.i, j: start.j }];
+      let distance = start.midpointDistance;
+
+      let ai = start.i;
+      let bj = start.j;
+      while (true) {
+        ai = mod(ai + 1, aCount);
+        bj = mod(bj + bStep, bCount);
+        const key = `${ai}:${bj}`;
+        const next = byPair.get(key);
+        if (!next || seen.has(key)) break;
+        seen.add(key);
+        chain.push({ i: ai, j: bj });
+        distance += next.midpointDistance;
+      }
+
+      ai = start.i;
+      bj = start.j;
+      while (true) {
+        ai = mod(ai - 1, aCount);
+        bj = mod(bj - bStep, bCount);
+        const key = `${ai}:${bj}`;
+        const next = byPair.get(key);
+        if (!next || seen.has(key)) break;
+        seen.add(key);
+        chain.unshift({ i: ai, j: bj });
+        distance += next.midpointDistance;
+      }
+
+      if (chain.length > bestChain.length || (chain.length === bestChain.length && distance < bestDistance)) {
+        bestChain = chain;
+        bestDistance = distance;
+      }
+    }
+  }
+
+  return bestChain;
 }
 
 function computeBestSnap(
@@ -946,7 +1010,7 @@ function getContactFaces(tile) {
 }
 
 function isBlockedContactFace(tile, face) {
-  if (tile.id !== "tile_start") return false;
+  if (tile.id !== "molten_entrance") return false;
   return (
     TILE_START_NON_NUMERIC_POINTS.has(face.startIdx)
     || TILE_START_NON_NUMERIC_POINTS.has(face.endIdx)
@@ -954,7 +1018,7 @@ function isBlockedContactFace(tile, face) {
 }
 
 function isTouchingTileStartBlockedPoints(tile, otherFaces, threshold) {
-  if (tile.id !== "tile_start") return false;
+  if (tile.id !== "molten_entrance") return false;
   const points = getGuideFacePoints(tile);
   const rotationRad = (tile.rotation * Math.PI) / 180;
   const cos = Math.cos(rotationRad);
@@ -982,7 +1046,7 @@ function revertToTray(tile, message, warn = false) {
   clearInvalidReturnTimer(tile);
   tile.placed = false;
   tile.rotation = 0;
-  positionTile(tile, TILE_SIZE / 2, TILE_SIZE / 2);
+  positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
   updateTileParent(tile, tile.traySlot);
   updateTileTransform(tile);
   setPlacementFeedback(tile, null);
@@ -1005,7 +1069,7 @@ function handleInvalidDrop(tile, placedTiles) {
     tile.invalidReturnTimer = null;
     if (tile.placed) return;
     tile.rotation = 0;
-    positionTile(tile, TILE_SIZE / 2, TILE_SIZE / 2);
+    positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
     updateTileParent(tile, tile.traySlot);
     updateTileTransform(tile);
     setPlacementFeedback(tile, null);
@@ -1311,7 +1375,7 @@ function pointOnPolygonEdge(p, poly) {
 
 
 function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect, workspaceRect) {
-  if (tile.id === "tile_start") {
+  if (tile.id === "molten_entrance") {
     setPlacementFeedback(tile, null);
     return;
   }

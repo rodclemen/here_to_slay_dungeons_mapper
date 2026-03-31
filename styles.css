@@ -263,6 +263,7 @@ button:hover {
   text-anchor: middle;
   dominant-baseline: middle;
   pointer-events: none;
+  opacity: 0;
 }
 
 .tile-guide-outline {
@@ -272,19 +273,55 @@ button:hover {
 .tile-controls {
   position: absolute;
   right: -6px;
-  top: -6px;
+  top: 1px;
   display: flex;
   gap: 4px;
+  transform: translateX(-10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
 .tile-controls button {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
+  position: relative;
+  display: inline-flex;
   border-radius: 999px;
   border: 1px solid #6b7f8a;
-  background: #f8fffd;
+  background: rgba(248, 255, 253, 0.8) !important;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   font-weight: 700;
+  font-size: 0;
+}
+
+.tile-controls button span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  line-height: 1;
+  -webkit-text-stroke: 1px currentColor;
+  transform: translate(0, -4px);
+}
+
+.tile-controls button.rotate-ccw span {
+  transform: translate(-1px, -4px);
+}
+
+.tile-controls button.rotate-cw span {
+  transform: translate(1px, -4px);
+}
+
+.tile:hover .tile-controls,
+.tile.selected .tile-controls,
+.tile.dragging .tile-controls {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 @media (max-width: 980px) {
