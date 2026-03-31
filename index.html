@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Here to Slay Tile Randomizer Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <h1>Tile Randomizer Prototype</h1>
+          <p>Place <code>tile_start</code>, then place 6 random tiles with at least 2-side contact.</p>
+        </div>
+        <div class="actions">
+          <button id="reroll-btn" type="button">Reroll 6 Tiles</button>
+          <button id="reset-btn" type="button">Reset Positions</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <div id="board" class="board" aria-label="Placement board"></div>
+        <aside class="sidebar">
+          <h2>Tile Tray</h2>
+          <p class="hint">Drag to board. Select tile and press <code>R</code>/<code>F</code> to rotate ±60°.</p>
+          <div id="tray" class="tray"></div>
+          <div id="status" class="status" role="status" aria-live="polite"></div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
