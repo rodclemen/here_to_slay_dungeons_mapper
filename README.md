@@ -19,6 +19,10 @@ Browser prototype for testing tile placement rules, snap behavior, and tile-face
 - Entrance blocked points are:
   - `B = point 11`
   - `A = point 12`
+- Interpretation:
+  - `A` and `B` represent the top of the Dungeon Entrance Tile.
+  - Tiles are not allowed to be placed touching this top entrance area.
+  - This is an intentional hard rule (and also game-sense): do not try to route placements through `A/B`.
 - Hard override rule:
   - If point `A` or `B` is touched by any opaque PNG pixel of another tile, placement is invalid.
   - This overrules other placement rules.
