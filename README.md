@@ -15,7 +15,10 @@ Browser prototype for testing tile placement rules, snap behavior, and tile-face
 ## Core Placement Rules
 
 - A regular tile must register at least `MIN_CONTACT_POINTS` (currently 4) against placed tiles.
-- Contact pairs must be continuous in index order.
+- Contact pairs must be ordered/continuous in index order, while ignoring wall faces.
+- Wall faces are manually marked per tile.
+- Wall faces do not count as valid contact faces.
+- Example: `valid -> wall -> valid` can still count as continuous contact.
 - Entrance blocked points are:
   - `B = point 11`
   - `A = point 12`
@@ -56,13 +59,30 @@ Browser prototype for testing tile placement rules, snap behavior, and tile-face
   - `R` = +60deg
   - `F` = -60deg
 - Rotate buttons (`⟲` / `⟳`) also rotate ±60deg.
-- `Reroll 6 Tiles`: new random 6.
-- `Reset Positions`: keeps same 6, resets board/tray positions.
+- `Reroll Tiles`: rerolls only tray tiles (grid placements stay as-is).
+- `Randomize Rotation`: randomizes only tray tile rotations.
+- `Reset Rotation`: resets only tray tile rotations to `0°`.
+- `Edit Walls`: enters wall-edit mode.
+- In wall-edit mode, a dedicated editor page opens with six side-by-side trays (one per theme), each showing that theme's 9 regular tiles.
+- `Clear Tile Walls`: clears wall faces for the currently hovered/selected regular tile.
+- In wall-edit mode, click face segments to toggle wall ON/OFF (saved per `theme + tile` in browser localStorage).
+- `Export Walls`: downloads a JSON backup of all wall-face mappings.
+- `Import Walls`: restores wall-face mappings from a previously exported JSON file.
+- `Debug` dropdown:
+  - `Show Numbers`: toggles face-number labels.
+  - `Show Walls`: highlights currently configured wall faces in red.
+- `UI Theme` picker:
+  - `Current`: keeps the existing UI colors.
+  - `Molten`: applies a warm molten palette inspired by the Here to Slay Dungeons cover art.
 
 ## Tray / UI Notes
 
 - Tray shows 6 active tiles in slots.
 - Remaining 3 inactive tiles are shown below as a stacked preview.
+- Reserve `⋯` menu has an `Edit` toggle:
+  - off: inactive tiles display as a pile
+  - on: inactive tiles display side by side for easier picking
+- Reserve swap flow: click either a reserve tile or a tray tile first, then click its counterpart to swap.
 - Rotate buttons are hover-revealed.
 - Placement feedback uses a stroke around tile shape (not fill tint).
 

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Responsive Hex Background</title>
+    <style>
+      :root {
+        --bg: #e9e9e9;
+        --stroke: #555;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        background: var(--bg);
+        overflow: hidden;
+      }
+
+      svg {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <svg id="hex-bg" aria-hidden="true"></svg>
+
+    <script>
+      (() => {
+        const svg = document.getElementById("hex-bg");
+        const NS = "http://www.w3.org/2000/svg";
+
+        function createHexPath(cx, cy, r) {
+          const halfH = (Math.sqrt(3) * r) / 2;
+          const p1 = [cx + r, cy];
+          const p2 = [cx + r / 2, cy + halfH];
+          const p3 = [cx - r / 2, cy + halfH];
+          const p4 = [cx - r, cy];
+          const p5 = [cx - r / 2, cy - halfH];
+          const p6 = [cx + r / 2, cy - halfH];
+          return `M ${p1[0]} ${p1[1]} L ${p2[0]} ${p2[1]} L ${p3[0]} ${p3[1]} L ${p4[0]} ${p4[1]} L ${p5[0]} ${p5[1]} L ${p6[0]} ${p6[1]} Z`;
+        }
+
+        function draw() {
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+          svg.replaceChildren();
+
+          const targetCols = Math.max(6, Math.floor(w / 90));
+          const r = Math.max(16, Math.min(54, w / (targetCols * 1.5 + 2)));
+          const hexH = Math.sqrt(3) * r;
+          const dx = 1.5 * r;
+          const dy = hexH;
+          const padding = Math.max(24, r * 0.9);
+
+          const minX = padding + r;
+          const maxX = w - padding - r;
+          const minY = padding + hexH / 2;
+          const maxY = h - padding - hexH / 2;
+
+          const group = document.createElementNS(NS, "g");
+          group.setAttribute("fill", "none");
+          group.setAttribute("stroke", "#555");
+          group.setAttribute("stroke-width", "1.2");
+          group.setAttribute("vector-effect", "non-scaling-stroke");
+
+          let col = 0;
+          for (let x = minX; x <= maxX + 0.01; x += dx, col += 1) {
+            const yOffset = (col % 2) * (hexH / 2);
+            for (let y = minY + yOffset; y <= maxY + 0.01; y += dy) {
+              const path = document.createElementNS(NS, "path");
+              path.setAttribute("d", createHexPath(x, y, r));
+              group.appendChild(path);
+            }
+          }
+
+          svg.appendChild(group);
+        }
+
+        let raf = 0;
+        function redraw() {
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(draw);
+        }
+
+        window.addEventListener("resize", redraw, { passive: true });
+        draw();
+      })();
+    </script>
+  </body>
+</html>

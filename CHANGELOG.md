@@ -1,6 +1,14 @@
 # Changelog
 
 ## 2026-04-01
+- Added manual wall-face editing workflow with a dedicated wall editor view showing all six tile-set trays side by side, including support for editing `molten_entrance` wall faces.
+- Added wall override persistence tooling: `Export Walls`, `Import Walls`, and `Clear Tile Walls`, scoped to wall-edit mode and saved via local storage backup format.
+- Reworked reserve pile interaction: added 3-dot options menu with edit toggle, side-by-side reserve editing layout, bidirectional tray/reserve swap selection, consistent blue swap highlighting, and position-preserving swaps.
+- Updated tray controls and behavior: two-row action layout (`Reroll Tiles`, `Randomize Rotation`, `Reset Position`, `Reset Tiles`) with tray-only reroll/rotation operations and a non-randomizing `Reset Tiles` return-to-tray flow.
+- Refined top-bar controls: moved UI theme selector to the header, normalized control sizing, adjusted button ordering (wall-edit toggle as last action), renamed wall-edit exit label to `Frontpage`, and improved dropdown open/close behavior (outside click closes menus).
+- Applied extensive visual polish for Molten and default themes: swapped requested board/tray tones, updated tray/pile panel transparency, improved rotate-control contrast in dark mode, refreshed reserve menu icon styling, and tuned wall-segment highlight colors for edit mode clarity.
+- Replaced the board’s CSS pattern grid with a responsive SVG hex-outline renderer in `app.js` that redraws on resize, uses theme-specific stroke colors, and avoids clipped edge hexes.
+- Added `hex-background.html` as a standalone reference/demo for the full-screen responsive flat-top SVG hex background implementation.
 - Added a tile-set selector in the tray header (`Tile Set`) with runtime switching support in `app.js` for: Molten, Overgrown, Dreamscape, Nightmare, Submerged, and Deep Freeze.
 - Implemented theme asset loading by folder/prefix convention (`<prefix>_entrance.png`, `<prefix>1..9.png`) and fallback handling when assets are missing.
 - Renamed the default molten asset folder from `tiles/molten_overgrown/` to `tiles/molten/` and updated code/docs mappings accordingly.
@@ -13,6 +21,7 @@
 - Randomized tray tile rotations (in 60deg steps) on round/reset and tray-return paths.
 - Polished tray/header spacing, stabilized button widths, and refined rotate control positioning/visibility.
 - Added/updated theme-related graphic source assets under `gfx/`.
+- Session note: The UI survived 47 tiny button tweaks and one major hex-grid identity crisis.
 - Session note: Measured UI changes in pixels long enough to develop trust issues with cached CSS.
 
 ## 2026-03-31

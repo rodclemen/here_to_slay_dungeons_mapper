@@ -14,9 +14,28 @@
           <p>Place <code>molten_entrance</code>, then place 6 random tiles with at least 2-side contact.</p>
         </div>
         <div class="actions">
-          <button id="reroll-btn" type="button">Reroll 6 Tiles</button>
-          <button id="reset-btn" type="button">Reset Positions</button>
-          <button id="toggle-labels-btn" type="button">Show Numbers</button>
+          <select id="ui-theme-select" aria-label="UI Theme">
+            <option value="current">Current</option>
+            <option value="molten">Molten</option>
+          </select>
+          <details class="view-menu">
+            <summary>Debug</summary>
+            <div class="view-menu-panel">
+              <label>
+                <input id="toggle-labels-checkbox" type="checkbox" />
+                <span>Show Numbers</span>
+              </label>
+              <label>
+                <input id="toggle-walls-checkbox" type="checkbox" />
+                <span>Show Walls</span>
+              </label>
+            </div>
+          </details>
+          <button id="toggle-wall-edit-btn" type="button">Edit Walls</button>
+          <button id="clear-tile-walls-btn" class="wall-edit-only" type="button">Clear Tile Walls</button>
+          <button id="export-wall-data-btn" class="wall-edit-only" type="button">Export Walls</button>
+          <button id="import-wall-data-btn" class="wall-edit-only" type="button">Import Walls</button>
+          <input id="import-wall-data-input" type="file" accept="application/json" hidden />
         </div>
       </header>
 
@@ -25,24 +44,44 @@
         <aside class="sidebar">
           <div class="tray-head">
             <h2>Tile Tray</h2>
-            <label class="theme-picker">
-              <span class="theme-label">Tile Set</span>
-              <select id="theme-select" aria-label="Tile Set">
-                <option value="molten">Molten</option>
-                <option value="overgrown">Overgrown</option>
-                <option value="dreamscape">Dreamscape</option>
-                <option value="nightmare">Nightmare</option>
-                <option value="submerged">Submerged</option>
-                <option value="deep_freeze">Deep Freeze</option>
-              </select>
-            </label>
+            <div class="tray-pickers">
+              <label class="theme-picker">
+                <span class="theme-label">Tile Set</span>
+                <select id="theme-select" aria-label="Tile Set">
+                  <option value="molten">Molten</option>
+                  <option value="overgrown">Overgrown</option>
+                  <option value="dreamscape">Dreamscape</option>
+                  <option value="nightmare">Nightmare</option>
+                  <option value="submerged">Submerged</option>
+                  <option value="deep_freeze">Deep Freeze</option>
+                </select>
+              </label>
+            </div>
           </div>
-          <p class="hint">Drag to board. Select tile and press <code>R</code>/<code>F</code> to rotate ±60°.</p>
           <div id="tray" class="tray"></div>
-          <div id="reserve-stack" class="reserve-stack" aria-label="Remaining tiles"></div>
+          <div class="reserve-area">
+            <div id="reserve-stack" class="reserve-stack" aria-label="Remaining tiles"></div>
+            <details class="reserve-menu">
+              <summary aria-label="Reserve options">⋮</summary>
+              <div class="reserve-menu-panel">
+                <label>
+                  <input id="reserve-edit-checkbox" type="checkbox" />
+                  <span>Edit</span>
+                </label>
+              </div>
+            </details>
+          </div>
+          <div class="tray-actions">
+            <button id="reroll-btn" type="button">Reroll Tiles</button>
+            <button id="randomize-rotation-btn" type="button">Randomize Rotation</button>
+            <button id="reset-position-btn" type="button">Reset Position</button>
+            <button id="reset-tiles-btn" type="button">Reset Tiles</button>
+          </div>
           <div id="status" class="status" role="status" aria-live="polite"></div>
         </aside>
       </section>
+
+      <section id="wall-editor-page" class="wall-editor-page" aria-label="Wall editor"></section>
     </main>
 
     <script src="./app.js" type="module"></script>

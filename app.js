@@ -12,7 +12,10 @@ const INVALID_RETURN_DELAY_MS = 10_000;
 const INVALID_DROP_PUSH_PX = 140;
 const TILE_START_NON_NUMERIC_POINTS = new Set([11, 12]);
 const BLOCKED_POINT_TOUCH_RADIUS = 4;
+const WALL_OVERRIDES_STORAGE_KEY = "hts_wall_overrides_v1";
+const UI_THEME_STORAGE_KEY = "hts_ui_theme_v1";
 const DEFAULT_THEME_ID = "molten";
+const DEFAULT_UI_THEME_ID = "current";
 const THEME_OPTIONS = [
   { id: "molten", label: "Molten", folder: "molten", prefix: "molten" },
   { id: "overgrown", label: "Overgrown", folder: "overgrown", prefix: "overgrown" },
@@ -23,27 +26,50 @@ const THEME_OPTIONS = [
 ];
 const TRAY_CENTER_X = TILE_SIZE / 2;
 const TRAY_CENTER_Y = TILE_SIZE / 2 + 10;
+const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 
 const board = document.getElementById("board");
 const tray = document.getElementById("tray");
 const reserveStack = document.getElementById("reserve-stack");
+const reserveEditCheckbox = document.getElementById("reserve-edit-checkbox");
+const wallEditorPage = document.getElementById("wall-editor-page");
 const themeSelect = document.getElementById("theme-select");
+const uiThemeSelect = document.getElementById("ui-theme-select");
 const workspace = document.querySelector(".workspace");
 const statusEl = document.getElementById("status");
 const rerollBtn = document.getElementById("reroll-btn");
-const resetBtn = document.getElementById("reset-btn");
-const toggleLabelsBtn = document.getElementById("toggle-labels-btn");
+const randomizeRotationBtn = document.getElementById("randomize-rotation-btn");
+const resetPositionBtn = document.getElementById("reset-position-btn");
+const resetTilesBtn = document.getElementById("reset-tiles-btn");
+const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
+const toggleWallEditBtn = document.getElementById("toggle-wall-edit-btn");
+const clearTileWallsBtn = document.getElementById("clear-tile-walls-btn");
+const exportWallDataBtn = document.getElementById("export-wall-data-btn");
+const importWallDataBtn = document.getElementById("import-wall-data-btn");
+const importWallDataInput = document.getElementById("import-wall-data-input");
+const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
 const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
+let boardHexRenderRaf = 0;
 
 const state = {
   tiles: new Map(),
   selectedTileId: null,
   hoveredTileId: null,
   selectedThemeId: DEFAULT_THEME_ID,
+  selectedUiThemeId: loadUiThemeId(),
   tileDefs: [],
   showGuideLabels: false,
+  showWallFaces: false,
+  wallEditMode: false,
+  wallOverrides: loadWallOverrides(),
+  wallEditorTileRefs: new Map(),
+  wallEditorActiveThemeId: null,
+  wallEditorActiveTileId: null,
+  pendingSwapSource: null,
+  reserveEditMode: false,
+  reserveOrder: [],
 };
 
 init().catch((error) => {
@@ -54,7 +80,10 @@ init().catch((error) => {
 async function init() {
   bindGlobalControls();
   if (themeSelect) themeSelect.value = state.selectedThemeId;
+  if (uiThemeSelect) uiThemeSelect.value = state.selectedUiThemeId;
+  applyUiTheme(state.selectedUiThemeId);
   await applyTheme(state.selectedThemeId, false);
+  scheduleBoardHexGridRender();
 }
 
 async function loadTiles(themeId = state.selectedThemeId) {
@@ -85,6 +114,7 @@ async function loadTiles(themeId = state.selectedThemeId) {
       faceGeometry,
       sideLength: faceGeometry.avgSideLength,
       apothem: faceGeometry.avgOffset,
+      wallFaceSet: new Set(getStoredWallFaces(themeId, def.id)),
     });
   }
 }
@@ -132,19 +162,109 @@ async function applyTheme(themeId, showStatus = true) {
 }
 
 function bindGlobalControls() {
-  rerollBtn.addEventListener("click", () => startRound());
-  resetBtn.addEventListener("click", () => resetPositions());
-  if (toggleLabelsBtn) {
-    toggleLabelsBtn.addEventListener("click", () => {
-      state.showGuideLabels = !state.showGuideLabels;
+  rerollBtn.addEventListener("click", () => rerollTrayTiles());
+  if (randomizeRotationBtn) {
+    randomizeRotationBtn.addEventListener("click", () => randomizeTrayRotation());
+  }
+  if (resetPositionBtn) {
+    resetPositionBtn.addEventListener("click", () => resetTrayPositions());
+  }
+  if (resetTilesBtn) {
+    resetTilesBtn.addEventListener("click", () => resetTiles());
+  }
+  if (toggleLabelsCheckbox) {
+    toggleLabelsCheckbox.checked = state.showGuideLabels;
+    toggleLabelsCheckbox.addEventListener("change", () => {
+      state.showGuideLabels = toggleLabelsCheckbox.checked;
       document.body.classList.toggle("show-guide-labels", state.showGuideLabels);
-      toggleLabelsBtn.textContent = state.showGuideLabels ? "Hide Numbers" : "Show Numbers";
+    });
+  }
+  if (toggleWallsCheckbox) {
+    toggleWallsCheckbox.checked = state.showWallFaces;
+    toggleWallsCheckbox.addEventListener("change", () => {
+      state.showWallFaces = toggleWallsCheckbox.checked;
+      document.body.classList.toggle("show-wall-faces", state.showWallFaces);
+    });
+  }
+  if (toggleWallEditBtn) {
+    toggleWallEditBtn.addEventListener("click", () => {
+      setWallEditMode(!state.wallEditMode);
+    });
+  }
+  if (clearTileWallsBtn) {
+    clearTileWallsBtn.addEventListener("click", () => {
+      if (!state.wallEditMode) {
+        setStatus("Clear Tile Walls is available only in wall edit mode.", true);
+        return;
+      }
+      const active = getActiveTileForWallEditing();
+      if (!active) {
+        setStatus("Select or hover a tile to clear its wall faces.", true);
+        return;
+      }
+      const { themeId, tile } = active;
+      tile.wallFaceSet.clear();
+      persistTileWallFaces(themeId, tile.id, tile.wallFaceSet);
+      refreshTileWallGuide(tile);
+      setStatus(`Cleared wall faces for ${tile.id} (${getThemeConfig(themeId).label}).`);
     });
   }
   if (themeSelect) {
     themeSelect.addEventListener("change", async (event) => {
       const nextThemeId = event.target.value;
       await applyTheme(nextThemeId, true);
+    });
+  }
+  if (uiThemeSelect) {
+    uiThemeSelect.addEventListener("change", (event) => {
+      const nextThemeId = event.target.value || DEFAULT_UI_THEME_ID;
+      state.selectedUiThemeId = nextThemeId;
+      applyUiTheme(nextThemeId);
+      saveUiThemeId(nextThemeId);
+      setStatus(`UI theme set to ${nextThemeId === "molten" ? "Molten" : "Current"}.`);
+    });
+  }
+  if (exportWallDataBtn) {
+    exportWallDataBtn.addEventListener("click", () => {
+      if (!state.wallEditMode) {
+        setStatus("Export Walls is available only in wall edit mode.", true);
+        return;
+      }
+      exportWallOverridesBackup();
+    });
+  }
+  if (importWallDataBtn && importWallDataInput) {
+    importWallDataBtn.addEventListener("click", () => {
+      if (!state.wallEditMode) {
+        setStatus("Import Walls is available only in wall edit mode.", true);
+        return;
+      }
+      importWallDataInput.click();
+    });
+    importWallDataInput.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      await importWallOverridesBackup(file);
+    });
+  }
+  if (reserveEditCheckbox) {
+    reserveEditCheckbox.checked = state.reserveEditMode;
+    reserveEditCheckbox.addEventListener("change", (event) => {
+      state.reserveEditMode = reserveEditCheckbox.checked;
+      if (state.reserveEditMode) {
+        randomizeCurrentInactiveReserveOrder();
+      } else {
+        clearPendingReserveSwap();
+      }
+      renderInactiveTileStack();
+      const menu = event.target.closest(".reserve-menu");
+      if (menu) menu.open = false;
+      if (state.reserveEditMode) {
+        setStatus("Reserve edit mode on: inactive tiles are shown side by side.");
+      } else {
+        setStatus("Reserve edit mode off: inactive tiles shown as stack.");
+      }
     });
   }
 
@@ -163,9 +283,75 @@ function bindGlobalControls() {
       rotateTile(tile, -ROTATION_STEP);
     }
   });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".view-menu, .reserve-menu")) return;
+    const openMenus = document.querySelectorAll(".view-menu[open], .reserve-menu[open]");
+    openMenus.forEach((menu) => {
+      menu.open = false;
+    });
+  });
+
+  window.addEventListener("resize", scheduleBoardHexGridRender, { passive: true });
+
+}
+
+function loadUiThemeId() {
+  try {
+    const saved = localStorage.getItem(UI_THEME_STORAGE_KEY);
+    if (saved === "molten" || saved === "current") return saved;
+  } catch (error) {
+    console.warn("Could not load UI theme preference.", error);
+  }
+  return DEFAULT_UI_THEME_ID;
+}
+
+function saveUiThemeId(themeId) {
+  try {
+    localStorage.setItem(UI_THEME_STORAGE_KEY, themeId);
+  } catch (error) {
+    console.warn("Could not save UI theme preference.", error);
+  }
+}
+
+function applyUiTheme(themeId) {
+  document.body.classList.toggle("ui-theme-molten", themeId === "molten");
+  scheduleBoardHexGridRender();
+}
+
+function setWallEditMode(enabled) {
+  clearPendingReserveSwap();
+  state.wallEditMode = enabled;
+  document.body.classList.toggle("wall-edit-mode", enabled);
+  if (toggleWallEditBtn) {
+    toggleWallEditBtn.textContent = enabled ? "Frontpage" : "Edit Walls";
+  }
+  if (enabled) {
+    startWallEditSession();
+    setStatus("Wall edit mode: click a face segment to toggle wall ON/OFF. Changes are saved per theme+tile.");
+  } else {
+    syncSelectedThemeWallsFromOverrides();
+    startRound();
+    setStatus("Wall edit mode off. Round reset.");
+  }
+}
+
+function startWallEditSession() {
+  clearBoard();
+  state.wallEditorTileRefs = new Map();
+  state.wallEditorActiveThemeId = null;
+  state.wallEditorActiveTileId = null;
+  renderWallEditorPage().catch((error) => {
+    console.error(error);
+    setStatus("Failed to build wall editor page. Check tile assets.", true);
+  });
 }
 
 function startRound() {
+  if (state.wallEditMode) {
+    startWallEditSession();
+    return;
+  }
   clearBoard();
 
   const candidateTiles = state.tileDefs.filter((t) => !t.required).map((t) => t.id);
@@ -174,26 +360,100 @@ function startRound() {
   for (const tile of state.tiles.values()) {
     tile.active = tile.id === "molten_entrance" || selectedIds.includes(tile.id);
     tile.placed = false;
-    tile.rotation = tile.id === "molten_entrance" ? 0 : randomTrayRotation();
+    tile.rotation = 0;
   }
+  resetReserveOrderForCurrentInactive();
 
   renderActiveTiles();
   placeStartTileAtCenter();
-  setStatus("Round ready. Drag tiles to board. Each placed tile must touch at least 4 guide points of an existing tile.");
 }
 
-function resetPositions() {
-  clearBoard();
-
-  for (const tile of state.tiles.values()) {
-    if (!tile.active) continue;
-    tile.rotation = tile.id === "molten_entrance" ? 0 : randomTrayRotation();
-    tile.placed = false;
+function rerollTrayTiles() {
+  if (state.wallEditMode) {
+    startWallEditSession();
+    return;
   }
 
+  const placedRegularIds = new Set(
+    Array.from(state.tiles.values())
+      .filter((tile) => !tile.required && tile.active && tile.placed)
+      .map((tile) => tile.id),
+  );
+  const trayTargetCount = Math.max(0, 6 - placedRegularIds.size);
+  const candidateIds = state.tileDefs
+    .filter((def) => !def.required)
+    .map((def) => def.id)
+    .filter((id) => !placedRegularIds.has(id));
+  const selectedTrayIds = new Set(shuffle(candidateIds).slice(0, trayTargetCount));
+
+  for (const tile of state.tiles.values()) {
+    if (tile.required) continue;
+    if (placedRegularIds.has(tile.id)) {
+      tile.active = true;
+      tile.placed = true;
+      continue;
+    }
+    if (selectedTrayIds.has(tile.id)) {
+      tile.active = true;
+      tile.placed = false;
+      tile.rotation = 0;
+      continue;
+    }
+    tile.active = false;
+    tile.placed = false;
+    tile.rotation = 0;
+  }
+
+  resetReserveOrderForCurrentInactive();
+  rerenderTrayAndReserve();
+  setStatus("Tray tiles rerolled. Grid placements kept.");
+}
+
+function randomizeTrayRotation() {
+  if (state.wallEditMode) {
+    startWallEditSession();
+    setStatus("Wall edit mode refreshed.");
+    return;
+  }
+
+  let changed = false;
+  for (const tile of state.tiles.values()) {
+    if (tile.required || !tile.active || tile.placed) continue;
+    tile.rotation = randomTrayRotation();
+    updateTileTransform(tile);
+    changed = true;
+  }
+
+  if (changed) {
+    setStatus("Tray tile rotation randomized.");
+  } else {
+    setStatus("No tray tiles available to randomize.", true);
+  }
+}
+
+function resetTrayPositions() {
+  if (state.wallEditMode) {
+    startWallEditSession();
+    setStatus("Wall edit mode refreshed.");
+    return;
+  }
+
+  clearPendingReserveSwap();
+  rerenderTrayAndReserve();
+  setStatus("Tray positions reset.");
+}
+
+function resetTiles() {
+  if (state.wallEditMode) {
+    startWallEditSession();
+    setStatus("Wall edit mode refreshed.");
+    return;
+  }
+
+  clearBoard();
   renderActiveTiles();
   placeStartTileAtCenter();
-  setStatus("Positions reset. Same 6 random tiles kept.");
+  setStatus("Tiles reset to tray.");
 }
 
 function clearBoard() {
@@ -201,10 +461,83 @@ function clearBoard() {
     clearInvalidReturnTimer(tile);
   }
   board.innerHTML = "";
+  mountBoardHexGrid();
   tray.innerHTML = "";
   reserveStack.innerHTML = "";
+  if (wallEditorPage && !state.wallEditMode) wallEditorPage.innerHTML = "";
   state.selectedTileId = null;
   state.hoveredTileId = null;
+  clearPendingReserveSwap();
+}
+
+function mountBoardHexGrid() {
+  const svg = document.createElementNS(BOARD_HEX_SVG_NS, "svg");
+  svg.classList.add("board-hex-grid");
+  svg.setAttribute("aria-hidden", "true");
+  board.appendChild(svg);
+  renderBoardHexGrid();
+}
+
+function scheduleBoardHexGridRender() {
+  cancelAnimationFrame(boardHexRenderRaf);
+  boardHexRenderRaf = requestAnimationFrame(renderBoardHexGrid);
+}
+
+function renderBoardHexGrid() {
+  const svg = board.querySelector(".board-hex-grid");
+  if (!svg) return;
+
+  const w = Math.floor(board.clientWidth);
+  const h = Math.floor(board.clientHeight);
+  if (w <= 0 || h <= 0) return;
+
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.replaceChildren();
+
+  const strokeColor = state.selectedUiThemeId === "molten"
+    ? "rgba(255, 191, 129, 0.36)"
+    : "rgba(54, 83, 102, 0.32)";
+
+  const padding = Math.max(16, Math.min(28, Math.floor(Math.min(w, h) * 0.045)));
+  const targetCols = Math.max(6, Math.floor((w - padding * 2) / 64));
+  const radius = Math.max(14, Math.min(34, (w - padding * 2) / (targetCols * 1.5 + 0.5)));
+  const hexHeight = Math.sqrt(3) * radius;
+  const dx = 1.5 * radius;
+  const dy = hexHeight;
+
+  const minX = padding + radius;
+  const maxX = w - padding - radius;
+  const minY = padding + hexHeight / 2;
+  const maxY = h - padding - hexHeight / 2;
+
+  const group = document.createElementNS(BOARD_HEX_SVG_NS, "g");
+  group.setAttribute("fill", "none");
+  group.setAttribute("stroke", strokeColor);
+  group.setAttribute("stroke-width", "1");
+  group.setAttribute("vector-effect", "non-scaling-stroke");
+
+  let col = 0;
+  for (let x = minX; x <= maxX + 0.01; x += dx, col += 1) {
+    const yOffset = (col % 2) * (hexHeight / 2);
+    for (let y = minY + yOffset; y <= maxY + 0.01; y += dy) {
+      const path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
+      path.setAttribute("d", hexPath(x, y, radius));
+      group.appendChild(path);
+    }
+  }
+
+  svg.appendChild(group);
+}
+
+function hexPath(cx, cy, radius) {
+  const halfH = (Math.sqrt(3) * radius) / 2;
+  const p1 = `${cx + radius} ${cy}`;
+  const p2 = `${cx + radius / 2} ${cy + halfH}`;
+  const p3 = `${cx - radius / 2} ${cy + halfH}`;
+  const p4 = `${cx - radius} ${cy}`;
+  const p5 = `${cx - radius / 2} ${cy - halfH}`;
+  const p6 = `${cx + radius / 2} ${cy - halfH}`;
+  return `M ${p1} L ${p2} L ${p3} L ${p4} L ${p5} L ${p6} Z`;
 }
 
 function renderActiveTiles() {
@@ -233,10 +566,48 @@ function renderActiveTiles() {
   renderInactiveTileStack();
 }
 
+function rerenderTrayAndReserve() {
+  tray.innerHTML = "";
+  reserveStack.innerHTML = "";
+  state.hoveredTileId = null;
+  selectTile(null);
+  clearPendingReserveSwap();
+
+  const trayTiles = [];
+  for (const tile of state.tiles.values()) {
+    if (tile.required || tile.placed) continue;
+    tile.dom = null;
+    tile.bodyDom = null;
+    tile.guideDom = null;
+    tile.traySlot = null;
+
+    if (!tile.active) continue;
+    trayTiles.push(tile);
+  }
+
+  const traySlotCount = 6;
+  for (let i = 0; i < traySlotCount; i += 1) {
+    const slot = document.createElement("div");
+    slot.className = "tray-slot";
+    tray.appendChild(slot);
+
+    const tile = trayTiles[i];
+    if (!tile) continue;
+    const tileEl = createTileElement(tile);
+    tile.dom = tileEl;
+    slot.appendChild(tileEl);
+    tile.traySlot = slot;
+    positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
+    updateTileTransform(tile);
+  }
+
+  renderInactiveTileStack();
+}
+
 function renderInactiveTileStack() {
-  const inactiveTiles = Array.from(state.tiles.values())
-    .filter((tile) => !tile.required && !tile.active)
-    .sort((a, b) => a.id.localeCompare(b.id));
+  reserveStack.innerHTML = "";
+  reserveStack.classList.toggle("edit-mode", state.reserveEditMode);
+  const inactiveTiles = getInactiveTilesInReserveOrder();
 
   const offsets = [
     { x: -22, y: 22, rot: -13, z: 1, scale: 0.97 },
@@ -249,11 +620,29 @@ function renderInactiveTileStack() {
     const card = document.createElement("div");
     card.className = "reserve-card";
     const offset = offsets[i] || offsets[offsets.length - 1];
-    card.style.setProperty("--dx", `${offset.x}px`);
-    card.style.setProperty("--dy", `${offset.y}px`);
-    card.style.setProperty("--rot", `${offset.rot}deg`);
-    card.style.setProperty("--z", String(offset.z));
-    card.style.setProperty("--scale", String(offset.scale ?? 1));
+    if (!state.reserveEditMode) {
+      card.style.setProperty("--dx", `${offset.x}px`);
+      card.style.setProperty("--dy", `${offset.y}px`);
+      card.style.setProperty("--rot", `${offset.rot}deg`);
+      card.style.setProperty("--z", String(offset.z));
+      card.style.setProperty("--scale", String(offset.scale ?? 1));
+    } else {
+      card.style.setProperty("--dx", "0px");
+      card.style.setProperty("--dy", "0px");
+      card.style.setProperty("--rot", "0deg");
+      card.style.setProperty("--z", "1");
+      card.style.setProperty("--scale", "1");
+    }
+    card.dataset.tileId = tile.id;
+    const isSelectedSource =
+      state.pendingSwapSource?.zone === "reserve"
+      && state.pendingSwapSource?.tileId === tile.id;
+    card.classList.toggle("selected", isSelectedSource);
+    card.addEventListener("click", () => {
+      if (state.wallEditMode) return;
+      if (!state.reserveEditMode) return;
+      handleSwapClick("reserve", tile.id);
+    });
 
     const img = document.createElement("img");
     img.src = tile.src;
@@ -263,6 +652,46 @@ function renderInactiveTileStack() {
     card.appendChild(createReserveGuideOverlay(tile));
     reserveStack.appendChild(card);
   }
+
+  updateReserveSwapHighlights();
+}
+
+function getInactiveTilesInReserveOrder() {
+  const inactiveSet = new Set(
+    Array.from(state.tiles.values())
+      .filter((tile) => !tile.required && !tile.active)
+      .map((tile) => tile.id),
+  );
+
+  const orderedIds = [];
+  for (const id of state.reserveOrder) {
+    if (inactiveSet.has(id)) {
+      orderedIds.push(id);
+      inactiveSet.delete(id);
+    }
+  }
+
+  const missingIds = Array.from(inactiveSet);
+  const missingShuffled = shuffle(missingIds);
+  for (const id of missingShuffled) {
+    orderedIds.push(id);
+    inactiveSet.delete(id);
+  }
+
+  state.reserveOrder = orderedIds;
+  return orderedIds.map((id) => state.tiles.get(id)).filter(Boolean);
+}
+
+function resetReserveOrderForCurrentInactive() {
+  const inactiveIds = Array.from(state.tiles.values())
+    .filter((tile) => !tile.required && !tile.active)
+    .map((tile) => tile.id);
+  state.reserveOrder = shuffle(inactiveIds);
+}
+
+function randomizeCurrentInactiveReserveOrder() {
+  const currentIds = getInactiveTilesInReserveOrder().map((tile) => tile.id);
+  state.reserveOrder = shuffle(currentIds);
 }
 
 function createReserveGuideOverlay(tile) {
@@ -283,7 +712,7 @@ function placeStartTileAtCenter() {
   const start = state.tiles.get("molten_entrance");
   const rect = board.getBoundingClientRect();
   const x = rect.width / 2;
-  const y = rect.height / 2;
+  const y = TILE_SIZE / 2 + 34;
   positionTile(start, x, y);
   updateTileParent(start, board);
   start.placed = true;
@@ -305,9 +734,11 @@ function createTileElement(tile) {
   img.addEventListener("dragstart", (event) => event.preventDefault());
   body.appendChild(img);
   body.appendChild(createPlacementOverlay(tile));
-  body.appendChild(createTileGuideOverlay(tile));
+  const guideOverlay = createTileGuideOverlay(tile);
+  body.appendChild(guideOverlay);
   tileEl.appendChild(body);
   tile.bodyDom = body;
+  tile.guideDom = guideOverlay;
 
   const controls = document.createElement("div");
   controls.className = "tile-controls";
@@ -342,21 +773,222 @@ function createTileElement(tile) {
 
   tileEl.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    const faceHit = event.target.closest(".tile-guide-face-hit");
+    if (state.wallEditMode && faceHit) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (tile.id === "molten_entrance") {
+        setStatus("Entrance tile wall editing is disabled. Edit regular tiles only.", true);
+        return;
+      }
+      const faceIdx = Number.parseInt(faceHit.dataset.faceIndex || "", 10);
+      if (!Number.isInteger(faceIdx)) return;
+      if (tile.wallFaceSet.has(faceIdx)) {
+        tile.wallFaceSet.delete(faceIdx);
+      } else {
+        tile.wallFaceSet.add(faceIdx);
+      }
+      persistTileWallFaces(state.selectedThemeId, tile.id, tile.wallFaceSet);
+      refreshTileWallGuide(tile);
+      setStatus(
+        `${tile.id} wall faces: ${Array.from(tile.wallFaceSet).sort((a, b) => a - b).join(", ") || "none"}.`,
+      );
+      return;
+    }
     if (event.target.closest(".tile-controls")) return;
+    if (state.wallEditMode) return;
+    if (state.pendingSwapSource) {
+      if (!state.reserveEditMode) {
+        clearPendingReserveSwap();
+        return;
+      }
+      if (state.pendingSwapSource.zone === "tray") {
+        if (!isReserveSwapSource(tile)) {
+          setStatus("Choose a reserve tile to swap with the selected tray tile.", true);
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        performReserveToTraySwap(tile.id, state.pendingSwapSource.tileId);
+      } else if (isTraySwapTarget(tile)) {
+        event.preventDefault();
+        event.stopPropagation();
+        performReserveToTraySwap(state.pendingSwapSource.tileId, tile.id);
+      } else {
+        setStatus("Choose a tile currently in the tray to swap with the selected reserve tile.", true);
+      }
+      return;
+    }
     event.preventDefault();
     selectTile(tile.id);
     beginDrag(tile, event);
   });
 
-  tileEl.addEventListener("click", () => selectTile(tile.id));
+  tileEl.addEventListener("click", () => {
+    if (state.reserveEditMode && isTraySwapTarget(tile)) {
+      handleSwapClick("tray", tile.id);
+      return;
+    }
+    if (state.pendingSwapSource) return;
+    selectTile(tile.id);
+  });
   tileEl.addEventListener("mouseenter", () => {
     state.hoveredTileId = tile.id;
+    if (state.selectedTileId && state.selectedTileId !== tile.id) {
+      selectTile(null);
+    }
   });
   tileEl.addEventListener("mouseleave", () => {
     if (state.hoveredTileId === tile.id) state.hoveredTileId = null;
+    if (state.selectedTileId && !state.hoveredTileId) selectTile(null);
   });
   tileEl.addEventListener("dragstart", (event) => event.preventDefault());
+  if (state.pendingSwapSource && isSwapTargetHighlight(tile)) {
+    tileEl.classList.add("swap-target");
+  }
   return tileEl;
+}
+
+function handleSwapClick(zone, tileId) {
+  if (!tileId || !state.reserveEditMode) return;
+  if (zone === "reserve" && !isReserveSwapSource(state.tiles.get(tileId))) return;
+  if (zone === "tray" && !isTraySwapTarget(state.tiles.get(tileId))) return;
+
+  if (state.pendingSwapSource?.zone === zone && state.pendingSwapSource?.tileId === tileId) {
+    clearPendingReserveSwap();
+    setStatus("Reserve swap cancelled.");
+    return;
+  }
+
+  if (!state.pendingSwapSource) {
+    state.pendingSwapSource = { zone, tileId };
+    updateReserveSwapHighlights();
+    if (zone === "reserve") {
+      setStatus(`Reserve ${tileId} selected. Click a tray tile to swap.`);
+    } else {
+      setStatus(`Tray ${tileId} selected. Click a reserve tile to swap.`);
+    }
+    return;
+  }
+
+  const source = state.pendingSwapSource;
+  if (source.zone === "reserve" && zone === "tray") {
+    performReserveToTraySwap(source.tileId, tileId);
+    return;
+  }
+  if (source.zone === "tray" && zone === "reserve") {
+    performReserveToTraySwap(tileId, source.tileId);
+    return;
+  }
+
+  state.pendingSwapSource = { zone, tileId };
+  updateReserveSwapHighlights();
+  if (zone === "reserve") {
+    setStatus(`Reserve ${tileId} selected. Click a tray tile to swap.`);
+  } else {
+    setStatus(`Tray ${tileId} selected. Click a reserve tile to swap.`);
+  }
+}
+
+function clearPendingReserveSwap() {
+  if (!state.pendingSwapSource) return;
+  state.pendingSwapSource = null;
+  updateReserveSwapHighlights();
+}
+
+function updateReserveSwapHighlights() {
+  document.body.classList.toggle("reserve-swap-pending", Boolean(state.pendingSwapSource));
+  const cards = reserveStack.querySelectorAll(".reserve-card");
+  for (const card of cards) {
+    const isSelectedSource =
+      state.pendingSwapSource?.zone === "reserve"
+      && card.dataset.tileId === state.pendingSwapSource?.tileId;
+    const isReserveTarget = state.pendingSwapSource?.zone === "tray";
+    card.classList.toggle("selected", isSelectedSource);
+    card.classList.toggle("swap-target", Boolean(isReserveTarget));
+  }
+  for (const tile of state.tiles.values()) {
+    if (!tile.dom) continue;
+    const isTraySource =
+      state.pendingSwapSource?.zone === "tray"
+      && state.pendingSwapSource?.tileId === tile.id;
+    tile.dom.classList.toggle("swap-source", isTraySource);
+    tile.dom.classList.toggle("swap-target", Boolean(state.pendingSwapSource) && isSwapTargetHighlight(tile));
+  }
+}
+
+function isReserveSwapSource(tile) {
+  return Boolean(tile && !tile.required && !tile.active);
+}
+
+function isTraySwapTarget(tile) {
+  if (!tile || tile.required || !tile.active || tile.placed) return false;
+  if (!tile.dom || !tile.traySlot) return false;
+  return tile.dom.parentElement === tile.traySlot;
+}
+
+function isSwapTargetHighlight(tile) {
+  if (!state.pendingSwapSource) return false;
+  if (state.pendingSwapSource.zone === "reserve") return isTraySwapTarget(tile);
+  if (state.pendingSwapSource.zone === "tray") return isReserveSwapSource(tile);
+  return false;
+}
+
+function performReserveToTraySwap(reserveTileId, trayTileId) {
+  if (!state.reserveEditMode) return;
+  const reserveTile = state.tiles.get(reserveTileId);
+  const trayTile = state.tiles.get(trayTileId);
+  if (!reserveTile || !trayTile) return;
+  if (reserveTile.active || !isTraySwapTarget(trayTile)) {
+    setStatus("Swap unavailable for current selection.", true);
+    clearPendingReserveSwap();
+    return;
+  }
+
+  clearInvalidReturnTimer(reserveTile);
+  clearInvalidReturnTimer(trayTile);
+  const targetSlot = trayTile.traySlot;
+  if (!targetSlot) return;
+
+  if (trayTile.dom && trayTile.dom.parentElement) {
+    trayTile.dom.parentElement.removeChild(trayTile.dom);
+  }
+  trayTile.dom = null;
+  trayTile.bodyDom = null;
+  trayTile.guideDom = null;
+  trayTile.traySlot = null;
+  trayTile.active = false;
+  trayTile.placed = false;
+  trayTile.rotation = 0;
+
+  reserveTile.active = true;
+  reserveTile.placed = false;
+  reserveTile.rotation = 0;
+  reserveTile.traySlot = targetSlot;
+  const reserveEl = createTileElement(reserveTile);
+  reserveTile.dom = reserveEl;
+  targetSlot.innerHTML = "";
+  targetSlot.appendChild(reserveEl);
+  positionTile(reserveTile, TRAY_CENTER_X, TRAY_CENTER_Y);
+  updateTileTransform(reserveTile);
+
+  if (state.selectedTileId === trayTileId) state.selectedTileId = null;
+  if (state.hoveredTileId === trayTileId) state.hoveredTileId = null;
+  selectTile(null);
+
+  const reserveIdx = state.reserveOrder.indexOf(reserveTileId);
+  if (reserveIdx >= 0) {
+    state.reserveOrder[reserveIdx] = trayTileId;
+    state.reserveOrder = state.reserveOrder.filter((id, idx, arr) => arr.indexOf(id) === idx);
+  } else {
+    state.reserveOrder = [
+      ...state.reserveOrder.filter((id) => id !== trayTileId && id !== reserveTileId),
+      trayTileId,
+    ];
+  }
+  clearPendingReserveSwap();
+  renderInactiveTileStack();
+  setStatus(`Swapped in ${reserveTileId}. Moved ${trayTileId} to reserve pile.`);
 }
 
 function createPlacementOverlay(tile) {
@@ -386,6 +1018,47 @@ function createTileGuideOverlay(tile) {
   polygon.setAttribute("class", "tile-guide-outline");
   polygon.setAttribute("points", polygonPoints(guidePoints));
   svg.appendChild(polygon);
+
+  const faceHits = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  faceHits.setAttribute("class", "tile-guide-face-hits");
+  for (let i = 0; i < guidePoints.length; i += 1) {
+    const a = guidePoints[i];
+    const b = guidePoints[(i + 1) % guidePoints.length];
+    const x1 = 50 + (a.x / TILE_SIZE) * 100;
+    const y1 = 50 + (a.y / TILE_SIZE) * 100;
+    const x2 = 50 + (b.x / TILE_SIZE) * 100;
+    const y2 = 50 + (b.y / TILE_SIZE) * 100;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("class", "tile-guide-face-hit");
+    line.setAttribute("data-face-index", String(i));
+    line.setAttribute("x1", x1.toFixed(2));
+    line.setAttribute("y1", y1.toFixed(2));
+    line.setAttribute("x2", x2.toFixed(2));
+    line.setAttribute("y2", y2.toFixed(2));
+    faceHits.appendChild(line);
+  }
+  svg.appendChild(faceHits);
+
+  const wallFaces = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  wallFaces.setAttribute("class", "tile-guide-wall-faces");
+  for (let i = 0; i < guidePoints.length; i += 1) {
+    const a = guidePoints[i];
+    const b = guidePoints[(i + 1) % guidePoints.length];
+    const x1 = 50 + (a.x / TILE_SIZE) * 100;
+    const y1 = 50 + (a.y / TILE_SIZE) * 100;
+    const x2 = 50 + (b.x / TILE_SIZE) * 100;
+    const y2 = 50 + (b.y / TILE_SIZE) * 100;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("class", "tile-guide-wall-face-seg");
+    line.setAttribute("data-face-index", String(i));
+    line.setAttribute("x1", x1.toFixed(2));
+    line.setAttribute("y1", y1.toFixed(2));
+    line.setAttribute("x2", x2.toFixed(2));
+    line.setAttribute("y2", y2.toFixed(2));
+    wallFaces.appendChild(line);
+  }
+  svg.appendChild(wallFaces);
+  refreshWallGuideDom(svg, tile.wallFaceSet);
 
   const sideTicks = document.createElementNS("http://www.w3.org/2000/svg", "g");
   sideTicks.setAttribute("class", "tile-guide-ticks");
@@ -655,6 +1328,277 @@ function buildGuideNormals(points) {
   return normals;
 }
 
+function refreshTileWallGuide(tile) {
+  refreshWallGuideDom(tile?.guideDom, tile?.wallFaceSet || new Set());
+}
+
+function refreshWallGuideDom(guideDom, wallFaceSet) {
+  if (!guideDom) return;
+  const lines = guideDom.querySelectorAll(".tile-guide-wall-face-seg");
+  for (const line of lines) {
+    const idx = Number.parseInt(line.dataset.faceIndex || "", 10);
+    if (!Number.isInteger(idx)) continue;
+    line.classList.toggle("is-wall", wallFaceSet.has(idx));
+  }
+}
+
+function loadWallOverrides() {
+  try {
+    const raw = localStorage.getItem(WALL_OVERRIDES_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed;
+  } catch (error) {
+    console.warn("Could not load wall overrides from storage.", error);
+    return {};
+  }
+}
+
+function saveWallOverrides() {
+  try {
+    localStorage.setItem(WALL_OVERRIDES_STORAGE_KEY, JSON.stringify(state.wallOverrides));
+  } catch (error) {
+    console.warn("Could not save wall overrides to storage.", error);
+  }
+}
+
+function getStoredWallFaces(themeId, tileId) {
+  const theme = state.wallOverrides?.[themeId];
+  const arr = theme?.[tileId];
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((n) => Number.isInteger(n) && n >= 0).sort((a, b) => a - b);
+}
+
+function exportWallOverridesBackup() {
+  try {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      wallOverrides: state.wallOverrides,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `hts-wall-overrides-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setStatus("Wall data exported.");
+  } catch (error) {
+    console.error(error);
+    setStatus("Failed to export wall data.", true);
+  }
+}
+
+async function importWallOverridesBackup(file) {
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const raw = parsed?.wallOverrides ?? parsed;
+    const sanitized = sanitizeWallOverrides(raw);
+    state.wallOverrides = sanitized;
+    saveWallOverrides();
+    syncSelectedThemeWallsFromOverrides();
+    if (state.wallEditMode) {
+      await renderWallEditorPage();
+      if (state.wallEditorActiveThemeId && state.wallEditorActiveTileId) {
+        setActiveWallEditorTile(state.wallEditorActiveThemeId, state.wallEditorActiveTileId);
+      }
+    }
+    setStatus("Wall data imported.");
+  } catch (error) {
+    console.error(error);
+    setStatus("Invalid wall data file. Import failed.", true);
+  }
+}
+
+function sanitizeWallOverrides(input) {
+  if (!input || typeof input !== "object") return {};
+  const clean = {};
+  for (const theme of THEME_OPTIONS) {
+    const themeValue = input[theme.id];
+    if (!themeValue || typeof themeValue !== "object") continue;
+    const themeOut = {};
+    const defs = buildTileDefs(theme.id);
+    for (const def of defs) {
+      const arr = themeValue[def.id];
+      if (!Array.isArray(arr)) continue;
+      const uniq = [...new Set(
+        arr
+          .filter((n) => Number.isInteger(n) && n >= 0 && n < 64)
+          .map((n) => Number(n)),
+      )].sort((a, b) => a - b);
+      themeOut[def.id] = uniq;
+    }
+    if (Object.keys(themeOut).length) clean[theme.id] = themeOut;
+  }
+  return clean;
+}
+
+function persistTileWallFaces(themeId, tileId, faceSet) {
+  if (!state.wallOverrides[themeId]) state.wallOverrides[themeId] = {};
+  const sorted = Array.from(faceSet).sort((a, b) => a - b);
+  state.wallOverrides[themeId][tileId] = sorted;
+  saveWallOverrides();
+
+  if (themeId === state.selectedThemeId) {
+    const activeTile = state.tiles.get(tileId);
+    if (activeTile) {
+      activeTile.wallFaceSet = new Set(sorted);
+      refreshTileWallGuide(activeTile);
+    }
+  }
+}
+
+function getActiveTileForWallEditing() {
+  const editorKey = state.wallEditorActiveThemeId && state.wallEditorActiveTileId
+    ? `${state.wallEditorActiveThemeId}:${state.wallEditorActiveTileId}`
+    : null;
+  if (editorKey && state.wallEditorTileRefs.has(editorKey)) {
+    const ref = state.wallEditorTileRefs.get(editorKey);
+    return { themeId: ref.themeId, tile: ref.tile };
+  }
+
+  const id = state.hoveredTileId || state.selectedTileId;
+  const tile = id ? state.tiles.get(id) : null;
+  if (!tile) return null;
+  return { themeId: state.selectedThemeId, tile };
+}
+
+async function renderWallEditorPage() {
+  if (!wallEditorPage) return;
+
+  wallEditorPage.innerHTML = "";
+  const intro = document.createElement("div");
+  intro.className = "wall-editor-intro";
+  intro.textContent = "Wall Editor: click face segments to toggle wall ON/OFF. Saved per theme + tile.";
+  wallEditorPage.appendChild(intro);
+
+  const trays = document.createElement("div");
+  trays.className = "wall-editor-trays";
+  wallEditorPage.appendChild(trays);
+
+  const panels = await Promise.all(THEME_OPTIONS.map((theme) => buildWallEditorThemePanel(theme)));
+  for (const panel of panels) trays.appendChild(panel);
+}
+
+async function buildWallEditorThemePanel(theme) {
+  const panel = document.createElement("section");
+  panel.className = "theme-wall-panel";
+
+  const title = document.createElement("h3");
+  title.textContent = theme.label;
+  panel.appendChild(title);
+
+  const tray = document.createElement("div");
+  tray.className = "theme-wall-tray";
+  panel.appendChild(tray);
+
+  const defs = buildTileDefs(theme.id);
+  let missingCount = 0;
+
+  for (const def of defs) {
+    try {
+      const img = await loadImage(def.src);
+      const faceGeometry = getFaceGeometry(img, SIDES);
+      const tile = {
+        id: def.id,
+        src: def.src,
+        img,
+        faceGeometry,
+        wallFaceSet: new Set(getStoredWallFaces(theme.id, def.id)),
+      };
+      const tileEl = createWallEditorTileElement(theme.id, tile);
+      tray.appendChild(tileEl);
+      state.wallEditorTileRefs.set(`${theme.id}:${tile.id}`, {
+        themeId: theme.id,
+        tile,
+        el: tileEl,
+      });
+    } catch (error) {
+      console.warn(`Missing asset for ${theme.id}/${def.id}`, error);
+      missingCount += 1;
+    }
+  }
+
+  if (missingCount > 0) {
+    const note = document.createElement("p");
+    note.className = "theme-wall-note";
+    note.textContent = `${missingCount} tile asset(s) missing in this theme.`;
+    panel.appendChild(note);
+  }
+
+  return panel;
+}
+
+function createWallEditorTileElement(themeId, tile) {
+  const tileEl = document.createElement("div");
+  tileEl.className = "tile wall-editor-tile";
+  tileEl.dataset.themeId = themeId;
+  tileEl.dataset.tileId = tile.id;
+
+  const body = document.createElement("div");
+  body.className = "tile-body";
+
+  const img = document.createElement("img");
+  img.src = tile.src;
+  img.alt = `${themeId} ${tile.id}`;
+  img.draggable = false;
+  img.addEventListener("dragstart", (event) => event.preventDefault());
+  body.appendChild(img);
+
+  const guideOverlay = createTileGuideOverlay(tile);
+  body.appendChild(guideOverlay);
+  tile.guideDom = guideOverlay;
+  tileEl.appendChild(body);
+
+  const assignActive = () => setActiveWallEditorTile(themeId, tile.id);
+  tileEl.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    const faceHit = event.target.closest(".tile-guide-face-hit");
+    assignActive();
+    if (!faceHit) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const faceIdx = Number.parseInt(faceHit.dataset.faceIndex || "", 10);
+    if (!Number.isInteger(faceIdx)) return;
+    if (tile.wallFaceSet.has(faceIdx)) {
+      tile.wallFaceSet.delete(faceIdx);
+    } else {
+      tile.wallFaceSet.add(faceIdx);
+    }
+    persistTileWallFaces(themeId, tile.id, tile.wallFaceSet);
+    refreshTileWallGuide(tile);
+    const list = Array.from(tile.wallFaceSet).sort((a, b) => a - b).join(", ") || "none";
+    setStatus(`${getThemeConfig(themeId).label} ${tile.id} wall faces: ${list}.`);
+  });
+  tileEl.addEventListener("click", assignActive);
+
+  return tileEl;
+}
+
+function setActiveWallEditorTile(themeId, tileId) {
+  state.wallEditorActiveThemeId = themeId;
+  state.wallEditorActiveTileId = tileId;
+  for (const ref of state.wallEditorTileRefs.values()) {
+    ref.el.classList.remove("selected");
+  }
+  const key = `${themeId}:${tileId}`;
+  const ref = state.wallEditorTileRefs.get(key);
+  if (ref) ref.el.classList.add("selected");
+}
+
+function syncSelectedThemeWallsFromOverrides() {
+  for (const tile of state.tiles.values()) {
+    tile.wallFaceSet = new Set(getStoredWallFaces(state.selectedThemeId, tile.id));
+    refreshTileWallGuide(tile);
+  }
+}
+
 function polygonPoints(facePoints) {
   const points = [];
   for (let i = 0; i < facePoints.length; i += 1) {
@@ -675,6 +1619,7 @@ function selectTile(id) {
 }
 
 function beginDrag(tile, event) {
+  selectTile(null);
   clearInvalidReturnTimer(tile);
   const boardRect = board.getBoundingClientRect();
   const workspaceRect = workspace.getBoundingClientRect();
@@ -829,6 +1774,10 @@ function finishDrop(tile) {
 }
 
 function rotateTile(tile, delta) {
+  if (state.wallEditMode) {
+    setStatus("Rotation is disabled in wall edit mode.", true);
+    return;
+  }
   if (tile.id === "molten_entrance") {
     const hasOtherPlaced = getPlacedTiles().some((t) => t.id !== "molten_entrance");
     if (hasOtherPlaced) {
@@ -852,11 +1801,8 @@ function rotateTile(tile, delta) {
 }
 
 function findBestContact(tile, otherTiles) {
-  let best = {
-    count: 0,
-    other: null,
-    match: null,
-  };
+  let best = { count: 0, other: null, match: null };
+  const matchedTileFaceIdx = new Set();
 
   for (const other of otherTiles) {
     const match = getContactMatchDetails(tile, other);
@@ -867,12 +1813,16 @@ function findBestContact(tile, otherTiles) {
         match,
       };
     }
+    for (const pair of match.matchedPairs || []) {
+      matchedTileFaceIdx.add(pair.i);
+    }
   }
 
   const touchesBlockedAB = isTouchingMoltenEntranceBlockedPoints(tile);
+  const totalCount = matchedTileFaceIdx.size * 2;
   return {
-    valid: best.count >= MIN_CONTACT_POINTS && !touchesBlockedAB,
-    count: best.count,
+    valid: totalCount >= MIN_CONTACT_POINTS && !touchesBlockedAB,
+    count: totalCount,
     other: best.other,
     match: best.match,
   };
@@ -897,11 +1847,14 @@ function getContactMatchDetails(a, b) {
     };
   }
 
+  const aContinuity = getContinuityFaceIndexMap(aFaces);
+  const bContinuity = getContinuityFaceIndexMap(bFaces);
   const candidates = [];
   for (let i = 0; i < aFaces.length; i += 1) {
     for (let j = 0; j < bFaces.length; j += 1) {
       const af = aFaces[i];
       const bf = bFaces[j];
+      if (af.isWall || bf.isWall) continue;
       if (isBlockedContactFace(a, af) || isBlockedContactFace(b, bf)) continue;
       const normalDot = af.nx * bf.nx + af.ny * bf.ny;
       if (normalDot > OPPOSITE_NORMAL_THRESHOLD) continue;
@@ -912,13 +1865,23 @@ function getContactMatchDetails(a, b) {
       const midpointDistance = Math.hypot(af.mx - bf.mx, af.my - bf.my);
       if (midpointDistance > threshold) continue;
 
-      candidates.push({ i, j, midpointDistance, normalDot });
+      const ci = aContinuity.indexMap.get(i);
+      const cj = bContinuity.indexMap.get(j);
+      if (ci == null || cj == null) continue;
+      candidates.push({
+        i: ci,
+        j: cj,
+        ai: i,
+        bj: j,
+        midpointDistance,
+        normalDot,
+      });
     }
   }
 
   candidates.sort((x, y) => x.midpointDistance - y.midpointDistance || x.normalDot - y.normalDot);
 
-  const matchedPairs = getBestOrderedMatchedPairs(candidates, aFaces.length, bFaces.length);
+  const matchedPairs = getBestOrderedMatchedPairs(candidates, aContinuity.count, bContinuity.count);
   const matchedFaces = matchedPairs.length;
 
   return {
@@ -945,46 +1908,70 @@ function getBestOrderedMatchedPairs(candidates, aCount, bCount) {
   let bestChain = [];
   let bestDistance = Infinity;
 
-  for (const start of byPair.values()) {
+  const uniquePairs = Array.from(byPair.values());
+  for (const start of uniquePairs) {
     for (const bStep of [1, -1]) {
-      const seen = new Set([`${start.i}:${start.j}`]);
-      const chain = [{ i: start.i, j: start.j }];
-      let distance = start.midpointDistance;
+      const projected = uniquePairs
+        .map((pair) => {
+          const da = mod(pair.i - start.i, aCount);
+          const db = bStep === 1
+            ? mod(pair.j - start.j, bCount)
+            : mod(start.j - pair.j, bCount);
+          return { ...pair, da, db };
+        })
+        .sort((a, b) => a.da - b.da || a.db - b.db || a.midpointDistance - b.midpointDistance);
 
-      let ai = start.i;
-      let bj = start.j;
-      while (true) {
-        ai = mod(ai + 1, aCount);
-        bj = mod(bj + bStep, bCount);
-        const key = `${ai}:${bj}`;
-        const next = byPair.get(key);
-        if (!next || seen.has(key)) break;
-        seen.add(key);
-        chain.push({ i: ai, j: bj });
-        distance += next.midpointDistance;
+      const n = projected.length;
+      const dpLen = new Array(n).fill(1);
+      const dpDist = projected.map((p) => p.midpointDistance);
+      const prev = new Array(n).fill(-1);
+
+      for (let i = 0; i < n; i += 1) {
+        for (let j = 0; j < i; j += 1) {
+          if (projected[j].da < projected[i].da && projected[j].db < projected[i].db) {
+            const nextLen = dpLen[j] + 1;
+            const nextDist = dpDist[j] + projected[i].midpointDistance;
+            if (nextLen > dpLen[i] || (nextLen === dpLen[i] && nextDist < dpDist[i])) {
+              dpLen[i] = nextLen;
+              dpDist[i] = nextDist;
+              prev[i] = j;
+            }
+          }
+        }
       }
 
-      ai = start.i;
-      bj = start.j;
-      while (true) {
-        ai = mod(ai - 1, aCount);
-        bj = mod(bj - bStep, bCount);
-        const key = `${ai}:${bj}`;
-        const next = byPair.get(key);
-        if (!next || seen.has(key)) break;
-        seen.add(key);
-        chain.unshift({ i: ai, j: bj });
-        distance += next.midpointDistance;
+      let endIdx = 0;
+      for (let i = 1; i < n; i += 1) {
+        if (dpLen[i] > dpLen[endIdx] || (dpLen[i] === dpLen[endIdx] && dpDist[i] < dpDist[endIdx])) {
+          endIdx = i;
+        }
       }
 
-      if (chain.length > bestChain.length || (chain.length === bestChain.length && distance < bestDistance)) {
+      const chain = [];
+      for (let i = endIdx; i >= 0; i = prev[i]) {
+        chain.unshift(projected[i]);
+        if (prev[i] === -1) break;
+      }
+
+      if (chain.length > bestChain.length || (chain.length === bestChain.length && dpDist[endIdx] < bestDistance)) {
         bestChain = chain;
-        bestDistance = distance;
+        bestDistance = dpDist[endIdx];
       }
     }
   }
 
-  return bestChain;
+  return bestChain.map((pair) => ({ i: pair.ai, j: pair.bj }));
+}
+
+function getContinuityFaceIndexMap(faces) {
+  const indexMap = new Map();
+  let count = 0;
+  for (let i = 0; i < faces.length; i += 1) {
+    if (faces[i].isWall) continue;
+    indexMap.set(i, count);
+    count += 1;
+  }
+  return { indexMap, count };
 }
 
 function computeBestSnap(
@@ -1138,6 +2125,7 @@ function getContactFaces(tile) {
       offset,
       startIdx: i,
       endIdx: (i + 1) % world.length,
+      isWall: tile.wallFaceSet?.has(i) ?? false,
     });
   }
 
@@ -1218,7 +2206,7 @@ function getPlacedTiles() {
 function revertToTray(tile, message, warn = false) {
   clearInvalidReturnTimer(tile);
   tile.placed = false;
-  tile.rotation = randomTrayRotation();
+  tile.rotation = 0;
   positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
   updateTileParent(tile, tile.traySlot);
   updateTileTransform(tile);
@@ -1243,7 +2231,7 @@ function handleInvalidDrop(tile, placedTiles) {
   tile.invalidReturnTimer = setTimeout(() => {
     tile.invalidReturnTimer = null;
     if (tile.placed) return;
-    tile.rotation = randomTrayRotation();
+    tile.rotation = 0;
     positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
     updateTileParent(tile, tile.traySlot);
     updateTileTransform(tile);
