@@ -48,6 +48,7 @@ const exportWallDataBtn = document.getElementById("export-wall-data-btn");
 const importWallDataBtn = document.getElementById("import-wall-data-btn");
 const importWallDataInput = document.getElementById("import-wall-data-input");
 const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
+const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-contact-checkbox");
 const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
@@ -70,6 +71,9 @@ const state = {
   pendingSwapSource: null,
   reserveEditMode: false,
   reserveOrder: [],
+  ignoreContactRule: false,
+  boardPanX: 0,
+  boardPanY: 0,
 };
 
 init().catch((error) => {
@@ -186,6 +190,23 @@ function bindGlobalControls() {
       document.body.classList.toggle("show-wall-faces", state.showWallFaces);
     });
   }
+  if (toggleIgnoreContactCheckbox) {
+    toggleIgnoreContactCheckbox.checked = state.ignoreContactRule;
+    toggleIgnoreContactCheckbox.addEventListener("change", () => {
+      state.ignoreContactRule = toggleIgnoreContactCheckbox.checked;
+      if (state.ignoreContactRule) {
+        for (const tile of state.tiles.values()) {
+          clearInvalidReturnTimer(tile);
+          if (tile.placed) setPlacementFeedback(tile, null);
+        }
+      }
+      setStatus(
+        state.ignoreContactRule
+          ? "Ignore 4-point rule: ON (placement allowed without minimum contact)."
+          : "Ignore 4-point rule: OFF.",
+      );
+    });
+  }
   if (toggleWallEditBtn) {
     toggleWallEditBtn.addEventListener("click", () => {
       setWallEditMode(!state.wallEditMode);
@@ -290,6 +311,14 @@ function bindGlobalControls() {
     openMenus.forEach((menu) => {
       menu.open = false;
     });
+  });
+
+  board.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    if (state.wallEditMode) return;
+    if (event.target.closest(".tile")) return;
+    if (event.target.closest(".reserve-menu, .view-menu")) return;
+    beginBoardPan(event);
   });
 
   window.addEventListener("resize", scheduleBoardHexGridRender, { passive: true });
@@ -490,25 +519,16 @@ function renderBoardHexGrid() {
   const w = Math.floor(board.clientWidth);
   const h = Math.floor(board.clientHeight);
   if (w <= 0 || h <= 0) return;
+  const layout = getBoardHexLayout(w, h);
+  const panX = state.boardPanX;
+  const panY = state.boardPanY;
 
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
   svg.replaceChildren();
 
   const strokeColor = state.selectedUiThemeId === "molten"
-    ? "rgba(255, 191, 129, 0.36)"
-    : "rgba(54, 83, 102, 0.32)";
-
-  const padding = Math.max(16, Math.min(28, Math.floor(Math.min(w, h) * 0.045)));
-  const targetCols = Math.max(6, Math.floor((w - padding * 2) / 64));
-  const radius = Math.max(14, Math.min(34, (w - padding * 2) / (targetCols * 1.5 + 0.5)));
-  const hexHeight = Math.sqrt(3) * radius;
-  const dx = 1.5 * radius;
-  const dy = hexHeight;
-
-  const minX = padding + radius;
-  const maxX = w - padding - radius;
-  const minY = padding + hexHeight / 2;
-  const maxY = h - padding - hexHeight / 2;
+    ? "rgba(255, 191, 129, 0.15)"
+    : "rgba(54, 83, 102, 0.15)";
 
   const group = document.createElementNS(BOARD_HEX_SVG_NS, "g");
   group.setAttribute("fill", "none");
@@ -516,17 +536,87 @@ function renderBoardHexGrid() {
   group.setAttribute("stroke-width", "1");
   group.setAttribute("vector-effect", "non-scaling-stroke");
 
-  let col = 0;
-  for (let x = minX; x <= maxX + 0.01; x += dx, col += 1) {
-    const yOffset = (col % 2) * (hexHeight / 2);
-    for (let y = minY + yOffset; y <= maxY + 0.01; y += dy) {
+  const colStart = Math.floor((layout.minX - panX - layout.minX) / layout.dx) - 1;
+  const colEnd = Math.ceil((layout.maxX - panX - layout.minX) / layout.dx) + 1;
+
+  for (let col = colStart; col <= colEnd; col += 1) {
+    const xBase = layout.minX + col * layout.dx;
+    const x = xBase + panX;
+    const yOffset = ((col % 2) + 2) % 2 ? (layout.hexHeight / 2) : 0;
+    const rowStart = Math.floor((layout.minY - panY - (layout.minY + yOffset)) / layout.dy) - 1;
+    const rowEnd = Math.ceil((layout.maxY - panY - (layout.minY + yOffset)) / layout.dy) + 1;
+    for (let row = rowStart; row <= rowEnd; row += 1) {
+      const yBase = layout.minY + yOffset + row * layout.dy;
+      const y = yBase + panY;
       const path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
-      path.setAttribute("d", hexPath(x, y, radius));
+      path.setAttribute("d", hexPath(x, y, layout.radius));
       group.appendChild(path);
     }
   }
 
   svg.appendChild(group);
+}
+
+function getBoardHexLayout(width = Math.floor(board.clientWidth), height = Math.floor(board.clientHeight)) {
+  const w = Math.max(0, Math.floor(width));
+  const h = Math.max(0, Math.floor(height));
+  const padding = Math.max(16, Math.min(28, Math.floor(Math.min(w, h) * 0.045)));
+  const targetCols = Math.max(6, Math.floor((w - padding * 2) / 64));
+  const fallbackRadius = Math.max(14, Math.min(34, (w - padding * 2) / (targetCols * 1.5 + 0.5)));
+  let radius = fallbackRadius;
+  const maxRadiusByWidth = Math.max(10, (w - padding * 2) / 9.5);
+  const maxRadiusByHeight = Math.max(10, (h - padding * 2) / 6.5);
+  radius = Math.max(12, Math.min(radius, 34, maxRadiusByWidth, maxRadiusByHeight));
+  const hexHeight = Math.sqrt(3) * radius;
+  const dx = 1.5 * radius;
+  const dy = hexHeight;
+  return {
+    padding,
+    radius,
+    hexHeight,
+    dx,
+    dy,
+    minX: padding + radius,
+    maxX: w - padding - radius,
+    minY: padding + hexHeight / 2,
+    maxY: h - padding - hexHeight / 2,
+  };
+}
+
+function snapBoardPointToHex(x, y) {
+  const layout = getBoardHexLayout();
+  if (
+    !Number.isFinite(layout.minX)
+    || layout.minX > layout.maxX
+    || layout.minY > layout.maxY
+  ) {
+    return { x, y };
+  }
+
+  const panX = state.boardPanX;
+  const panY = state.boardPanY;
+  const bx = x - panX;
+  const by = y - panY;
+  const approxCol = Math.round((bx - layout.minX) / layout.dx);
+
+  let best = { x, y, d2: Number.POSITIVE_INFINITY };
+  for (let dc = -2; dc <= 2; dc += 1) {
+    const col = approxCol + dc;
+    const cxBase = layout.minX + col * layout.dx;
+    const yOffset = ((col % 2) + 2) % 2 ? (layout.hexHeight / 2) : 0;
+    const approxRow = Math.round((by - (layout.minY + yOffset)) / layout.dy);
+    for (let dr = -2; dr <= 2; dr += 1) {
+      const row = approxRow + dr;
+      const cyBase = layout.minY + yOffset + row * layout.dy;
+      const cx = cxBase + panX;
+      const cy = cyBase + panY;
+      const dx = cx - x;
+      const dy = cy - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < best.d2) best = { x: cx, y: cy, d2 };
+    }
+  }
+  return { x: best.x, y: best.y };
 }
 
 function hexPath(cx, cy, radius) {
@@ -711,12 +801,87 @@ function createReserveGuideOverlay(tile) {
 function placeStartTileAtCenter() {
   const start = state.tiles.get("molten_entrance");
   const rect = board.getBoundingClientRect();
-  const x = rect.width / 2;
-  const y = TILE_SIZE / 2 + 34;
-  positionTile(start, x, y);
+  const desiredX = rect.width / 2;
+  const desiredY = TILE_SIZE / 2 + 34;
+  const center = getTopGridCenterNear(desiredX, desiredY, 1);
+  const snapped = snapTileCenterToHex(start, center.x, center.y);
+  positionTile(start, snapped.x, snapped.y);
   updateTileParent(start, board);
   start.placed = true;
   updateTileTransform(start);
+}
+
+function getTopGridCenterNear(preferredX, preferredY, rowsDown = 0) {
+  const layout = getBoardHexLayout();
+  if (
+    !Number.isFinite(layout.minX)
+    || layout.minX > layout.maxX
+    || layout.minY > layout.maxY
+  ) {
+    return { x: preferredX, y: preferredY };
+  }
+
+  const row = Math.max(0, rowsDown);
+  let best = { x: preferredX, y: preferredY, d2: Number.POSITIVE_INFINITY };
+  let col = 0;
+  for (let xBase = layout.minX; xBase <= layout.maxX + 0.01; xBase += layout.dx, col += 1) {
+    const yBase = layout.minY + (col % 2) * (layout.hexHeight / 2);
+    const x = xBase + state.boardPanX;
+    const y = Math.min(layout.maxY, yBase + row * layout.dy) + state.boardPanY;
+    const dx = x - preferredX;
+    const dy = y - preferredY;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < best.d2) best = { x, y, d2 };
+  }
+  return { x: best.x, y: best.y };
+}
+
+function beginBoardPan(event) {
+  event.preventDefault();
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const boardTiles = Array.from(state.tiles.values())
+    .filter((tile) => tile.dom && tile.dom.parentElement === board)
+    .map((tile) => ({
+      tile,
+      x: tile.x,
+      y: tile.y,
+    }));
+
+  const startPanX = state.boardPanX;
+  const startPanY = state.boardPanY;
+  board.classList.add("panning");
+
+  const handleMove = (moveEvent) => {
+    if (moveEvent.pointerType === "mouse" && moveEvent.buttons === 0) {
+      cleanup();
+      return;
+    }
+    const dx = moveEvent.clientX - startX;
+    const dy = moveEvent.clientY - startY;
+    state.boardPanX = startPanX + dx;
+    state.boardPanY = startPanY + dy;
+    for (const entry of boardTiles) {
+      positionTile(entry.tile, entry.x + dx, entry.y + dy);
+      updateTileTransform(entry.tile);
+    }
+    scheduleBoardHexGridRender();
+  };
+
+  const cleanup = () => {
+    board.classList.remove("panning");
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+    window.removeEventListener("pointercancel", handleUp);
+  };
+
+  const handleUp = () => {
+    cleanup();
+  };
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+  window.addEventListener("pointercancel", handleUp);
 }
 
 function createTileElement(tile) {
@@ -1666,20 +1831,44 @@ function beginDrag(tile, event) {
 
     tile.drag.moved = true;
     tile.dom.classList.add("dragging");
+    const boardOriginX = boardRect.left + board.clientLeft;
+    const boardOriginY = boardRect.top + board.clientTop;
     const parentRect =
-      tile.dom.parentElement === board
-        ? boardRect
-        : tile.dom.parentElement === dragLayer
-          ? workspaceRect
-          : tile.dom.parentElement.getBoundingClientRect();
-
+      tile.dom.parentElement === dragLayer
+        ? workspaceRect
+        : tile.dom.parentElement.getBoundingClientRect();
     const x = moveEvent.clientX - parentRect.left - tile.drag.offsetX;
     const y = moveEvent.clientY - parentRect.top - tile.drag.offsetY;
+    const pointerInsideBoard =
+      moveEvent.clientX >= boardRect.left
+      && moveEvent.clientX <= boardRect.right
+      && moveEvent.clientY >= boardRect.top
+      && moveEvent.clientY <= boardRect.bottom;
 
     if (tile.dom.parentElement === board) {
-      positionTile(tile, clamp(x, 0, boardRect.width), clamp(y, 0, boardRect.height));
+      const rawBoardX = moveEvent.clientX - boardOriginX - tile.drag.offsetX;
+      const rawBoardY = moveEvent.clientY - boardOriginY - tile.drag.offsetY;
+      const clampedX = clamp(rawBoardX, 0, board.clientWidth);
+      const clampedY = clamp(rawBoardY, 0, board.clientHeight);
+      const snapped = snapTileCenterToHex(tile, clampedX, clampedY);
+      positionTile(tile, snapped.x, snapped.y);
     } else {
-      positionTile(tile, x, y);
+      if (pointerInsideBoard) {
+        const boardX = moveEvent.clientX - boardOriginX - tile.drag.offsetX;
+        const boardY = moveEvent.clientY - boardOriginY - tile.drag.offsetY;
+        const clampedBoardX = clamp(boardX, 0, board.clientWidth);
+        const clampedBoardY = clamp(boardY, 0, board.clientHeight);
+        const snapped = snapTileCenterToHex(tile, clampedBoardX, clampedBoardY);
+        const boardOffsetX = boardOriginX - workspaceRect.left;
+        const boardOffsetY = boardOriginY - workspaceRect.top;
+        positionTile(
+          tile,
+          snapped.x + boardOffsetX,
+          snapped.y + boardOffsetY,
+        );
+      } else {
+        positionTile(tile, x, y);
+      }
     }
 
     updateTileTransform(tile);
@@ -1714,12 +1903,12 @@ function beginDrag(tile, event) {
         return;
       }
 
-      const boardOffsetX = boardRect.left - workspaceRect.left;
-      const boardOffsetY = boardRect.top - workspaceRect.top;
+      const boardOffsetX = (boardRect.left + board.clientLeft) - workspaceRect.left;
+      const boardOffsetY = (boardRect.top + board.clientTop) - workspaceRect.top;
       const boardX = tile.x - boardOffsetX;
       const boardY = tile.y - boardOffsetY;
       updateTileParent(tile, board);
-      positionTile(tile, clamp(boardX, 0, boardRect.width), clamp(boardY, 0, boardRect.height));
+      positionTile(tile, clamp(boardX, 0, board.clientWidth), clamp(boardY, 0, board.clientHeight));
       updateTileTransform(tile);
     }
 
@@ -1734,6 +1923,10 @@ function beginDrag(tile, event) {
 }
 
 function finishDrop(tile) {
+  const snappedCenter = snapTileCenterToHex(tile, tile.x, tile.y);
+  positionTile(tile, snappedCenter.x, snappedCenter.y);
+  updateTileTransform(tile);
+
   if (tile.id === "molten_entrance") {
     tile.placed = true;
     setPlacementFeedback(tile, null);
@@ -1749,28 +1942,61 @@ function finishDrop(tile) {
   }
 
   let result = findBestContact(tile, placedTiles);
-  let snapped = false;
-  if (result.valid && result.match) {
-    const correction = getMatchAlignmentCorrection(result.match);
-    if (correction && (Math.abs(correction.dx) > 0.25 || Math.abs(correction.dy) > 0.25)) {
-      positionTile(tile, tile.x + correction.dx, tile.y + correction.dy);
-      updateTileTransform(tile);
-      result = findBestContact(tile, placedTiles);
-      snapped = true;
-    }
-  }
   if (!result.valid) {
-    handleInvalidDrop(tile, placedTiles);
-    return;
+    if (!state.ignoreContactRule) {
+      handleInvalidDrop(tile, placedTiles);
+      return;
+    }
   }
 
   tile.placed = true;
-  if (snapped) {
-    setStatus(`Placed ${tile.id} with auto-snap (${result.count} point contacts).`);
-  } else {
+  if (result.valid) {
     setStatus(`Placed ${tile.id} with ${result.count} point contacts.`);
+  } else {
+    setStatus(`Placed ${tile.id} with ${result.count} contacts (4-point rule ignored).`, true);
   }
   selectTile(null);
+}
+
+function snapTileCenterToHex(tile, tileCenterX, tileCenterY) {
+  const anchor = getTileSnapAnchorForRotation(tile, tile.rotation || 0);
+  const desiredGuideX = tileCenterX + anchor.x;
+  const desiredGuideY = tileCenterY + anchor.y;
+  const snappedGuide = snapBoardPointToHex(desiredGuideX, desiredGuideY);
+  const entranceYOffset = tile.id === "molten_entrance" ? 9 : 0;
+  return {
+    x: snappedGuide.x - anchor.x,
+    y: snappedGuide.y - anchor.y + entranceYOffset,
+  };
+}
+
+function getTileSnapAnchorForRotation(tile, rotationDeg) {
+  if (tile.id !== "molten_entrance") return { x: 0, y: 0 };
+  const local = getTileGuideLocalCenter(tile);
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  // Entrance art is vertically biased; use a damped Y-only anchor correction.
+  const entranceAnchorScaleY = 0.32;
+  return {
+    x: 0,
+    y: (local.x * sin + local.y * cos) * entranceAnchorScaleY,
+  };
+}
+
+function getTileGuideLocalCenter(tile) {
+  const points = getGuideFacePoints(tile);
+  if (!points?.length) return { x: 0, y: 0 };
+  let sx = 0;
+  let sy = 0;
+  for (const p of points) {
+    sx += p.x;
+    sy += p.y;
+  }
+  return {
+    x: sx / points.length,
+    y: sy / points.length,
+  };
 }
 
 function rotateTile(tile, delta) {
@@ -2216,6 +2442,11 @@ function revertToTray(tile, message, warn = false) {
 }
 
 function handleInvalidDrop(tile, placedTiles) {
+  if (state.ignoreContactRule) {
+    clearInvalidReturnTimer(tile);
+    setPlacementFeedback(tile, null);
+    return;
+  }
   clearInvalidReturnTimer(tile);
   tile.placed = false;
   moveAwayFromPlacedTiles(tile, placedTiles);
@@ -2265,11 +2496,10 @@ function moveAwayFromPlacedTiles(tile, placedTiles) {
 
   const nx = vx / vLen;
   const ny = vy / vLen;
-  positionTile(
-    tile,
-    clamp(tile.x + nx * INVALID_DROP_PUSH_PX, 0, boardRect.width),
-    clamp(tile.y + ny * INVALID_DROP_PUSH_PX, 0, boardRect.height),
-  );
+  const targetX = clamp(tile.x + nx * INVALID_DROP_PUSH_PX, 0, board.clientWidth);
+  const targetY = clamp(tile.y + ny * INVALID_DROP_PUSH_PX, 0, board.clientHeight);
+  const snapped = snapTileCenterToHex(tile, targetX, targetY);
+  positionTile(tile, snapped.x, snapped.y);
 }
 
 function clearInvalidReturnTimer(tile) {
@@ -2570,13 +2800,13 @@ function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect
     pointerClientY <= boardRect.bottom;
 
   if (!isInsideBoard) {
-    setPlacementFeedback(tile, false);
+    setPlacementFeedback(tile, null);
     return;
   }
 
   const placedTiles = getPlacedTiles().filter((t) => t.id !== tile.id);
   if (placedTiles.length === 0) {
-    setPlacementFeedback(tile, false);
+    setPlacementFeedback(tile, null);
     return;
   }
 
@@ -2588,6 +2818,10 @@ function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect
     tile.dom.parentElement === board ? tile.y : tile.y - boardOffsetY;
 
   const result = evaluatePlacementAt(tile, placedTiles, candidateX, candidateY);
+  if (!result.overlaps && result.count === 0) {
+    setPlacementFeedback(tile, null);
+    return;
+  }
   setPlacementFeedback(tile, result.valid);
 }
 

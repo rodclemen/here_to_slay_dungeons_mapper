@@ -8,6 +8,12 @@
 - Refined top-bar controls: moved UI theme selector to the header, normalized control sizing, adjusted button ordering (wall-edit toggle as last action), renamed wall-edit exit label to `Frontpage`, and improved dropdown open/close behavior (outside click closes menus).
 - Applied extensive visual polish for Molten and default themes: swapped requested board/tray tones, updated tray/pile panel transparency, improved rotate-control contrast in dark mode, refreshed reserve menu icon styling, and tuned wall-segment highlight colors for edit mode clarity.
 - Replaced the board’s CSS pattern grid with a responsive SVG hex-outline renderer in `app.js` that redraws on resize, uses theme-specific stroke colors, and avoids clipped edge hexes.
+- Aligned tile snapping to the rendered SVG hex lattice and added live drag-time magnet snapping, including tile-specific `molten_entrance` Y-offset correction for visual alignment.
+- Added a `Debug` toggle (`Ignore 4-Point Rule`) to allow free placement during alignment/debugging while preserving valid/invalid visual feedback behavior.
+- Disabled invalid-drop push/return timers when the ignore-contact toggle is enabled, and cancel any already-running timers immediately when toggled on.
+- Added board panning by dragging empty board space so users can move long tile formations, with grid rendering/snap math updated to track pan offset.
+- Restored directional board edge fading (top/bottom/left/right) and adjusted board/grid visual layering so tiles and overlays remain readable.
+- Refined placement feedback logic so red/green indicators appear only when a dragged tile is actually interacting with another placed tile (contact or overlap), not while free-dragging in empty space.
 - Added `hex-background.html` as a standalone reference/demo for the full-screen responsive flat-top SVG hex background implementation.
 - Added a tile-set selector in the tray header (`Tile Set`) with runtime switching support in `app.js` for: Molten, Overgrown, Dreamscape, Nightmare, Submerged, and Deep Freeze.
 - Implemented theme asset loading by folder/prefix convention (`<prefix>_entrance.png`, `<prefix>1..9.png`) and fallback handling when assets are missing.
@@ -23,6 +29,7 @@
 - Added/updated theme-related graphic source assets under `gfx/`.
 - Session note: The UI survived 47 tiny button tweaks and one major hex-grid identity crisis.
 - Session note: Measured UI changes in pixels long enough to develop trust issues with cached CSS.
+- Session note: Hexes were either microscopic or planet-sized for a while; we eventually negotiated a truce.
 
 ## 2026-03-31
 - Reworked tile placement validation and snapping flow in `app.js` to stabilize drag/drop behavior, preserve the known-good snap behavior, and enforce continuous ordered face matching for contact detection.

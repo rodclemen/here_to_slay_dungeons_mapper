@@ -300,6 +300,10 @@ body.wall-edit-mode .wall-editor-page {
   min-height: 520px;
 }
 
+.board.panning {
+  cursor: grabbing;
+}
+
 .board-hex-grid {
   position: absolute;
   inset: 0;
@@ -307,6 +311,19 @@ body.wall-edit-mode .wall-editor-page {
   height: 100%;
   pointer-events: none;
   z-index: 0;
+}
+
+.board::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    linear-gradient(to right, rgba(235, 236, 229, 0.98) 0, rgba(235, 236, 229, 0) 34px),
+    linear-gradient(to left, rgba(235, 236, 229, 0.98) 0, rgba(235, 236, 229, 0) 34px),
+    linear-gradient(to bottom, rgba(235, 236, 229, 0.98) 0, rgba(235, 236, 229, 0) 34px),
+    linear-gradient(to top, rgba(235, 236, 229, 0.98) 0, rgba(235, 236, 229, 0) 34px);
 }
 
 .sidebar {
@@ -420,6 +437,14 @@ body.ui-theme-molten .reserve-menu-panel {
 body.ui-theme-molten .board {
   border-color: #a36243;
   background: linear-gradient(130deg, #3b1c15 0%, #4a241b 100%);
+}
+
+body.ui-theme-molten .board::after {
+  background:
+    linear-gradient(to right, rgba(74, 36, 27, 0.98) 0, rgba(74, 36, 27, 0) 34px),
+    linear-gradient(to left, rgba(74, 36, 27, 0.98) 0, rgba(74, 36, 27, 0) 34px),
+    linear-gradient(to bottom, rgba(74, 36, 27, 0.98) 0, rgba(74, 36, 27, 0) 34px),
+    linear-gradient(to top, rgba(74, 36, 27, 0.98) 0, rgba(74, 36, 27, 0) 34px);
 }
 
 body.ui-theme-molten .tray-slot,
