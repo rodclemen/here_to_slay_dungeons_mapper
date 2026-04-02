@@ -1,6 +1,12 @@
 # Changelog
 
 ## 2026-04-02
+- Refactored the app shell for Phase 2 workflow clarity: introduced a step-labeled top workflow strip (`Choose Tile Set`, `Pick 6 Tiles`, `Build Your Dungeon`, `Choose Boss`) and promoted primary play actions into a single high-visibility top action area.
+- Reorganized the sidebar into explicit gameplay sections (`Selected Tiles`, `Reserve Tiles`, `Boss Selection`, `Placement Feedback`) with helper copy and clearer empty-state guidance, while keeping the board as the dominant central workspace.
+- Added live build-state indicators (`Placed X / 6 tiles`) plus active-mode chips (`Build Mode`, `Wall Editor`, `Boss Selection`, `Reserve Edit`) so special modes are always visible during play.
+- Demoted advanced/debug operations into a dedicated `Advanced / Tools` panel and moved wall debug import/export and precision/debug toggles out of the primary flow to reduce setup friction for normal play.
+- Switched default placement feedback mode to full-tile feedback and presented face-by-face feedback as an explicit precision option, preserving both feedback systems without changing placement rules.
+- Session note: Rearranged the UI enough times that the sidebar now knows my intentions before I do.
 - Refactored dungeon tile naming to a tile-set-aware model: standardized tile IDs to `entrance`, `tile_01..tile_09`, and `reference_card`; normalized global tile keys as `${tileSetId}:${tileId}`; and removed Molten-specific logic coupling from placement/runtime behavior.
 - Reworked tile set registry and asset wiring to separate dungeon tile-set identity from UI theme identity, including normalized boss IDs (`abyss_empress`, `flamebeard`, `rootgnaw`, `bloom_brute`) and computed asset paths (`{tileSetId}_entrance`, `{tileSetId}_tile_01..09`, `{tileSetId}_reference_card`, `{tileSetId}_boss_{bossId}.png`).
 - Updated save/load compatibility: added migration paths for legacy layout keys (`themeId` -> `tileSetId`) and legacy tile IDs (`molten_entrance`, `tile1..tile9`) so existing dungeon files and stored wall overrides can still load.

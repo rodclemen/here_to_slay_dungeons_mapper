@@ -102,8 +102,11 @@ const tileSetSelect = document.getElementById("tile-set-select");
 const uiThemeSelect = document.getElementById("ui-theme-select");
 const workspace = document.querySelector(".workspace");
 const statusEl = document.getElementById("status");
+const placedProgressEl = document.getElementById("placed-progress");
+const modeIndicatorsEl = document.getElementById("mode-indicators");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
+const toggleBossEditBtn = document.getElementById("toggle-boss-edit-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
 const toggleWallEditBtn = document.getElementById("toggle-wall-edit-btn");
 const clearTileWallsBtn = document.getElementById("clear-tile-walls-btn");
@@ -140,7 +143,7 @@ const state = {
   reserveEditMode: false,
   reserveOrder: [],
   ignoreContactRule: false,
-  useFaceFeedback: true,
+  useFaceFeedback: false,
   bossEditMode: false,
   bossOrderFlipped: false,
   bossTokens: [],
@@ -178,6 +181,7 @@ async function init() {
   if (uiThemeSelect) uiThemeSelect.value = state.selectedUiThemeId;
   applyUiTheme(state.selectedUiThemeId);
   applyFeedbackMode(state.useFaceFeedback);
+  updateModeIndicators();
   applyBoardZoom(state.boardZoom);
 
   if (!readyTileSetId) {
@@ -567,6 +571,11 @@ function bindGlobalControls() {
       );
     });
   }
+  if (toggleBossEditBtn) {
+    toggleBossEditBtn.addEventListener("click", () => {
+      setBossEditMode(!state.bossEditMode);
+    });
+  }
   if (toggleWallEditBtn) {
     toggleWallEditBtn.addEventListener("click", () => {
       setWallEditMode(!state.wallEditMode);
@@ -632,14 +641,14 @@ function bindGlobalControls() {
   if (saveDungeonBtn) {
     saveDungeonBtn.addEventListener("click", () => {
       exportDungeonLayout();
-      const menu = saveDungeonBtn.closest(".settings-menu");
+      const menu = saveDungeonBtn.closest(".advanced-menu");
       if (menu) menu.open = false;
     });
   }
   if (loadDungeonBtn && loadDungeonInput) {
     loadDungeonBtn.addEventListener("click", () => {
       loadDungeonInput.click();
-      const menu = loadDungeonBtn.closest(".settings-menu");
+      const menu = loadDungeonBtn.closest(".advanced-menu");
       if (menu) menu.open = false;
     });
     loadDungeonInput.addEventListener("change", async (event) => {
@@ -653,7 +662,7 @@ function bindGlobalControls() {
     zoomResetBtn.addEventListener("click", () => {
       resetBoardView();
       setStatus("Board view reset.");
-      const menu = zoomResetBtn.closest(".settings-menu");
+      const menu = zoomResetBtn.closest(".advanced-menu");
       if (menu) menu.open = false;
     });
   }
@@ -663,6 +672,7 @@ function bindGlobalControls() {
     reserveEditCheckbox.addEventListener("change", () => {
       state.reserveEditMode = reserveEditCheckbox.checked;
       document.body.classList.toggle("reserve-edit-mode", state.reserveEditMode);
+      updateModeIndicators();
       if (state.reserveEditMode) {
         randomizeCurrentInactiveReserveOrder();
       } else {
@@ -709,8 +719,8 @@ function bindGlobalControls() {
   });
 
   document.addEventListener("click", (event) => {
-    if (event.target.closest(".view-menu, .settings-menu")) return;
-    const openMenus = document.querySelectorAll(".view-menu[open], .settings-menu[open]");
+    if (event.target.closest(".advanced-menu")) return;
+    const openMenus = document.querySelectorAll(".advanced-menu[open]");
     openMenus.forEach((menu) => {
       menu.open = false;
     });
@@ -720,7 +730,7 @@ function bindGlobalControls() {
     if (event.button !== 0) return;
     if (state.wallEditMode) return;
     if (event.target.closest(".tile, .boss-token")) return;
-    if (event.target.closest(".view-menu, .settings-menu")) return;
+    if (event.target.closest(".advanced-menu")) return;
     beginBoardPan(event);
   });
   board.addEventListener(
@@ -882,6 +892,7 @@ function setWallEditMode(enabled) {
       setStatus("Wall edit mode off. Round reset.");
     }
   }
+  updateModeIndicators();
 }
 
 function startWallEditSession() {
@@ -893,6 +904,7 @@ function startWallEditSession() {
     console.error(error);
     setStatus("Failed to build wall editor page. Check tile assets.", true);
   });
+  updatePlacedProgress();
 }
 
 function captureBuildViewLayout() {
@@ -1037,6 +1049,7 @@ function startRound() {
   renderActiveTiles();
   renderBossPile();
   placeStartTileAtCenter();
+  updatePlacedProgress();
 }
 
 function rerollTrayTiles() {
@@ -1091,6 +1104,7 @@ function resetTiles() {
   renderActiveTiles();
   placeStartTileAtCenter();
   setStatus("Tiles reset to tray.");
+  updatePlacedProgress();
 }
 
 function clearBoard() {
@@ -1397,6 +1411,10 @@ function renderBossPile() {
 function setBossEditMode(enabled) {
   state.bossEditMode = Boolean(enabled);
   document.body.classList.toggle("boss-edit-mode", state.bossEditMode);
+  if (toggleBossEditBtn) {
+    toggleBossEditBtn.textContent = state.bossEditMode ? "Boss Selection: Active" : "Boss Selection";
+  }
+  updateModeIndicators();
 }
 
 function isClickInTopRightCloseHit(event, containerEl) {
@@ -1632,6 +1650,7 @@ function renderReservePile() {
   }
 
   updateReserveSwapHighlights();
+  updatePlacedProgress();
 }
 
 function getInactiveTilesInReserveOrder() {
@@ -2756,6 +2775,28 @@ function selectTile(id) {
   }
 }
 
+function updatePlacedProgress() {
+  if (!placedProgressEl) return;
+  const placedCount = getPlacedTiles().filter((tile) => !isEntranceTile(tile)).length;
+  placedProgressEl.textContent = `Placed ${placedCount} / 6 tiles`;
+}
+
+function updateModeIndicators() {
+  if (!modeIndicatorsEl) return;
+  modeIndicatorsEl.innerHTML = "";
+  const modes = [];
+  if (state.wallEditMode) modes.push("Wall Editor Active");
+  if (state.bossEditMode) modes.push("Boss Selection Active");
+  if (state.reserveEditMode) modes.push("Reserve Edit Active");
+  if (!modes.length) modes.push("Build Mode Active");
+  for (const label of modes) {
+    const chip = document.createElement("span");
+    chip.className = "mode-chip";
+    chip.textContent = label;
+    modeIndicatorsEl.appendChild(chip);
+  }
+}
+
 function beginDrag(tile, event) {
   selectTile(null);
   clearInvalidReturnTimer(tile);
@@ -2873,6 +2914,7 @@ function beginDrag(tile, event) {
         updateTileParent(tile, tile.traySlot);
         updateTileTransform(tile);
         setPlacementFeedback(tile, null);
+        updatePlacedProgress();
         tile.drag = null;
         return;
       }
@@ -2906,6 +2948,7 @@ function finishDrop(tile) {
     tile.placed = true;
     setPlacementFeedback(tile, null);
     setStatus("Entrance tile placed. Now add the other 6 tiles.");
+    updatePlacedProgress();
     return;
   }
 
@@ -2941,6 +2984,7 @@ function finishDrop(tile) {
     setStatus(`Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} contacts (4-point rule ignored).`, true);
   }
   selectTile(null);
+  updatePlacedProgress();
 }
 
 function snapTileCenterToHex(tile, tileCenterX, tileCenterY) {
@@ -3454,12 +3498,14 @@ function revertToTray(tile, message, warn = false) {
   selectTile(null);
   setPlacementFeedback(tile, null);
   setStatus(message, warn);
+  updatePlacedProgress();
 }
 
 function handleInvalidDrop(tile, placedTiles, message = null, force = false) {
   if (state.ignoreContactRule && !force) {
     clearInvalidReturnTimer(tile);
     setPlacementFeedback(tile, null);
+    updatePlacedProgress();
     return;
   }
   clearInvalidReturnTimer(tile);
@@ -3484,6 +3530,7 @@ function handleInvalidDrop(tile, placedTiles, message = null, force = false) {
     selectTile(null);
     setPlacementFeedback(tile, null);
     setStatus(`${getTileDisplayLabel(tile.tileId)} returned to tray after invalid placement.`, true);
+    updatePlacedProgress();
   }, INVALID_RETURN_DELAY_MS);
 }
 

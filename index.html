@@ -9,18 +9,55 @@
   <body>
     <main class="app">
       <header class="topbar">
-        <div>
+        <div class="topbar-intro">
           <h1>Tile Randomizer Prototype</h1>
-          <p>Place the Entrance Tile, then place 6 random Dungeon Tiles with at least 2-side contact.</p>
+          <p>Choose a Tile Set, pick 6 tiles, build your dungeon, then select a boss.</p>
+          <ol class="workflow-steps" aria-label="Dungeon workflow">
+            <li>1. Choose Tile Set</li>
+            <li>2. Pick 6 Tiles</li>
+            <li>3. Build Your Dungeon</li>
+            <li>4. Choose Boss</li>
+          </ol>
+          <div id="mode-indicators" class="mode-indicators" aria-label="Active modes"></div>
         </div>
-        <div class="actions">
-          <select id="ui-theme-select" aria-label="UI Theme">
-            <option value="current">Current</option>
-            <option value="molten">Molten</option>
-          </select>
-          <details class="view-menu">
-            <summary>Debug</summary>
-            <div class="view-menu-panel">
+        <div class="actions primary-actions">
+          <label class="primary-control">
+            <span>Tile Set</span>
+            <select id="tile-set-select" aria-label="Tile Set">
+              <option value="molten">Molten</option>
+              <option value="overgrown">Overgrown</option>
+              <option value="dreamscape">Dreamscape</option>
+              <option value="nightmare">Nightmare</option>
+              <option value="submerged">Submerged</option>
+              <option value="deep_freeze">Deep Freeze</option>
+            </select>
+          </label>
+          <button id="reroll-btn" type="button">Reroll Tiles</button>
+          <button id="reset-tiles-btn" type="button">Reset Tiles</button>
+          <button id="save-dungeon-btn" type="button">Save Layout</button>
+          <button id="load-dungeon-btn" type="button">Load Layout</button>
+          <button id="toggle-boss-edit-btn" type="button">Boss Selection</button>
+          <label class="feedback-mode-toggle" for="toggle-face-feedback-checkbox">
+            <input id="toggle-face-feedback-checkbox" type="checkbox" />
+            <span>Placement Feedback: Precision (Face-by-Face)</span>
+          </label>
+          <details class="advanced-menu">
+            <summary>Advanced / Tools</summary>
+            <div class="advanced-menu-panel">
+              <label>
+                <span>UI Theme</span>
+                <select id="ui-theme-select" aria-label="UI Theme">
+                  <option value="current">Current</option>
+                  <option value="molten">Molten</option>
+                </select>
+              </label>
+              <button id="toggle-wall-edit-btn" type="button">Wall Editor</button>
+              <button id="clear-tile-walls-btn" class="wall-edit-only" type="button">Clear Tile Walls</button>
+              <button id="export-wall-data-btn" class="wall-edit-only" type="button">Export Debug Walls</button>
+              <button id="import-wall-data-btn" class="wall-edit-only" type="button">Import Debug Walls</button>
+              <button id="zoom-reset-btn" type="button">Zoom 100%</button>
+              <div class="advanced-debug-group" aria-label="Debug controls">
+                <p>Debug Controls</p>
               <label>
                 <input id="toggle-labels-checkbox" type="checkbox" />
                 <span>Show Numbers</span>
@@ -33,65 +70,46 @@
                 <input id="toggle-ignore-contact-checkbox" type="checkbox" />
                 <span>Ignore 4-Point Rule</span>
               </label>
-              <label>
-                <input id="toggle-face-feedback-checkbox" type="checkbox" checked />
-                <span>Face Feedback</span>
-              </label>
+              </div>
             </div>
           </details>
-          <details class="settings-menu">
-            <summary>Settings</summary>
-            <div class="settings-menu-panel">
-              <button id="save-dungeon-btn" type="button">Save Dungeon</button>
-              <button id="load-dungeon-btn" type="button">Load Dungeon</button>
-              <button id="zoom-reset-btn" type="button">Zoom 100%</button>
-              <input id="load-dungeon-input" type="file" accept="application/json,.json" hidden />
-            </div>
-          </details>
-          <button id="toggle-wall-edit-btn" type="button">Wall Editor</button>
-          <button id="clear-tile-walls-btn" class="wall-edit-only" type="button">Clear Tile Walls</button>
-          <button id="export-wall-data-btn" class="wall-edit-only" type="button">Export Debug Walls</button>
-          <button id="import-wall-data-btn" class="wall-edit-only" type="button">Import Debug Walls</button>
           <input id="import-wall-data-input" type="file" accept="application/json" hidden />
+          <input id="load-dungeon-input" type="file" accept="application/json,.json" hidden />
         </div>
       </header>
 
       <section class="workspace">
         <div id="board" class="board" aria-label="Placement board"></div>
         <aside class="sidebar">
-          <div class="tray-head">
-            <h2>Tile Tray</h2>
-            <div class="tray-action-icons" aria-label="Tile tray actions">
-              <button id="reroll-btn" type="button" title="Reroll Tiles" aria-label="Reroll Tiles">
-                <img src="./icons/reroll.png" alt="" aria-hidden="true" />
-              </button>
-              <button id="reset-tiles-btn" type="button" title="Reset Tiles" aria-label="Reset Tiles">
-                <img src="./icons/reset.png" alt="" aria-hidden="true" />
-              </button>
+          <section class="sidebar-section selected-tiles-section">
+            <div class="tray-head">
+              <h2>Selected Tiles</h2>
+              <div id="placed-progress" class="placed-progress" aria-live="polite">Placed 0 / 6 tiles</div>
             </div>
-            <div class="tray-pickers">
-              <label class="theme-picker">
-                <span class="theme-label">Tile Set</span>
-                <select id="tile-set-select" aria-label="Tile Set">
-                  <option value="molten">Molten</option>
-                  <option value="overgrown">Overgrown</option>
-                  <option value="dreamscape">Dreamscape</option>
-                  <option value="nightmare">Nightmare</option>
-                  <option value="submerged">Submerged</option>
-                  <option value="deep_freeze">Deep Freeze</option>
-                </select>
-              </label>
-            </div>
-          </div>
-          <div id="tray" class="tray"></div>
-          <div class="reserve-boss-row">
+            <p class="section-helper">Step 2: six tiles are active each round. Drag them onto the board.</p>
+            <div id="tray" class="tray"></div>
+          </section>
+
+          <section class="sidebar-section reserve-section">
+            <h3>Reserve Tiles</h3>
+            <p class="section-helper">Inactive tiles stay here. Enable Reserve Edit mode by clicking this area.</p>
             <div class="reserve-area">
               <div id="reserve-pile" class="reserve-pile" aria-label="Reserve Tiles"></div>
               <input id="reserve-edit-checkbox" type="checkbox" hidden />
             </div>
+          </section>
+
+          <section class="sidebar-section boss-section">
+            <h3>Boss Selection</h3>
+            <p class="section-helper">Step 4: click Boss Selection to swap visible boss cards, then drag one to board.</p>
             <div id="boss-pile" class="boss-pile" aria-label="Boss Selection"></div>
-          </div>
-          <div id="status" class="status" role="status" aria-live="polite" aria-label="Placement Feedback"></div>
+          </section>
+
+          <section class="sidebar-section feedback-section">
+            <h3>Placement Feedback</h3>
+            <p class="section-helper">Step 3: place tiles with valid contact. Full-tile feedback is default.</p>
+            <div id="status" class="status" role="status" aria-live="polite" aria-label="Placement Feedback"></div>
+          </section>
         </aside>
       </section>
 
