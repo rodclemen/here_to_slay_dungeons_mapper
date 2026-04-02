@@ -33,6 +33,19 @@
                 <input id="toggle-ignore-contact-checkbox" type="checkbox" />
                 <span>Ignore 4-Point Rule</span>
               </label>
+              <label>
+                <input id="toggle-face-feedback-checkbox" type="checkbox" checked />
+                <span>Face Feedback</span>
+              </label>
+            </div>
+          </details>
+          <details class="settings-menu">
+            <summary>Settings</summary>
+            <div class="settings-menu-panel">
+              <button id="save-dungeon-btn" type="button">Save Dungeon</button>
+              <button id="load-dungeon-btn" type="button">Load Dungeon</button>
+              <button id="zoom-reset-btn" type="button">Zoom 100%</button>
+              <input id="load-dungeon-input" type="file" accept="application/json,.json" hidden />
             </div>
           </details>
           <button id="toggle-wall-edit-btn" type="button">Edit Walls</button>
@@ -48,6 +61,14 @@
         <aside class="sidebar">
           <div class="tray-head">
             <h2>Tile Tray</h2>
+            <div class="tray-action-icons" aria-label="Tile tray actions">
+              <button id="reroll-btn" type="button" title="Reroll Tiles" aria-label="Reroll Tiles">
+                <img src="./icons/reroll.png" alt="" aria-hidden="true" />
+              </button>
+              <button id="reset-tiles-btn" type="button" title="Reset Tiles" aria-label="Reset Tiles">
+                <img src="./icons/reset.png" alt="" aria-hidden="true" />
+              </button>
+            </div>
             <div class="tray-pickers">
               <label class="theme-picker">
                 <span class="theme-label">Tile Set</span>
@@ -63,23 +84,12 @@
             </div>
           </div>
           <div id="tray" class="tray"></div>
-          <div class="reserve-area">
-            <div id="reserve-stack" class="reserve-stack" aria-label="Remaining tiles"></div>
-            <details class="reserve-menu">
-              <summary aria-label="Reserve options">⋮</summary>
-              <div class="reserve-menu-panel">
-                <label>
-                  <input id="reserve-edit-checkbox" type="checkbox" />
-                  <span>Edit</span>
-                </label>
-              </div>
-            </details>
-          </div>
-          <div class="tray-actions">
-            <button id="reroll-btn" type="button">Reroll Tiles</button>
-            <button id="randomize-rotation-btn" type="button">Randomize Rotation</button>
-            <button id="reset-position-btn" type="button">Reset Position</button>
-            <button id="reset-tiles-btn" type="button">Reset Tiles</button>
+          <div class="reserve-boss-row">
+            <div class="reserve-area">
+              <div id="reserve-stack" class="reserve-stack" aria-label="Remaining tiles"></div>
+              <input id="reserve-edit-checkbox" type="checkbox" hidden />
+            </div>
+            <div id="boss-stack" class="boss-stack" aria-label="Boss tiles"></div>
           </div>
           <div id="status" class="status" role="status" aria-live="polite"></div>
         </aside>

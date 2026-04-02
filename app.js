@@ -24,13 +24,17 @@ const THEME_OPTIONS = [
   { id: "submerged", label: "Submerged", folder: "submerged", prefix: "submerged" },
   { id: "deep_freeze", label: "Deep Freeze", folder: "deep_freeze", prefix: "deep_freeze" },
 ];
-const TRAY_CENTER_X = TILE_SIZE / 2;
-const TRAY_CENTER_Y = TILE_SIZE / 2 + 10;
+const BOSS_TILE_FILES = {
+  molten: ["molten_boss_flamebeard.png", "molten_boss_abyss_empress.png"],
+  overgrown: ["overgrown_boss_bloombrute.png", "overgrown_boss_rootgnaw"],
+};
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
+const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
 
 const board = document.getElementById("board");
 const tray = document.getElementById("tray");
 const reserveStack = document.getElementById("reserve-stack");
+const bossStack = document.getElementById("boss-stack");
 const reserveEditCheckbox = document.getElementById("reserve-edit-checkbox");
 const wallEditorPage = document.getElementById("wall-editor-page");
 const themeSelect = document.getElementById("theme-select");
@@ -38,8 +42,6 @@ const uiThemeSelect = document.getElementById("ui-theme-select");
 const workspace = document.querySelector(".workspace");
 const statusEl = document.getElementById("status");
 const rerollBtn = document.getElementById("reroll-btn");
-const randomizeRotationBtn = document.getElementById("randomize-rotation-btn");
-const resetPositionBtn = document.getElementById("reset-position-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
 const toggleWallEditBtn = document.getElementById("toggle-wall-edit-btn");
@@ -47,8 +49,13 @@ const clearTileWallsBtn = document.getElementById("clear-tile-walls-btn");
 const exportWallDataBtn = document.getElementById("export-wall-data-btn");
 const importWallDataBtn = document.getElementById("import-wall-data-btn");
 const importWallDataInput = document.getElementById("import-wall-data-input");
+const saveDungeonBtn = document.getElementById("save-dungeon-btn");
+const loadDungeonBtn = document.getElementById("load-dungeon-btn");
+const loadDungeonInput = document.getElementById("load-dungeon-input");
+const zoomResetBtn = document.getElementById("zoom-reset-btn");
 const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
 const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-contact-checkbox");
+const toggleFaceFeedbackCheckbox = document.getElementById("toggle-face-feedback-checkbox");
 const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
@@ -72,8 +79,17 @@ const state = {
   reserveEditMode: false,
   reserveOrder: [],
   ignoreContactRule: false,
+  useFaceFeedback: true,
+  bossEditMode: false,
+  bossOrderFlipped: false,
+  bossTokens: [],
+  nextBossTokenId: 1,
   boardPanX: 0,
   boardPanY: 0,
+  frontpageSnapshot: null,
+  referenceTileSrc: "",
+  referenceMarker: null,
+  boardZoom: 1,
 };
 
 init().catch((error) => {
@@ -86,6 +102,9 @@ async function init() {
   if (themeSelect) themeSelect.value = state.selectedThemeId;
   if (uiThemeSelect) uiThemeSelect.value = state.selectedUiThemeId;
   applyUiTheme(state.selectedUiThemeId);
+  applyFeedbackMode(state.useFaceFeedback);
+  applyBoardZoom(state.boardZoom);
+  state.referenceTileSrc = getReferenceTileSrc(state.selectedThemeId);
   await applyTheme(state.selectedThemeId, false);
   scheduleBoardHexGridRender();
 }
@@ -145,6 +164,7 @@ async function applyTheme(themeId, showStatus = true) {
   const previousThemeId = state.selectedThemeId;
   try {
     state.selectedThemeId = nextTheme.id;
+    state.referenceTileSrc = getReferenceTileSrc(nextTheme.id);
     await loadTiles(nextTheme.id);
     startRound();
     if (showStatus) setStatus(`Theme set to ${nextTheme.label}.`);
@@ -152,6 +172,7 @@ async function applyTheme(themeId, showStatus = true) {
     console.error(error);
     const previousTheme = getThemeConfig(previousThemeId);
     state.selectedThemeId = previousTheme.id;
+    state.referenceTileSrc = getReferenceTileSrc(previousTheme.id);
     if (themeSelect) themeSelect.value = previousTheme.id;
     if (previousTheme.id !== nextTheme.id) {
       try {
@@ -167,12 +188,6 @@ async function applyTheme(themeId, showStatus = true) {
 
 function bindGlobalControls() {
   rerollBtn.addEventListener("click", () => rerollTrayTiles());
-  if (randomizeRotationBtn) {
-    randomizeRotationBtn.addEventListener("click", () => randomizeTrayRotation());
-  }
-  if (resetPositionBtn) {
-    resetPositionBtn.addEventListener("click", () => resetTrayPositions());
-  }
   if (resetTilesBtn) {
     resetTilesBtn.addEventListener("click", () => resetTiles());
   }
@@ -204,6 +219,18 @@ function bindGlobalControls() {
         state.ignoreContactRule
           ? "Ignore 4-point rule: ON (placement allowed without minimum contact)."
           : "Ignore 4-point rule: OFF.",
+      );
+    });
+  }
+  if (toggleFaceFeedbackCheckbox) {
+    toggleFaceFeedbackCheckbox.checked = state.useFaceFeedback;
+    toggleFaceFeedbackCheckbox.addEventListener("change", () => {
+      state.useFaceFeedback = toggleFaceFeedbackCheckbox.checked;
+      applyFeedbackMode(state.useFaceFeedback);
+      setStatus(
+        state.useFaceFeedback
+          ? "Connection feedback mode: face-by-face."
+          : "Connection feedback mode: classic full outline.",
       );
     });
   }
@@ -269,23 +296,66 @@ function bindGlobalControls() {
       await importWallOverridesBackup(file);
     });
   }
+  if (saveDungeonBtn) {
+    saveDungeonBtn.addEventListener("click", () => {
+      exportDungeonLayout();
+      const menu = saveDungeonBtn.closest(".settings-menu");
+      if (menu) menu.open = false;
+    });
+  }
+  if (loadDungeonBtn && loadDungeonInput) {
+    loadDungeonBtn.addEventListener("click", () => {
+      loadDungeonInput.click();
+      const menu = loadDungeonBtn.closest(".settings-menu");
+      if (menu) menu.open = false;
+    });
+    loadDungeonInput.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      await importDungeonLayout(file);
+    });
+  }
+  if (zoomResetBtn) {
+    zoomResetBtn.addEventListener("click", () => {
+      resetBoardView();
+      setStatus("Board view reset.");
+      const menu = zoomResetBtn.closest(".settings-menu");
+      if (menu) menu.open = false;
+    });
+  }
   if (reserveEditCheckbox) {
     reserveEditCheckbox.checked = state.reserveEditMode;
-    reserveEditCheckbox.addEventListener("change", (event) => {
+    document.body.classList.toggle("reserve-edit-mode", state.reserveEditMode);
+    reserveEditCheckbox.addEventListener("change", () => {
       state.reserveEditMode = reserveEditCheckbox.checked;
+      document.body.classList.toggle("reserve-edit-mode", state.reserveEditMode);
       if (state.reserveEditMode) {
         randomizeCurrentInactiveReserveOrder();
       } else {
         clearPendingReserveSwap();
       }
       renderInactiveTileStack();
-      const menu = event.target.closest(".reserve-menu");
-      if (menu) menu.open = false;
       if (state.reserveEditMode) {
         setStatus("Reserve edit mode on: inactive tiles are shown side by side.");
       } else {
         setStatus("Reserve edit mode off: inactive tiles shown as stack.");
       }
+    });
+  }
+  if (reserveEditCheckbox && reserveStack) {
+    reserveStack.addEventListener("click", (event) => {
+      if (state.reserveEditMode) {
+        if (!isClickInTopRightCloseHit(event, reserveStack)) return;
+      }
+      reserveEditCheckbox.checked = !state.reserveEditMode;
+      reserveEditCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+  if (bossStack) {
+    bossStack.addEventListener("click", (event) => {
+      if (event.target.closest(".boss-card")) return;
+      setBossEditMode(!state.bossEditMode);
     });
   }
 
@@ -306,8 +376,8 @@ function bindGlobalControls() {
   });
 
   document.addEventListener("click", (event) => {
-    if (event.target.closest(".view-menu, .reserve-menu")) return;
-    const openMenus = document.querySelectorAll(".view-menu[open], .reserve-menu[open]");
+    if (event.target.closest(".view-menu, .settings-menu")) return;
+    const openMenus = document.querySelectorAll(".view-menu[open], .settings-menu[open]");
     openMenus.forEach((menu) => {
       menu.open = false;
     });
@@ -316,10 +386,23 @@ function bindGlobalControls() {
   board.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
     if (state.wallEditMode) return;
-    if (event.target.closest(".tile")) return;
-    if (event.target.closest(".reserve-menu, .view-menu")) return;
+    if (event.target.closest(".tile, .boss-token")) return;
+    if (event.target.closest(".view-menu, .settings-menu")) return;
     beginBoardPan(event);
   });
+  board.addEventListener(
+    "wheel",
+    (event) => {
+      if (state.wallEditMode) return;
+      event.preventDefault();
+      const rect = board.getBoundingClientRect();
+      const anchorX = clamp(event.clientX - rect.left, 0, rect.width);
+      const anchorY = clamp(event.clientY - rect.top, 0, rect.height);
+      const delta = -event.deltaY * 0.0012;
+      zoomBoardAtPoint(delta, anchorX, anchorY);
+    },
+    { passive: false },
+  );
 
   window.addEventListener("resize", scheduleBoardHexGridRender, { passive: true });
 
@@ -348,6 +431,102 @@ function applyUiTheme(themeId) {
   scheduleBoardHexGridRender();
 }
 
+function applyFeedbackMode(useFaceFeedback) {
+  document.body.classList.toggle("feedback-legacy", !useFaceFeedback);
+}
+
+function getBoardZoom() {
+  return Number.isFinite(state.boardZoom) ? state.boardZoom : 1;
+}
+
+function applyBoardZoom(zoom) {
+  const clamped = clamp(zoom, 0.7, 1.8);
+  state.boardZoom = clamped;
+  board.style.setProperty("--board-zoom", clamped.toFixed(3));
+  updateBoardZoomIndicator();
+  scheduleBoardHexGridRender();
+}
+
+function resetBoardView() {
+  const dx = -state.boardPanX;
+  const dy = -state.boardPanY;
+  translateBoardContent(dx, dy);
+  applyBoardZoom(1);
+}
+
+function zoomBoardAtPoint(delta, anchorBoardX, anchorBoardY) {
+  const prevZoom = getBoardZoom();
+  const nextZoom = clamp(prevZoom + delta, 0.7, 1.8);
+  if (Math.abs(nextZoom - prevZoom) < 1e-6) return;
+
+  const worldXBefore = anchorBoardX / prevZoom;
+  const worldYBefore = anchorBoardY / prevZoom;
+  const worldXAfter = anchorBoardX / nextZoom;
+  const worldYAfter = anchorBoardY / nextZoom;
+
+  applyBoardZoom(nextZoom);
+  translateBoardContent(worldXAfter - worldXBefore, worldYAfter - worldYBefore);
+}
+
+function translateBoardContent(dx, dy) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return;
+
+  state.boardPanX += dx;
+  state.boardPanY += dy;
+
+  for (const tile of state.tiles.values()) {
+    if (!tile.dom || !isOnBoardLayer(tile.dom.parentElement)) continue;
+    positionTile(tile, tile.x + dx, tile.y + dy);
+    updateTileTransform(tile);
+  }
+
+  if (state.referenceMarker?.dom) {
+    const rx = state.referenceMarker.x + dx;
+    const ry = state.referenceMarker.y + dy;
+    state.referenceMarker.x = rx;
+    state.referenceMarker.y = ry;
+    state.referenceMarker.dom.style.left = `${rx}px`;
+    state.referenceMarker.dom.style.top = `${ry}px`;
+  }
+
+  for (const token of state.bossTokens) {
+    if (!token?.dom || !isOnBoardLayer(token.dom.parentElement)) continue;
+    positionBossToken(token, token.x + dx, token.y + dy);
+    updateBossTokenTransform(token);
+  }
+
+  scheduleBoardHexGridRender();
+}
+
+function updateBoardZoomIndicator() {
+  let badge = board.querySelector(".board-zoom-indicator");
+  if (!badge) {
+    badge = document.createElement("button");
+    badge.type = "button";
+    badge.className = "board-zoom-indicator";
+    badge.addEventListener("click", () => {
+      resetBoardView();
+    });
+    const zoomText = document.createElement("span");
+    zoomText.className = "zoom-text";
+    zoomText.textContent = "Zoom";
+    const zoomValue = document.createElement("span");
+    zoomValue.className = "zoom-value";
+    const zoomUnit = document.createElement("span");
+    zoomUnit.className = "zoom-unit";
+    zoomUnit.textContent = "%";
+    badge.appendChild(zoomText);
+    badge.appendChild(zoomValue);
+    badge.appendChild(zoomUnit);
+    board.appendChild(badge);
+  }
+  const valueEl = badge.querySelector(".zoom-value");
+  const percent = Math.round(getBoardZoom() * 100);
+  if (valueEl) valueEl.textContent = String(percent);
+  badge.setAttribute("aria-label", `Reset zoom (${percent} percent)`);
+}
+
 function setWallEditMode(enabled) {
   clearPendingReserveSwap();
   state.wallEditMode = enabled;
@@ -356,12 +535,19 @@ function setWallEditMode(enabled) {
     toggleWallEditBtn.textContent = enabled ? "Frontpage" : "Edit Walls";
   }
   if (enabled) {
+    state.frontpageSnapshot = captureFrontpageLayout();
     startWallEditSession();
     setStatus("Wall edit mode: click a face segment to toggle wall ON/OFF. Changes are saved per theme+tile.");
   } else {
     syncSelectedThemeWallsFromOverrides();
-    startRound();
-    setStatus("Wall edit mode off. Round reset.");
+    const restored = restoreFrontpageLayout(state.frontpageSnapshot);
+    state.frontpageSnapshot = null;
+    if (restored) {
+      setStatus("Wall edit mode off. Restored previous layout.");
+    } else {
+      startRound();
+      setStatus("Wall edit mode off. Round reset.");
+    }
   }
 }
 
@@ -374,6 +560,127 @@ function startWallEditSession() {
     console.error(error);
     setStatus("Failed to build wall editor page. Check tile assets.", true);
   });
+}
+
+function captureFrontpageLayout() {
+  const tiles = [];
+  for (const tile of state.tiles.values()) {
+    tiles.push({
+      id: tile.id,
+      active: Boolean(tile.active),
+      placed: Boolean(tile.placed),
+      x: Number(tile.x) || 0,
+      y: Number(tile.y) || 0,
+      rotation: Number(tile.rotation) || 0,
+    });
+  }
+  return {
+    themeId: state.selectedThemeId,
+    boardPanX: Number(state.boardPanX) || 0,
+    boardPanY: Number(state.boardPanY) || 0,
+    boardZoom: Number(state.boardZoom) || 1,
+    reserveOrder: Array.isArray(state.reserveOrder) ? [...state.reserveOrder] : [],
+    tiles,
+  };
+}
+
+function restoreFrontpageLayout(snapshot) {
+  if (!snapshot || snapshot.themeId !== state.selectedThemeId) return false;
+
+  const byId = new Map((snapshot.tiles || []).map((t) => [t.id, t]));
+  if (!byId.size) return false;
+
+  for (const tile of state.tiles.values()) {
+    const saved = byId.get(tile.id);
+    if (!saved) continue;
+    tile.active = Boolean(saved.active);
+    tile.placed = Boolean(saved.placed);
+    tile.x = Number(saved.x) || 0;
+    tile.y = Number(saved.y) || 0;
+    tile.rotation = normalizeAngle(Number(saved.rotation) || 0);
+  }
+
+  state.boardPanX = Number(snapshot.boardPanX) || 0;
+  state.boardPanY = Number(snapshot.boardPanY) || 0;
+  state.boardZoom = Number(snapshot.boardZoom) || 1;
+  applyBoardZoom(state.boardZoom);
+  state.reserveOrder = Array.isArray(snapshot.reserveOrder) ? [...snapshot.reserveOrder] : [];
+
+  clearBoard();
+  scheduleBoardHexGridRender();
+  rerenderTrayAndReserve();
+
+  for (const tile of state.tiles.values()) {
+    if (!tile.active || !tile.placed) continue;
+    if (!tile.dom) tile.dom = createTileElement(tile);
+    updateTileParent(tile, board);
+    updateTileTransform(tile);
+  }
+  const start = state.tiles.get("molten_entrance");
+  if (start?.placed) placeReferenceAboveStart(start);
+
+  selectTile(null);
+  return true;
+}
+
+function exportDungeonLayout() {
+  if (state.wallEditMode) {
+    setStatus("Save Dungeon is available on frontpage only.", true);
+    return;
+  }
+  try {
+    const snapshot = captureFrontpageLayout();
+    const payload = {
+      schema: "hts-dungeon-layout-v1",
+      savedAt: new Date().toISOString(),
+      layout: snapshot,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `hts-dungeon-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setStatus("Dungeon layout exported.");
+  } catch (error) {
+    console.error(error);
+    setStatus("Failed to export dungeon layout.", true);
+  }
+}
+
+async function importDungeonLayout(file) {
+  if (state.wallEditMode) {
+    setStatus("Load Dungeon is available on frontpage only.", true);
+    return;
+  }
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const layout = parsed?.layout ?? parsed;
+    if (!layout || typeof layout !== "object") {
+      setStatus("Invalid dungeon file.", true);
+      return;
+    }
+
+    const targetThemeId = layout.themeId || state.selectedThemeId;
+    if (targetThemeId !== state.selectedThemeId) {
+      await applyTheme(targetThemeId, false);
+      if (themeSelect) themeSelect.value = targetThemeId;
+    }
+    const ok = restoreFrontpageLayout(layout);
+    if (!ok) {
+      setStatus("Could not restore dungeon layout.", true);
+      return;
+    }
+    setStatus("Dungeon layout loaded.");
+  } catch (error) {
+    console.error(error);
+    setStatus("Failed to load dungeon layout.", true);
+  }
 }
 
 function startRound() {
@@ -394,6 +701,7 @@ function startRound() {
   resetReserveOrderForCurrentInactive();
 
   renderActiveTiles();
+  renderBossStack();
   placeStartTileAtCenter();
 }
 
@@ -438,40 +746,6 @@ function rerollTrayTiles() {
   setStatus("Tray tiles rerolled. Grid placements kept.");
 }
 
-function randomizeTrayRotation() {
-  if (state.wallEditMode) {
-    startWallEditSession();
-    setStatus("Wall edit mode refreshed.");
-    return;
-  }
-
-  let changed = false;
-  for (const tile of state.tiles.values()) {
-    if (tile.required || !tile.active || tile.placed) continue;
-    tile.rotation = randomTrayRotation();
-    updateTileTransform(tile);
-    changed = true;
-  }
-
-  if (changed) {
-    setStatus("Tray tile rotation randomized.");
-  } else {
-    setStatus("No tray tiles available to randomize.", true);
-  }
-}
-
-function resetTrayPositions() {
-  if (state.wallEditMode) {
-    startWallEditSession();
-    setStatus("Wall edit mode refreshed.");
-    return;
-  }
-
-  clearPendingReserveSwap();
-  rerenderTrayAndReserve();
-  setStatus("Tray positions reset.");
-}
-
 function resetTiles() {
   if (state.wallEditMode) {
     startWallEditSession();
@@ -490,6 +764,10 @@ function clearBoard() {
     clearInvalidReturnTimer(tile);
   }
   board.innerHTML = "";
+  state.referenceMarker = null;
+  state.bossTokens = [];
+  updateBoardZoomIndicator();
+  getBoardContentLayer();
   mountBoardHexGrid();
   tray.innerHTML = "";
   reserveStack.innerHTML = "";
@@ -499,11 +777,21 @@ function clearBoard() {
   clearPendingReserveSwap();
 }
 
+function getBoardContentLayer() {
+  let layer = board.querySelector(".board-content");
+  if (layer) return layer;
+  layer = document.createElement("div");
+  layer.className = "board-content";
+  board.appendChild(layer);
+  return layer;
+}
+
 function mountBoardHexGrid() {
+  const layer = getBoardContentLayer();
   const svg = document.createElementNS(BOARD_HEX_SVG_NS, "svg");
   svg.classList.add("board-hex-grid");
   svg.setAttribute("aria-hidden", "true");
-  board.appendChild(svg);
+  layer.appendChild(svg);
   renderBoardHexGrid();
 }
 
@@ -513,17 +801,22 @@ function scheduleBoardHexGridRender() {
 }
 
 function renderBoardHexGrid() {
-  const svg = board.querySelector(".board-hex-grid");
+  const svg = getBoardContentLayer().querySelector(".board-hex-grid");
   if (!svg) return;
 
   const w = Math.floor(board.clientWidth);
   const h = Math.floor(board.clientHeight);
   if (w <= 0 || h <= 0) return;
+  const zoom = getBoardZoom();
+  const drawW = Math.max(w, Math.ceil(w / zoom));
+  const drawH = Math.max(h, Math.ceil(h / zoom));
   const layout = getBoardHexLayout(w, h);
   const panX = state.boardPanX;
   const panY = state.boardPanY;
 
-  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.style.width = `${drawW}px`;
+  svg.style.height = `${drawH}px`;
+  svg.setAttribute("viewBox", `0 0 ${drawW} ${drawH}`);
   svg.replaceChildren();
 
   const strokeColor = state.selectedUiThemeId === "molten"
@@ -536,18 +829,20 @@ function renderBoardHexGrid() {
   group.setAttribute("stroke-width", "1");
   group.setAttribute("vector-effect", "non-scaling-stroke");
 
-  const colStart = Math.floor((layout.minX - panX - layout.minX) / layout.dx) - 1;
-  const colEnd = Math.ceil((layout.maxX - panX - layout.minX) / layout.dx) + 1;
+  const colStart = Math.floor((0 - panX - layout.minX) / layout.dx) - 2;
+  const colEnd = Math.ceil((drawW - panX - layout.minX) / layout.dx) + 2;
 
   for (let col = colStart; col <= colEnd; col += 1) {
     const xBase = layout.minX + col * layout.dx;
     const x = xBase + panX;
     const yOffset = ((col % 2) + 2) % 2 ? (layout.hexHeight / 2) : 0;
-    const rowStart = Math.floor((layout.minY - panY - (layout.minY + yOffset)) / layout.dy) - 1;
-    const rowEnd = Math.ceil((layout.maxY - panY - (layout.minY + yOffset)) / layout.dy) + 1;
+    const rowStart = Math.floor((0 - panY - (layout.minY + yOffset)) / layout.dy) - 2;
+    const rowEnd = Math.ceil((drawH - panY - (layout.minY + yOffset)) / layout.dy) + 2;
     for (let row = rowStart; row <= rowEnd; row += 1) {
       const yBase = layout.minY + yOffset + row * layout.dy;
       const y = yBase + panY;
+      if (x < -layout.radius || x > drawW + layout.radius) continue;
+      if (y < -layout.hexHeight || y > drawH + layout.hexHeight) continue;
       const path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
       path.setAttribute("d", hexPath(x, y, layout.radius));
       group.appendChild(path);
@@ -638,7 +933,7 @@ function renderActiveTiles() {
     tile.dom = tileEl;
 
     if (tile.id === "molten_entrance") {
-      board.appendChild(tileEl);
+      updateTileParent(tile, board);
       tile.placed = true;
     } else {
       const slot = document.createElement("div");
@@ -647,7 +942,7 @@ function renderActiveTiles() {
       tray.appendChild(slot);
       tile.traySlot = slot;
       tile.placed = false;
-      positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
+      positionTileAtTrayCenter(tile);
     }
 
     updateTileTransform(tile);
@@ -687,11 +982,270 @@ function rerenderTrayAndReserve() {
     tile.dom = tileEl;
     slot.appendChild(tileEl);
     tile.traySlot = slot;
-    positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
+    positionTileAtTrayCenter(tile);
     updateTileTransform(tile);
   }
 
   renderInactiveTileStack();
+  renderBossStack();
+}
+
+function getBossTileSources(themeId = state.selectedThemeId) {
+  const theme = getThemeConfig(themeId);
+  const files = BOSS_TILE_FILES[theme.id] || [];
+  return files.map((file) => `./tiles/${theme.folder}/${file}`);
+}
+
+function renderBossStack() {
+  if (!bossStack) return;
+  bossStack.innerHTML = "";
+  const placedBossSources = new Set(state.bossTokens.map((token) => token.src));
+  const sources = getBossTileSources().filter((src) => !placedBossSources.has(src));
+  if (!sources.length) {
+    bossStack.classList.add("is-empty");
+    return;
+  }
+  bossStack.classList.remove("is-empty");
+
+  const offsets = [
+    { dx: -20, dy: 10, rot: -9, z: 1, scale: 0.98 },
+    { dx: 16, dy: -6, rot: 5, z: 2, scale: 1.0 },
+  ];
+  const ordered = state.bossOrderFlipped && sources.length >= 2
+    ? [sources[1], sources[0], ...sources.slice(2)]
+    : sources;
+
+  for (let i = 0; i < ordered.length; i += 1) {
+    const card = document.createElement("div");
+    card.className = "boss-card";
+    const offset = offsets[i] || offsets[offsets.length - 1];
+    card.style.setProperty("--dx", `${offset.dx}px`);
+    card.style.setProperty("--dy", `${offset.dy}px`);
+    card.style.setProperty("--rot", `${offset.rot}deg`);
+    card.style.setProperty("--z", String(offset.z));
+    card.style.setProperty("--scale", String(offset.scale));
+
+    const img = document.createElement("img");
+    img.src = ordered[i];
+    img.alt = "Boss tile";
+    img.draggable = false;
+    img.addEventListener("dragstart", (event) => event.preventDefault());
+    img.addEventListener("error", () => {
+      card.remove();
+      if (!bossStack.querySelector(".boss-card")) bossStack.classList.add("is-empty");
+    });
+    const isTopCard = i === ordered.length - 1;
+    let draggedOut = false;
+    if (isTopCard) {
+      card.addEventListener("pointerdown", (event) => {
+        beginBossSpawnDrag(event, ordered[i], () => {
+          draggedOut = true;
+        });
+      });
+    }
+
+    card.addEventListener("click", () => {
+      if (draggedOut) {
+        draggedOut = false;
+        return;
+      }
+      if (!state.bossEditMode) return;
+      if (ordered.length < 2) return;
+      state.bossOrderFlipped = !state.bossOrderFlipped;
+      renderBossStack();
+    });
+
+    card.appendChild(img);
+    bossStack.appendChild(card);
+  }
+}
+
+function setBossEditMode(enabled) {
+  state.bossEditMode = Boolean(enabled);
+  document.body.classList.toggle("boss-edit-mode", state.bossEditMode);
+}
+
+function isClickInTopRightCloseHit(event, containerEl) {
+  if (!event || !containerEl) return false;
+  const rect = containerEl.getBoundingClientRect();
+  const hitSize = 28;
+  const inset = 6;
+  const left = rect.right - inset - hitSize;
+  const right = rect.right - inset;
+  const top = rect.top + inset;
+  const bottom = rect.top + inset + hitSize;
+  return (
+    event.clientX >= left
+    && event.clientX <= right
+    && event.clientY >= top
+    && event.clientY <= bottom
+  );
+}
+
+function beginBossSpawnDrag(event, src, onDragStart = null) {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  const cardEl = event.currentTarget;
+  const workspaceRect = workspace.getBoundingClientRect();
+  const boardRect = board.getBoundingClientRect();
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const pointerId = event.pointerId;
+  let moved = false;
+  let droppedToBoard = false;
+
+  const preview = document.createElement("div");
+  preview.className = "boss-token boss-token-preview";
+  preview.style.width = `${TILE_SIZE}px`;
+  const previewImg = document.createElement("img");
+  previewImg.src = src;
+  previewImg.alt = "";
+  previewImg.draggable = false;
+  previewImg.addEventListener("dragstart", (e) => e.preventDefault());
+  preview.appendChild(previewImg);
+  dragLayer.appendChild(preview);
+
+  const setPreviewPos = (clientX, clientY) => {
+    preview.style.left = `${clientX - workspaceRect.left}px`;
+    preview.style.top = `${clientY - workspaceRect.top}px`;
+  };
+  setPreviewPos(event.clientX, event.clientY);
+
+  const cleanup = () => {
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+    window.removeEventListener("pointercancel", handleUp);
+    if (!droppedToBoard) {
+      cardEl.classList.remove("boss-card-drag-origin");
+    }
+    preview.remove();
+  };
+
+  const handleMove = (moveEvent) => {
+    if (moveEvent.pointerId !== pointerId) return;
+    if (moveEvent.pointerType === "mouse" && moveEvent.buttons === 0) {
+      cleanup();
+      return;
+    }
+    if (!moved) {
+      const distance = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
+      if (distance >= 4) {
+        moved = true;
+        cardEl.classList.add("boss-card-drag-origin");
+        if (typeof onDragStart === "function") onDragStart();
+      }
+    }
+    setPreviewPos(moveEvent.clientX, moveEvent.clientY);
+  };
+
+  const handleUp = (upEvent) => {
+    if (upEvent.pointerId !== pointerId) return;
+    const droppedInsideBoard =
+      upEvent.clientX >= boardRect.left
+      && upEvent.clientX <= boardRect.right
+      && upEvent.clientY >= boardRect.top
+      && upEvent.clientY <= boardRect.bottom;
+
+    if (moved && droppedInsideBoard) {
+      const boardOriginX = boardRect.left + board.clientLeft;
+      const boardOriginY = boardRect.top + board.clientTop;
+      const zoom = getBoardZoom();
+      const bx = clamp((upEvent.clientX - boardOriginX) / zoom, 0, board.clientWidth);
+      const by = clamp((upEvent.clientY - boardOriginY) / zoom, 0, board.clientHeight);
+      createBossToken(src, bx, by, TILE_SIZE);
+      droppedToBoard = true;
+      renderBossStack();
+    }
+    cleanup();
+  };
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+  window.addEventListener("pointercancel", handleUp);
+}
+
+function createBossToken(src, x, y, size = 130) {
+  const gridSize = TILE_SIZE;
+  const token = {
+    id: `boss-token-${state.nextBossTokenId++}`,
+    src,
+    x,
+    y,
+    size: gridSize,
+    dom: null,
+  };
+  const dom = document.createElement("div");
+  dom.className = "boss-token";
+  dom.dataset.tokenId = token.id;
+  dom.style.width = `${token.size}px`;
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = "Boss token";
+  img.draggable = false;
+  img.addEventListener("dragstart", (e) => e.preventDefault());
+  dom.appendChild(img);
+  dom.addEventListener("pointerdown", (e) => beginBossTokenDrag(token, e));
+  token.dom = dom;
+  state.bossTokens.push(token);
+  getBoardContentLayer().appendChild(dom);
+  updateBossTokenTransform(token);
+}
+
+function positionBossToken(token, x, y) {
+  token.x = x;
+  token.y = y;
+}
+
+function updateBossTokenTransform(token) {
+  if (!token?.dom) return;
+  token.dom.style.left = `${token.x}px`;
+  token.dom.style.top = `${token.y}px`;
+  token.dom.style.transform = "translate3d(-50%, -50%, 0)";
+}
+
+function beginBossTokenDrag(token, event) {
+  if (!token?.dom) return;
+  if (event.button !== 0) return;
+  if (state.wallEditMode) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  const boardRect = board.getBoundingClientRect();
+  const pointerId = event.pointerId;
+  token.dom.classList.add("boss-token-dragging");
+
+  const cleanup = () => {
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+    window.removeEventListener("pointercancel", handleUp);
+    token.dom.classList.remove("boss-token-dragging");
+  };
+
+  const handleMove = (moveEvent) => {
+    if (moveEvent.pointerId !== pointerId) return;
+    if (moveEvent.pointerType === "mouse" && moveEvent.buttons === 0) {
+      cleanup();
+      return;
+    }
+    const boardOriginX = boardRect.left + board.clientLeft;
+    const boardOriginY = boardRect.top + board.clientTop;
+    const zoom = getBoardZoom();
+    const bx = clamp((moveEvent.clientX - boardOriginX) / zoom, 0, board.clientWidth);
+    const by = clamp((moveEvent.clientY - boardOriginY) / zoom, 0, board.clientHeight);
+    positionBossToken(token, bx, by);
+    updateBossTokenTransform(token);
+  };
+
+  const handleUp = (upEvent) => {
+    if (upEvent.pointerId !== pointerId) return;
+    cleanup();
+  };
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+  window.addEventListener("pointercancel", handleUp);
 }
 
 function renderInactiveTileStack() {
@@ -700,9 +1254,9 @@ function renderInactiveTileStack() {
   const inactiveTiles = getInactiveTilesInReserveOrder();
 
   const offsets = [
-    { x: -22, y: 22, rot: -13, z: 1, scale: 0.97 },
-    { x: 16, y: 8, rot: 9, z: 2, scale: 1.02 },
-    { x: -8, y: -10, rot: -4, z: 3, scale: 1.0 },
+    { x: -16, y: 14, rot: -11, z: 1, scale: 0.93 },
+    { x: 12, y: 4, rot: 7, z: 2, scale: 0.97 },
+    { x: -6, y: -8, rot: -3, z: 3, scale: 0.95 },
   ];
 
   for (let i = 0; i < inactiveTiles.length; i += 1) {
@@ -802,13 +1356,44 @@ function placeStartTileAtCenter() {
   const start = state.tiles.get("molten_entrance");
   const rect = board.getBoundingClientRect();
   const desiredX = rect.width / 2;
-  const desiredY = TILE_SIZE / 2 + 34;
-  const center = getTopGridCenterNear(desiredX, desiredY, 1);
+  const desiredY = TILE_SIZE / 2 + 92;
+  const center = getTopGridCenterNear(desiredX, desiredY, 3);
   const snapped = snapTileCenterToHex(start, center.x, center.y);
   positionTile(start, snapped.x, snapped.y);
   updateTileParent(start, board);
   start.placed = true;
   updateTileTransform(start);
+  placeReferenceAboveStart(start);
+}
+
+function getReferenceTileSrc(themeId = state.selectedThemeId) {
+  const theme = getThemeConfig(themeId);
+  return `./tiles/${theme.folder}/${theme.prefix}_reference.png`;
+}
+
+function placeReferenceAboveStart(startTile) {
+  if (!startTile || !state.referenceTileSrc) return;
+  if (state.referenceMarker?.dom?.parentElement) {
+    state.referenceMarker.dom.parentElement.removeChild(state.referenceMarker.dom);
+  }
+
+  const marker = document.createElement("div");
+  marker.className = "board-reference-tile";
+  const img = document.createElement("img");
+  img.src = state.referenceTileSrc;
+  img.alt = `${getThemeConfig(state.selectedThemeId).label} reference`;
+  img.draggable = false;
+  img.addEventListener("dragstart", (event) => event.preventDefault());
+  marker.appendChild(img);
+
+  const x = startTile.x;
+  const y = startTile.y - REFERENCE_OFFSET_Y;
+  marker.style.left = `${x}px`;
+  marker.style.top = `${y}px`;
+  marker.style.transform = "translate(-50%, -50%)";
+  getBoardContentLayer().appendChild(marker);
+
+  state.referenceMarker = { dom: marker, x, y };
 }
 
 function getTopGridCenterNear(preferredX, preferredY, rowsDown = 0) {
@@ -841,11 +1426,25 @@ function beginBoardPan(event) {
   const startX = event.clientX;
   const startY = event.clientY;
   const boardTiles = Array.from(state.tiles.values())
-    .filter((tile) => tile.dom && tile.dom.parentElement === board)
+    .filter((tile) => tile.dom && isOnBoardLayer(tile.dom.parentElement))
     .map((tile) => ({
       tile,
       x: tile.x,
       y: tile.y,
+    }));
+  const reference = state.referenceMarker?.dom
+    ? {
+        dom: state.referenceMarker.dom,
+        x: state.referenceMarker.x,
+        y: state.referenceMarker.y,
+      }
+    : null;
+  const boardBossTokens = state.bossTokens
+    .filter((token) => token?.dom && isOnBoardLayer(token.dom.parentElement))
+    .map((token) => ({
+      token,
+      x: token.x,
+      y: token.y,
     }));
 
   const startPanX = state.boardPanX;
@@ -857,13 +1456,28 @@ function beginBoardPan(event) {
       cleanup();
       return;
     }
-    const dx = moveEvent.clientX - startX;
-    const dy = moveEvent.clientY - startY;
+    const zoom = getBoardZoom();
+    const dx = (moveEvent.clientX - startX) / zoom;
+    const dy = (moveEvent.clientY - startY) / zoom;
     state.boardPanX = startPanX + dx;
     state.boardPanY = startPanY + dy;
     for (const entry of boardTiles) {
       positionTile(entry.tile, entry.x + dx, entry.y + dy);
       updateTileTransform(entry.tile);
+    }
+    if (reference?.dom) {
+      const rx = reference.x + dx;
+      const ry = reference.y + dy;
+      reference.dom.style.left = `${rx}px`;
+      reference.dom.style.top = `${ry}px`;
+      if (state.referenceMarker) {
+        state.referenceMarker.x = rx;
+        state.referenceMarker.y = ry;
+      }
+    }
+    for (const entry of boardBossTokens) {
+      positionBossToken(entry.token, entry.x + dx, entry.y + dy);
+      updateBossTokenTransform(entry.token);
     }
     scheduleBoardHexGridRender();
   };
@@ -1134,7 +1748,7 @@ function performReserveToTraySwap(reserveTileId, trayTileId) {
   reserveTile.dom = reserveEl;
   targetSlot.innerHTML = "";
   targetSlot.appendChild(reserveEl);
-  positionTile(reserveTile, TRAY_CENTER_X, TRAY_CENTER_Y);
+  positionTileAtTrayCenter(reserveTile);
   updateTileTransform(reserveTile);
 
   if (state.selectedTileId === trayTileId) state.selectedTileId = null;
@@ -1224,6 +1838,26 @@ function createTileGuideOverlay(tile) {
   }
   svg.appendChild(wallFaces);
   refreshWallGuideDom(svg, tile.wallFaceSet);
+
+  const contactFaces = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  contactFaces.setAttribute("class", "tile-guide-contact-faces");
+  for (let i = 0; i < guidePoints.length; i += 1) {
+    const a = guidePoints[i];
+    const b = guidePoints[(i + 1) % guidePoints.length];
+    const x1 = 50 + (a.x / TILE_SIZE) * 100;
+    const y1 = 50 + (a.y / TILE_SIZE) * 100;
+    const x2 = 50 + (b.x / TILE_SIZE) * 100;
+    const y2 = 50 + (b.y / TILE_SIZE) * 100;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("class", "tile-guide-contact-seg");
+    line.setAttribute("data-face-index", String(i));
+    line.setAttribute("x1", x1.toFixed(2));
+    line.setAttribute("y1", y1.toFixed(2));
+    line.setAttribute("x2", x2.toFixed(2));
+    line.setAttribute("y2", y2.toFixed(2));
+    contactFaces.appendChild(line);
+  }
+  svg.appendChild(contactFaces);
 
   const sideTicks = document.createElementNS("http://www.w3.org/2000/svg", "g");
   sideTicks.setAttribute("class", "tile-guide-ticks");
@@ -1788,7 +2422,7 @@ function beginDrag(tile, event) {
   clearInvalidReturnTimer(tile);
   const boardRect = board.getBoundingClientRect();
   const workspaceRect = workspace.getBoundingClientRect();
-  const startedFromBoard = tile.dom.parentElement === board;
+  const startedFromBoard = isOnBoardLayer(tile.dom.parentElement);
   const tileRect = tile.dom.getBoundingClientRect();
   const pointerOffsetX = event.clientX - (tileRect.left + tileRect.width / 2);
   const pointerOffsetY = event.clientY - (tileRect.top + tileRect.height / 2);
@@ -1831,6 +2465,7 @@ function beginDrag(tile, event) {
 
     tile.drag.moved = true;
     tile.dom.classList.add("dragging");
+    const zoom = getBoardZoom();
     const boardOriginX = boardRect.left + board.clientLeft;
     const boardOriginY = boardRect.top + board.clientTop;
     const parentRect =
@@ -1845,17 +2480,17 @@ function beginDrag(tile, event) {
       && moveEvent.clientY >= boardRect.top
       && moveEvent.clientY <= boardRect.bottom;
 
-    if (tile.dom.parentElement === board) {
-      const rawBoardX = moveEvent.clientX - boardOriginX - tile.drag.offsetX;
-      const rawBoardY = moveEvent.clientY - boardOriginY - tile.drag.offsetY;
+    if (isOnBoardLayer(tile.dom.parentElement)) {
+      const rawBoardX = (moveEvent.clientX - boardOriginX - tile.drag.offsetX) / zoom;
+      const rawBoardY = (moveEvent.clientY - boardOriginY - tile.drag.offsetY) / zoom;
       const clampedX = clamp(rawBoardX, 0, board.clientWidth);
       const clampedY = clamp(rawBoardY, 0, board.clientHeight);
       const snapped = snapTileCenterToHex(tile, clampedX, clampedY);
       positionTile(tile, snapped.x, snapped.y);
     } else {
       if (pointerInsideBoard) {
-        const boardX = moveEvent.clientX - boardOriginX - tile.drag.offsetX;
-        const boardY = moveEvent.clientY - boardOriginY - tile.drag.offsetY;
+        const boardX = (moveEvent.clientX - boardOriginX - tile.drag.offsetX) / zoom;
+        const boardY = (moveEvent.clientY - boardOriginY - tile.drag.offsetY) / zoom;
         const clampedBoardX = clamp(boardX, 0, board.clientWidth);
         const clampedBoardY = clamp(boardY, 0, board.clientHeight);
         const snapped = snapTileCenterToHex(tile, clampedBoardX, clampedBoardY);
@@ -1863,8 +2498,8 @@ function beginDrag(tile, event) {
         const boardOffsetY = boardOriginY - workspaceRect.top;
         positionTile(
           tile,
-          snapped.x + boardOffsetX,
-          snapped.y + boardOffsetY,
+          snapped.x * zoom + boardOffsetX,
+          snapped.y * zoom + boardOffsetY,
         );
       } else {
         positionTile(tile, x, y);
@@ -1895,7 +2530,7 @@ function beginDrag(tile, event) {
 
       if (!isInsideBoard) {
         tile.placed = false;
-        positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
+        positionTileAtTrayCenter(tile);
         updateTileParent(tile, tile.traySlot);
         updateTileTransform(tile);
         setPlacementFeedback(tile, null);
@@ -1905,8 +2540,9 @@ function beginDrag(tile, event) {
 
       const boardOffsetX = (boardRect.left + board.clientLeft) - workspaceRect.left;
       const boardOffsetY = (boardRect.top + board.clientTop) - workspaceRect.top;
-      const boardX = tile.x - boardOffsetX;
-      const boardY = tile.y - boardOffsetY;
+      const zoom = getBoardZoom();
+      const boardX = (tile.x - boardOffsetX) / zoom;
+      const boardY = (tile.y - boardOffsetY) / zoom;
       updateTileParent(tile, board);
       positionTile(tile, clamp(boardX, 0, board.clientWidth), clamp(boardY, 0, board.clientHeight));
       updateTileTransform(tile);
@@ -1938,6 +2574,16 @@ function finishDrop(tile) {
 
   if (placedTiles.length === 0) {
     revertToTray(tile, "Place molten_entrance first.");
+    return;
+  }
+
+  if (hasAnyOverlap(tile, placedTiles)) {
+    handleInvalidDrop(
+      tile,
+      placedTiles,
+      "Invalid placement: tiles cannot overlap. Returning to tray in 10s.",
+      true,
+    );
     return;
   }
 
@@ -2051,6 +2697,7 @@ function findBestContact(tile, otherTiles) {
     count: totalCount,
     other: best.other,
     match: best.match,
+    faceIndices: Array.from(matchedTileFaceIdx),
   };
 }
 
@@ -2259,13 +2906,39 @@ function evaluatePlacementAt(tile, otherTiles, x, y) {
   const oldY = tile.y;
   positionTile(tile, x, y);
   const contact = findBestContact(tile, otherTiles);
+  const touchingFaceIndices = getTouchingFaceIndices(tile, otherTiles);
   const overlaps = hasAnyOverlap(tile, otherTiles);
   positionTile(tile, oldX, oldY);
   return {
     valid: contact.valid,
     count: contact.count,
     overlaps,
+    faceIndices: contact.faceIndices || [],
+    touchingFaceIndices,
   };
+}
+
+function getTouchingFaceIndices(tile, otherTiles) {
+  const touching = new Set();
+  const aFaces = getContactFaces(tile);
+  for (const other of otherTiles) {
+    const bFaces = getContactFaces(other);
+    const threshold = Math.min(tile.sideLength, other.sideLength) * CONTACT_DISTANCE_RATIO;
+    for (let i = 0; i < aFaces.length; i += 1) {
+      const af = aFaces[i];
+      for (let j = 0; j < bFaces.length; j += 1) {
+        const bf = bFaces[j];
+        const normalDot = af.nx * bf.nx + af.ny * bf.ny;
+        if (normalDot > OPPOSITE_NORMAL_THRESHOLD) continue;
+        const tangentDot = Math.abs(af.tx * bf.tx + af.ty * bf.ty);
+        if (tangentDot < FACE_TANGENT_ALIGNMENT) continue;
+        const midpointDistance = Math.hypot(af.mx - bf.mx, af.my - bf.my);
+        if (midpointDistance > threshold) continue;
+        touching.add(i);
+      }
+    }
+  }
+  return Array.from(touching);
 }
 
 function getMatchAlignmentCorrection(match) {
@@ -2391,7 +3064,7 @@ function isTouchingMoltenEntranceBlockedPoints(tile) {
   return isTouchingTileStartBlockedPoints(entrance, tile, BLOCKED_POINT_TOUCH_RADIUS);
 }
 
-function isWorldPointOnOpaquePixel(tile, wx, wy, radius = 0) {
+function isWorldPointOnOpaquePixel(tile, wx, wy, radius = 0, minAlpha = 24) {
   if (!tile?.img || !tile.alphaMask) return false;
   const theta = (tile.rotation * Math.PI) / 180;
   const cos = Math.cos(theta);
@@ -2419,7 +3092,7 @@ function isWorldPointOnOpaquePixel(tile, wx, wy, radius = 0) {
   for (let y = y0; y <= y1; y += 1) {
     for (let x = x0; x <= x1; x += 1) {
       const alpha = tile.alphaMask.alpha[y * iw + x];
-      if (alpha >= 24) return true;
+      if (alpha >= minAlpha) return true;
     }
   }
   return false;
@@ -2433,7 +3106,7 @@ function revertToTray(tile, message, warn = false) {
   clearInvalidReturnTimer(tile);
   tile.placed = false;
   tile.rotation = 0;
-  positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
+  positionTileAtTrayCenter(tile);
   updateTileParent(tile, tile.traySlot);
   updateTileTransform(tile);
   selectTile(null);
@@ -2441,8 +3114,8 @@ function revertToTray(tile, message, warn = false) {
   setStatus(message, warn);
 }
 
-function handleInvalidDrop(tile, placedTiles) {
-  if (state.ignoreContactRule) {
+function handleInvalidDrop(tile, placedTiles, message = null, force = false) {
+  if (state.ignoreContactRule && !force) {
     clearInvalidReturnTimer(tile);
     setPlacementFeedback(tile, null);
     return;
@@ -2455,7 +3128,7 @@ function handleInvalidDrop(tile, placedTiles) {
   selectTile(null);
   setPlacementFeedback(tile, false);
   setStatus(
-    `Invalid placement: this tile needs at least ${MIN_CONTACT_POINTS} point contacts. Returning to tray in 10s.`,
+    message ?? `Invalid placement: this tile needs at least ${MIN_CONTACT_POINTS} point contacts. Returning to tray in 10s.`,
     true,
   );
 
@@ -2463,7 +3136,7 @@ function handleInvalidDrop(tile, placedTiles) {
     tile.invalidReturnTimer = null;
     if (tile.placed) return;
     tile.rotation = 0;
-    positionTile(tile, TRAY_CENTER_X, TRAY_CENTER_Y);
+    positionTileAtTrayCenter(tile);
     updateTileParent(tile, tile.traySlot);
     updateTileTransform(tile);
     selectTile(null);
@@ -2474,32 +3147,164 @@ function handleInvalidDrop(tile, placedTiles) {
 
 function moveAwayFromPlacedTiles(tile, placedTiles) {
   if (!placedTiles.length) return;
-  let nearest = placedTiles[0];
-  let bestDist = Infinity;
+
+  // Move away from the densest local area (weighted by inverse distance), not just one nearest tile.
+  let wx = 0;
+  let wy = 0;
+  let wSum = 0;
   for (const other of placedTiles) {
     const d = Math.hypot(tile.x - other.x, tile.y - other.y);
-    if (d < bestDist) {
-      bestDist = d;
-      nearest = other;
-    }
+    const w = 1 / Math.max(1, d);
+    wx += other.x * w;
+    wy += other.y * w;
+    wSum += w;
   }
+  const denseX = wSum > 0 ? wx / wSum : board.clientWidth / 2;
+  const denseY = wSum > 0 ? wy / wSum : board.clientHeight / 2;
+  const anchorTile = getNearestTile(tile.x, tile.y, placedTiles);
 
-  const boardRect = board.getBoundingClientRect();
-  let vx = tile.x - nearest.x;
-  let vy = tile.y - nearest.y;
+  let vx = tile.x - denseX;
+  let vy = tile.y - denseY;
   let vLen = Math.hypot(vx, vy);
   if (vLen < 1e-6) {
-    vx = tile.x - boardRect.width / 2;
-    vy = tile.y - boardRect.height / 2;
+    vx = tile.x - board.clientWidth / 2;
+    vy = tile.y - board.clientHeight / 2;
     vLen = Math.hypot(vx, vy) || 1;
   }
 
   const nx = vx / vLen;
   const ny = vy / vLen;
-  const targetX = clamp(tile.x + nx * INVALID_DROP_PUSH_PX, 0, board.clientWidth);
-  const targetY = clamp(tile.y + ny * INVALID_DROP_PUSH_PX, 0, board.clientHeight);
-  const snapped = snapTileCenterToHex(tile, targetX, targetY);
-  positionTile(tile, snapped.x, snapped.y);
+  const push = INVALID_DROP_PUSH_PX * 1.15;
+  const targetX = clamp(tile.x + nx * push, 0, board.clientWidth);
+  const targetY = clamp(tile.y + ny * push, 0, board.clientHeight);
+  const fallback = snapTileCenterToHex(tile, targetX, targetY);
+  const candidate = findBestOpenHex(tile, placedTiles, fallback.x, fallback.y, anchorTile);
+  positionTile(tile, candidate.x, candidate.y);
+}
+
+function findBestOpenHex(tile, placedTiles, preferredX, preferredY, anchorTile = null) {
+  const layout = getBoardHexLayout();
+  const start = snapTileCenterToHex(tile, preferredX, preferredY);
+  const directions = [
+    { x: layout.dx, y: layout.dy / 2 },
+    { x: layout.dx, y: -layout.dy / 2 },
+    { x: 0, y: -layout.dy },
+    { x: -layout.dx, y: -layout.dy / 2 },
+    { x: -layout.dx, y: layout.dy / 2 },
+    { x: 0, y: layout.dy },
+  ];
+
+  const oldX = tile.x;
+  const oldY = tile.y;
+  const visited = new Set();
+  const queue = [{ x: start.x, y: start.y, depth: 0 }];
+  const maxDepth = 12;
+
+  const keyOf = (x, y) => `${Math.round(x * 100) / 100}:${Math.round(y * 100) / 100}`;
+  const minCenterDistance = layout.hexHeight * 2.25;
+  const minFaceDistance = layout.hexHeight * 1.95;
+  const minAnchorCenterDistance = layout.hexHeight * 3.0;
+  let bestStrict = null;
+  let bestLoose = null;
+
+  while (queue.length) {
+    const cur = queue.shift();
+    const key = keyOf(cur.x, cur.y);
+    if (visited.has(key)) continue;
+    visited.add(key);
+
+    const cx = clamp(cur.x, 0, board.clientWidth);
+    const cy = clamp(cur.y, 0, board.clientHeight);
+    const snapped = snapTileCenterToHex(tile, cx, cy);
+
+    positionTile(tile, snapped.x, snapped.y);
+    const overlaps = hasAnyOverlap(tile, placedTiles);
+    if (!overlaps) {
+      const metrics = getCandidateClearanceMetrics(tile, placedTiles, snapped.x, snapped.y);
+      const anchorCenterDistance = anchorTile
+        ? Math.hypot(snapped.x - anchorTile.x, snapped.y - anchorTile.y)
+        : Number.POSITIVE_INFINITY;
+      const score = metrics.minCenterDist * 2.0 + metrics.avgCenterDist * 0.4 + metrics.minFaceDist * 0.7 - cur.depth * 2.6;
+
+      if (
+        metrics.minCenterDist >= minCenterDistance
+        && metrics.minFaceDist >= minFaceDistance
+        && anchorCenterDistance >= minAnchorCenterDistance
+      ) {
+        // BFS queue order means first strict hit is typically the nearest valid ring.
+        if (cur.depth <= 8) {
+          positionTile(tile, oldX, oldY);
+          return { x: snapped.x, y: snapped.y };
+        }
+        if (!bestStrict || score > bestStrict.score) bestStrict = { x: snapped.x, y: snapped.y, score };
+      } else if (!bestLoose || score > bestLoose.score) {
+        bestLoose = { x: snapped.x, y: snapped.y, score };
+      }
+    }
+
+    if (cur.depth >= maxDepth) continue;
+    for (const dir of directions) {
+      queue.push({
+        x: cur.x + dir.x,
+        y: cur.y + dir.y,
+        depth: cur.depth + 1,
+      });
+    }
+  }
+
+  positionTile(tile, oldX, oldY);
+  if (bestStrict) return { x: bestStrict.x, y: bestStrict.y };
+  if (bestLoose) return { x: bestLoose.x, y: bestLoose.y };
+  return start;
+}
+
+function getNearestTile(x, y, tiles) {
+  if (!tiles?.length) return null;
+  let nearest = tiles[0];
+  let best = Math.hypot(x - nearest.x, y - nearest.y);
+  for (let i = 1; i < tiles.length; i += 1) {
+    const t = tiles[i];
+    const d = Math.hypot(x - t.x, y - t.y);
+    if (d < best) {
+      best = d;
+      nearest = t;
+    }
+  }
+  return nearest;
+}
+
+function getCandidateClearanceMetrics(tile, otherTiles, x, y) {
+  const oldX = tile.x;
+  const oldY = tile.y;
+  positionTile(tile, x, y);
+
+  let minCenterDist = Number.POSITIVE_INFINITY;
+  let sumCenterDist = 0;
+  for (const other of otherTiles) {
+    const d = Math.hypot(x - other.x, y - other.y);
+    if (d < minCenterDist) minCenterDist = d;
+    sumCenterDist += d;
+  }
+  const avgCenterDist = otherTiles.length ? sumCenterDist / otherTiles.length : 0;
+  const minFaceDist = getMinFaceDistanceToTiles(tile, otherTiles);
+
+  positionTile(tile, oldX, oldY);
+  return { minCenterDist, avgCenterDist, minFaceDist };
+}
+
+function getMinFaceDistanceToTiles(tile, otherTiles) {
+  const facesA = getContactFaces(tile);
+  let minDist = Number.POSITIVE_INFINITY;
+  for (const other of otherTiles) {
+    const facesB = getContactFaces(other);
+    for (const af of facesA) {
+      for (const bf of facesB) {
+        const d = Math.hypot(af.mx - bf.mx, af.my - bf.my);
+        if (d < minDist) minDist = d;
+      }
+    }
+  }
+  return Number.isFinite(minDist) ? minDist : 0;
 }
 
 function clearInvalidReturnTimer(tile) {
@@ -2513,17 +3318,40 @@ function positionTile(tile, x, y) {
   tile.y = y;
 }
 
-function updateTileParent(tile, parent) {
-  if (tile.dom.parentElement !== parent) {
-    parent.appendChild(tile.dom);
+function positionTileAtTrayCenter(tile) {
+  const slot = tile?.traySlot;
+  if (!slot) {
+    positionTile(tile, TILE_SIZE / 2, TILE_SIZE / 2);
+    return;
   }
+  const cx = slot.clientWidth / 2;
+  const cy = slot.clientHeight / 2;
+  positionTile(tile, cx, cy);
+}
+
+function updateTileParent(tile, parent) {
+  const target = parent === board ? getBoardContentLayer() : parent;
+  if (tile.dom.parentElement !== target) {
+    target.appendChild(tile.dom);
+  }
+}
+
+function isOnBoardLayer(parent) {
+  if (!parent) return false;
+  if (parent === board) return true;
+  return parent.classList?.contains("board-content") ?? false;
 }
 
 function updateTileTransform(tile) {
   if (!tile.dom) return;
+  const scale = tile.dom.parentElement === dragLayer ? getBoardZoom() : 1;
   tile.dom.style.left = `${tile.x}px`;
   tile.dom.style.top = `${tile.y}px`;
-  tile.dom.style.transform = "translate(-50%, -50%)";
+  tile.dom.style.transformOrigin = "50% 50%";
+  tile.dom.style.transform =
+    scale !== 1
+      ? `translate(-50%, -50%) scale(${scale})`
+      : "translate(-50%, -50%)";
   if (tile.bodyDom) {
     tile.bodyDom.style.transform = `rotate(${tile.rotation}deg)`;
   }
@@ -2537,11 +3365,6 @@ function setStatus(message, warn = false) {
 function normalizeAngle(value) {
   const normalized = value % 360;
   return normalized < 0 ? normalized + 360 : normalized;
-}
-
-function randomTrayRotation() {
-  const steps = Math.floor(360 / ROTATION_STEP);
-  return Math.floor(Math.random() * steps) * ROTATION_STEP;
 }
 
 function loadImage(src) {
@@ -2703,11 +3526,42 @@ function dist(a, b) {
 }
 
 function hasAnyOverlap(tile, otherTiles) {
-  const polyA = getWorldPolygon(tile);
   for (const other of otherTiles) {
-    const polyB = getWorldPolygon(other);
-    if (polygonsOverlap(polyA, polyB)) return true;
+    if (Math.hypot(tile.x - other.x, tile.y - other.y) < TILE_SIZE * 0.42) return true;
+    if (tilesAlphaOverlap(tile, other)) return true;
   }
+  return false;
+}
+
+function tilesAlphaOverlap(a, b) {
+  if (!a?.alphaMask || !b?.alphaMask) return false;
+
+  const ar = a.shape?.radius ?? TILE_SIZE * 0.5;
+  const br = b.shape?.radius ?? TILE_SIZE * 0.5;
+  if (Math.hypot(a.x - b.x, a.y - b.y) > ar + br) return false;
+
+  const half = TILE_SIZE * 0.5;
+  const minX = Math.max(a.x - half, b.x - half);
+  const maxX = Math.min(a.x + half, b.x + half);
+  const minY = Math.max(a.y - half, b.y - half);
+  const maxY = Math.min(a.y + half, b.y + half);
+  if (minX >= maxX || minY >= maxY) return false;
+
+  const step = 3;
+  let hitCount = 0;
+  for (let y = minY; y <= maxY; y += step) {
+    for (let x = minX; x <= maxX; x += step) {
+      if (
+        isWorldPointOnOpaquePixel(a, x, y, 0, 220)
+        && isWorldPointOnOpaquePixel(b, x, y, 0, 220)
+      ) {
+        hitCount += 1;
+        // Require substantial interior overlap; edge touch should stay valid.
+        if (hitCount >= 14) return true;
+      }
+    }
+  }
+
   return false;
 }
 
@@ -2810,24 +3664,39 @@ function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect
     return;
   }
 
-  const boardOffsetX = boardRect.left - workspaceRect.left;
-  const boardOffsetY = boardRect.top - workspaceRect.top;
+  const boardOffsetX = (boardRect.left + board.clientLeft) - workspaceRect.left;
+  const boardOffsetY = (boardRect.top + board.clientTop) - workspaceRect.top;
+  const zoom = getBoardZoom();
   const candidateX =
-    tile.dom.parentElement === board ? tile.x : tile.x - boardOffsetX;
+    isOnBoardLayer(tile.dom.parentElement) ? tile.x : (tile.x - boardOffsetX) / zoom;
   const candidateY =
-    tile.dom.parentElement === board ? tile.y : tile.y - boardOffsetY;
+    isOnBoardLayer(tile.dom.parentElement) ? tile.y : (tile.y - boardOffsetY) / zoom;
 
   const result = evaluatePlacementAt(tile, placedTiles, candidateX, candidateY);
-  if (!result.overlaps && result.count === 0) {
+  if (!result.overlaps && result.touchingFaceIndices.length === 0) {
     setPlacementFeedback(tile, null);
     return;
   }
-  setPlacementFeedback(tile, result.valid);
+  const faceIndices = result.valid ? result.faceIndices : result.touchingFaceIndices;
+  setPlacementFeedback(tile, result.valid, faceIndices);
 }
 
-function setPlacementFeedback(tile, isValid) {
+function setPlacementFeedback(tile, isValid, faceIndices = []) {
   if (!tile.dom) return;
   tile.dom.classList.remove("valid-placement", "invalid-placement");
   if (isValid === true) tile.dom.classList.add("valid-placement");
   if (isValid === false) tile.dom.classList.add("invalid-placement");
+  refreshPlacementGuideDom(tile.guideDom, isValid, faceIndices);
+}
+
+function refreshPlacementGuideDom(guideDom, isValid, faceIndices) {
+  if (!guideDom) return;
+  const lines = guideDom.querySelectorAll(".tile-guide-contact-seg");
+  const active = new Set((faceIndices || []).filter((v) => Number.isInteger(v)));
+  lines.forEach((line) => {
+    const idx = Number.parseInt(line.dataset.faceIndex || "", 10);
+    line.classList.toggle("is-contact", Number.isInteger(idx) && active.has(idx));
+  });
+  guideDom.classList.toggle("contact-valid", isValid === true);
+  guideDom.classList.toggle("contact-invalid", isValid === false);
 }

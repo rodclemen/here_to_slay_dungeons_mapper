@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-04-02
+- Reworked board zoom architecture to use a unified `.board-content` layer so grid, tiles, reference card, and overlays scale from the same origin; fixed previous per-element center-scaling drift.
+- Added cursor-anchored mouse-wheel zoom and kept `Zoom 100%` as a hard reset for both scale and board pan offset, so view reset returns to the original board framing.
+- Added an in-board zoom readout (`Zoom xx%`) in the top-right with stable column layout, click-to-reset behavior, and non-highlighted text-only styling.
+- Updated drag scaling so tray tiles visually match board zoom while dragging into the board, removing size “pop” on drop.
+- Added and iterated custom tray controls: moved controls under `Tile Tray`, converted to icon actions, then simplified to two actions (`Reroll Tiles`, `Reset Tiles`) using `icons/reroll.png` and `icons/reset.png`.
+- Added a boss section in the tray panel that auto-loads boss PNGs from the active theme folder and displays them as a stacked pile; supports molten and overgrown boss file mappings with graceful fallback when files are missing.
+- Built independent expand/edit interactions for reserve and boss boxes directly on box click, with red `✕` active-state indicators and mode-specific expansion behavior.
+- Added boss stack interaction rules: click in boss-expanded mode swaps boss card order; click/hold top boss card spawns a draggable board token copy.
+- Added unique-instance enforcement for boss tokens: each boss image can exist only once at a time; once placed on board it is removed from boss stack availability.
+- Added draggable boss tokens on the board with pan/zoom synchronization and center-anchored spawn preview; aligned token size with reference-card/tile size.
+- Removed drag ghosting artifacts for boss tokens by eliminating runtime filters/shadows on moving token elements and using compositing-friendly transform/style settings.
+- Hardened pointer/selection UX by disabling browser text/image selection drag artifacts across tray, pile, and board interaction surfaces.
+- Session note: Replaced at least three “final” icon approaches before admitting version four was the actual final.
+
 ## 2026-04-01
 - Added manual wall-face editing workflow with a dedicated wall editor view showing all six tile-set trays side by side, including support for editing `molten_entrance` wall faces.
 - Added wall override persistence tooling: `Export Walls`, `Import Walls`, and `Clear Tile Walls`, scoped to wall-edit mode and saved via local storage backup format.
