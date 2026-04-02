@@ -9,18 +9,11 @@
   <body>
     <main class="app">
       <header class="topbar">
-        <div class="topbar-intro">
-          <h1>Tile Randomizer Prototype</h1>
-          <p>Choose a Tile Set, pick 6 tiles, build your dungeon, then select a boss.</p>
-          <ol class="workflow-steps" aria-label="Dungeon workflow">
-            <li>1. Choose Tile Set</li>
-            <li>2. Pick 6 Tiles</li>
-            <li>3. Build Your Dungeon</li>
-            <li>4. Choose Boss</li>
-          </ol>
-          <div id="mode-indicators" class="mode-indicators" aria-label="Active modes"></div>
+        <div class="topbar-brand">
+          <h1>Here to Slay DUNGEONS Planner</h1>
+          <p>Choose Tile Set -> Pick 6 Tiles -> Build Your Dungeon -> Choose Boss</p>
         </div>
-        <div class="actions primary-actions">
+        <div class="actions">
           <label class="primary-control">
             <span>Tile Set</span>
             <select id="tile-set-select" aria-label="Tile Set">
@@ -36,7 +29,6 @@
           <button id="reset-tiles-btn" type="button">Reset Tiles</button>
           <button id="save-dungeon-btn" type="button">Save Layout</button>
           <button id="load-dungeon-btn" type="button">Load Layout</button>
-          <button id="toggle-boss-edit-btn" type="button">Boss Selection</button>
           <label class="feedback-mode-toggle" for="toggle-face-feedback-checkbox">
             <input id="toggle-face-feedback-checkbox" type="checkbox" />
             <span>Placement Feedback: Precision (Face-by-Face)</span>
@@ -79,37 +71,102 @@
       </header>
 
       <section class="workspace">
+        <aside id="left-drawer" class="drawer drawer-left">
+          <div class="drawer-toolbar">
+            <h2>Tile Drawer</h2>
+            <button
+              id="toggle-left-drawer-btn"
+              class="drawer-toggle-btn icon-toggle-btn"
+              type="button"
+              aria-controls="left-drawer-content"
+              aria-expanded="true"
+              aria-label="Toggle tile drawer"
+              title="Toggle tile drawer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-panel-left"
+                aria-hidden="true"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                <path d="M9 3v18"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="left-drawer-content" class="drawer-content">
+            <section class="panel-section selected-tiles-section">
+              <div class="tray-head">
+                <h2>Selected Tiles</h2>
+                <div id="placed-progress" class="placed-progress" aria-live="polite">Placed 0 / 6 tiles</div>
+              </div>
+              <p class="section-helper">Step 2: six tiles are active each round. Drag them onto the board.</p>
+              <div id="tray" class="tray"></div>
+            </section>
+
+            <section class="panel-section reserve-section">
+              <h3>Reserve Tiles</h3>
+              <p class="section-helper">Inactive tiles stay here. Enable Reserve Edit mode by clicking this area.</p>
+              <div class="reserve-area">
+                <div id="reserve-pile" class="reserve-pile" aria-label="Reserve Tiles"></div>
+                <input id="reserve-edit-checkbox" type="checkbox" hidden />
+              </div>
+            </section>
+          </div>
+        </aside>
+
         <div id="board" class="board" aria-label="Placement board"></div>
-        <aside class="sidebar">
-          <section class="sidebar-section selected-tiles-section">
-            <div class="tray-head">
-              <h2>Selected Tiles</h2>
-              <div id="placed-progress" class="placed-progress" aria-live="polite">Placed 0 / 6 tiles</div>
-            </div>
-            <p class="section-helper">Step 2: six tiles are active each round. Drag them onto the board.</p>
-            <div id="tray" class="tray"></div>
-          </section>
 
-          <section class="sidebar-section reserve-section">
-            <h3>Reserve Tiles</h3>
-            <p class="section-helper">Inactive tiles stay here. Enable Reserve Edit mode by clicking this area.</p>
-            <div class="reserve-area">
-              <div id="reserve-pile" class="reserve-pile" aria-label="Reserve Tiles"></div>
-              <input id="reserve-edit-checkbox" type="checkbox" hidden />
-            </div>
-          </section>
+        <aside id="right-drawer" class="drawer drawer-right">
+          <div class="drawer-toolbar">
+            <h2>Info Drawer</h2>
+            <button
+              id="toggle-right-drawer-btn"
+              class="drawer-toggle-btn icon-toggle-btn"
+              type="button"
+              aria-controls="right-drawer-content"
+              aria-expanded="true"
+              aria-label="Toggle info drawer"
+              title="Toggle info drawer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-panel-right"
+                aria-hidden="true"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                <path d="M15 3v18"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="right-drawer-content" class="drawer-content">
+            <section class="panel-section boss-section">
+              <h3>Boss Selection</h3>
+              <p class="section-helper">Step 4: click boss cards to cycle options, then drag one to board.</p>
+              <div id="boss-pile" class="boss-pile" aria-label="Boss Selection"></div>
+            </section>
 
-          <section class="sidebar-section boss-section">
-            <h3>Boss Selection</h3>
-            <p class="section-helper">Step 4: click Boss Selection to swap visible boss cards, then drag one to board.</p>
-            <div id="boss-pile" class="boss-pile" aria-label="Boss Selection"></div>
-          </section>
-
-          <section class="sidebar-section feedback-section">
-            <h3>Placement Feedback</h3>
-            <p class="section-helper">Step 3: place tiles with valid contact. Full-tile feedback is default.</p>
-            <div id="status" class="status" role="status" aria-live="polite" aria-label="Placement Feedback"></div>
-          </section>
+            <section class="panel-section feedback-section">
+              <h3>Placement Feedback</h3>
+              <p class="section-helper">Step 3: place tiles with valid contact. Full-tile feedback is default.</p>
+              <div id="status" class="status" role="status" aria-live="polite" aria-label="Placement Feedback"></div>
+            </section>
+          </div>
         </aside>
       </section>
 

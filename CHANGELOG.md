@@ -1,6 +1,13 @@
 # Changelog
 
 ## 2026-04-02
+- Reworked the Phase 2 layout shell into collapsible left/right drawers with icon toggles, persistent drawer state, and keyboard shortcut `f` to toggle both drawers together, while preserving board pan/zoom and existing gameplay actions.
+- Refined drag/drop behavior for board and drawer workflows: tray tiles now enter drag visuals on press/hold, board tiles and boss tokens can be returned to their drawer zones, and non-target drops keep previous auto-return/restore behavior instead of forcing new placement outcomes.
+- Added hold-to-drag gating for boss-card spawn (`150ms`) so quick taps reliably cycle boss cards while intentional holds start drag mode; also stabilized boss drag cursor state across drawer/board boundaries.
+- Removed boss mode toggle UI and made boss selection permanently active; simplified right-panel copy and removed unneeded active-mode panel chrome from the visible layout.
+- Normalized pile/card panel styling in the new layout pass: removed dashed/bordered tray boxes where requested, aligned selected/reserve panel widths, tuned tray sizing/spacing, and restored only the reserve edit `✕` indicator.
+- Replaced boss pile flip-state behavior with explicit per-tile-set boss pile ordering so returned boss cards follow deterministic return order instead of ambiguous top/bottom memory.
+- Session note: Negotiated peace between drag layers, cursor states, and one stubborn board fade that absolutely did not want to behave.
 - Refactored the app shell for Phase 2 workflow clarity: introduced a step-labeled top workflow strip (`Choose Tile Set`, `Pick 6 Tiles`, `Build Your Dungeon`, `Choose Boss`) and promoted primary play actions into a single high-visibility top action area.
 - Reorganized the sidebar into explicit gameplay sections (`Selected Tiles`, `Reserve Tiles`, `Boss Selection`, `Placement Feedback`) with helper copy and clearer empty-state guidance, while keeping the board as the dominant central workspace.
 - Added live build-state indicators (`Placed X / 6 tiles`) plus active-mode chips (`Build Mode`, `Wall Editor`, `Boss Selection`, `Reserve Edit`) so special modes are always visible during play.

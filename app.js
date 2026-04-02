@@ -14,6 +14,7 @@ const ENTRANCE_BLOCKED_FACE_INDICES = new Set([11, 12]);
 const BLOCKED_POINT_TOUCH_RADIUS = 4;
 const WALL_OVERRIDES_STORAGE_KEY = "hts_wall_overrides_v1";
 const UI_THEME_STORAGE_KEY = "hts_ui_theme_v1";
+const DRAWER_STATE_STORAGE_KEY = "hts_drawer_state_v1";
 const DEFAULT_TILE_SET_ID = "molten";
 const DEFAULT_UI_THEME_ID = "current";
 const ENTRANCE_TILE_ID = "entrance";
@@ -101,12 +102,17 @@ const wallEditorPage = document.getElementById("wall-editor-page");
 const tileSetSelect = document.getElementById("tile-set-select");
 const uiThemeSelect = document.getElementById("ui-theme-select");
 const workspace = document.querySelector(".workspace");
+const leftDrawer = document.getElementById("left-drawer");
+const rightDrawer = document.getElementById("right-drawer");
+const leftDrawerContent = document.getElementById("left-drawer-content");
+const rightDrawerContent = document.getElementById("right-drawer-content");
+const toggleLeftDrawerBtn = document.getElementById("toggle-left-drawer-btn");
+const toggleRightDrawerBtn = document.getElementById("toggle-right-drawer-btn");
 const statusEl = document.getElementById("status");
 const placedProgressEl = document.getElementById("placed-progress");
 const modeIndicatorsEl = document.getElementById("mode-indicators");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
-const toggleBossEditBtn = document.getElementById("toggle-boss-edit-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
 const toggleWallEditBtn = document.getElementById("toggle-wall-edit-btn");
 const clearTileWallsBtn = document.getElementById("clear-tile-walls-btn");
@@ -144,8 +150,8 @@ const state = {
   reserveOrder: [],
   ignoreContactRule: false,
   useFaceFeedback: false,
-  bossEditMode: false,
-  bossOrderFlipped: false,
+  bossEditMode: true,
+  bossPileOrderByTileSet: {},
   bossTokens: [],
   nextBossTokenId: 1,
   boardPanX: 0,
@@ -154,6 +160,8 @@ const state = {
   referenceTileSrc: "",
   referenceMarker: null,
   boardZoom: 1,
+  leftDrawerCollapsed: false,
+  rightDrawerCollapsed: false,
   readinessByTileSet: {},
   legacyMigrationStats: {
     themeIdLayoutMigrations: 0,
@@ -168,6 +176,9 @@ init().catch((error) => {
 });
 
 async function init() {
+  const initialDrawerState = loadDrawerState();
+  state.leftDrawerCollapsed = initialDrawerState.left;
+  state.rightDrawerCollapsed = initialDrawerState.right;
   bindGlobalControls();
   await auditTileSetReadiness();
   hydrateTileSetSelector();
@@ -181,6 +192,8 @@ async function init() {
   if (uiThemeSelect) uiThemeSelect.value = state.selectedUiThemeId;
   applyUiTheme(state.selectedUiThemeId);
   applyFeedbackMode(state.useFaceFeedback);
+  setBossEditMode(true);
+  applyDrawerCollapseState({ save: false, rerender: false });
   updateModeIndicators();
   applyBoardZoom(state.boardZoom);
 
@@ -571,11 +584,6 @@ function bindGlobalControls() {
       );
     });
   }
-  if (toggleBossEditBtn) {
-    toggleBossEditBtn.addEventListener("click", () => {
-      setBossEditMode(!state.bossEditMode);
-    });
-  }
   if (toggleWallEditBtn) {
     toggleWallEditBtn.addEventListener("click", () => {
       setWallEditMode(!state.wallEditMode);
@@ -695,14 +703,39 @@ function bindGlobalControls() {
       reserveEditCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
     });
   }
-  if (bossPile) {
-    bossPile.addEventListener("click", (event) => {
-      if (event.target.closest(".boss-card")) return;
-      setBossEditMode(!state.bossEditMode);
+  if (toggleLeftDrawerBtn) {
+    toggleLeftDrawerBtn.addEventListener("click", () => {
+      state.leftDrawerCollapsed = !state.leftDrawerCollapsed;
+      applyDrawerCollapseState({ preserveBoardScreenPosition: true });
+      setStatus(state.leftDrawerCollapsed ? "Left drawer collapsed." : "Left drawer expanded.");
+    });
+  }
+  if (toggleRightDrawerBtn) {
+    toggleRightDrawerBtn.addEventListener("click", () => {
+      state.rightDrawerCollapsed = !state.rightDrawerCollapsed;
+      applyDrawerCollapseState({ preserveBoardScreenPosition: true });
+      setStatus(state.rightDrawerCollapsed ? "Right drawer collapsed." : "Right drawer expanded.");
     });
   }
 
   document.addEventListener("keydown", (event) => {
+    const isTypingTarget = event.target instanceof HTMLElement
+      && (event.target.tagName === "INPUT"
+        || event.target.tagName === "TEXTAREA"
+        || event.target.tagName === "SELECT"
+        || event.target.isContentEditable);
+    if (
+      !isTypingTarget
+      && !event.metaKey
+      && !event.ctrlKey
+      && !event.altKey
+      && event.key.toLowerCase() === "f"
+    ) {
+      event.preventDefault();
+      toggleBothDrawers();
+      return;
+    }
+
     const activeTileId = state.hoveredTileId || state.selectedTileId;
     if (!activeTileId) return;
 
@@ -747,8 +780,142 @@ function bindGlobalControls() {
     { passive: false },
   );
 
-  window.addEventListener("resize", scheduleBoardHexGridRender, { passive: true });
+  window.addEventListener(
+    "resize",
+    () => {
+      applyDrawerCollapseState({ save: false, rerender: false });
+      recenterTrayAndReserveTiles();
+      scheduleBoardHexGridRender();
+    },
+    { passive: true },
+  );
 
+}
+
+function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardScreenPosition = false } = {}) {
+  const beforeRect = preserveBoardScreenPosition ? board.getBoundingClientRect() : null;
+  const canCollapse = window.matchMedia("(min-width: 981px)").matches;
+  const leftCollapsed = canCollapse && state.leftDrawerCollapsed;
+  const rightCollapsed = canCollapse && state.rightDrawerCollapsed;
+
+  document.body.classList.toggle("left-drawer-collapsed", leftCollapsed);
+  document.body.classList.toggle("right-drawer-collapsed", rightCollapsed);
+
+  if (leftDrawer) leftDrawer.setAttribute("aria-expanded", String(!leftCollapsed));
+  if (rightDrawer) rightDrawer.setAttribute("aria-expanded", String(!rightCollapsed));
+  if (leftDrawerContent) leftDrawerContent.setAttribute("aria-hidden", String(leftCollapsed));
+  if (rightDrawerContent) rightDrawerContent.setAttribute("aria-hidden", String(rightCollapsed));
+
+  if (toggleLeftDrawerBtn) {
+    toggleLeftDrawerBtn.setAttribute("aria-expanded", String(!leftCollapsed));
+    toggleLeftDrawerBtn.setAttribute("aria-label", leftCollapsed ? "Expand tile drawer" : "Collapse tile drawer");
+    toggleLeftDrawerBtn.setAttribute("title", leftCollapsed ? "Expand tile drawer" : "Collapse tile drawer");
+  }
+  if (toggleRightDrawerBtn) {
+    toggleRightDrawerBtn.setAttribute("aria-expanded", String(!rightCollapsed));
+    toggleRightDrawerBtn.setAttribute("aria-label", rightCollapsed ? "Expand info drawer" : "Collapse info drawer");
+    toggleRightDrawerBtn.setAttribute("title", rightCollapsed ? "Expand info drawer" : "Collapse info drawer");
+  }
+
+  if (save) saveDrawerState({ left: leftCollapsed, right: rightCollapsed });
+  const completeRerender = () => {
+    if (!rerender) return;
+    recenterTrayAndReserveTiles();
+    scheduleBoardHexGridRender();
+    setTimeout(scheduleBoardHexGridRender, 220);
+  };
+
+  if (beforeRect) {
+    requestAnimationFrame(() => {
+      const afterRect = board.getBoundingClientRect();
+      const zoom = getBoardZoom();
+      const dx = (beforeRect.left - afterRect.left) / zoom;
+      const dy = (beforeRect.top - afterRect.top) / zoom;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        shiftBoardSceneBy(dx, dy);
+      }
+      completeRerender();
+    });
+    return;
+  }
+
+  completeRerender();
+}
+
+function recenterTrayAndReserveTiles() {
+  for (const tile of state.tiles.values()) {
+    if (tile.placed) continue;
+    positionTileAtTrayCenter(tile);
+    updateTileTransform(tile);
+  }
+}
+
+function loadDrawerState() {
+  try {
+    const raw = localStorage.getItem(DRAWER_STATE_STORAGE_KEY);
+    if (!raw) return { left: false, right: false };
+    const parsed = JSON.parse(raw);
+    return {
+      left: Boolean(parsed?.left),
+      right: Boolean(parsed?.right),
+    };
+  } catch (error) {
+    console.warn("Could not load drawer collapse state.", error);
+    return { left: false, right: false };
+  }
+}
+
+function saveDrawerState(next) {
+  try {
+    localStorage.setItem(
+      DRAWER_STATE_STORAGE_KEY,
+      JSON.stringify({
+        left: Boolean(next?.left),
+        right: Boolean(next?.right),
+      }),
+    );
+  } catch (error) {
+    console.warn("Could not save drawer collapse state.", error);
+  }
+}
+
+function shiftBoardSceneBy(dx, dy) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return;
+
+  state.boardPanX += dx;
+  state.boardPanY += dy;
+
+  const boardTiles = Array.from(state.tiles.values())
+    .filter((tile) => tile.dom && isOnBoardLayer(tile.dom.parentElement));
+  for (const tile of boardTiles) {
+    positionTile(tile, tile.x + dx, tile.y + dy);
+    updateTileTransform(tile);
+  }
+
+  if (state.referenceMarker?.dom) {
+    const nextX = state.referenceMarker.x + dx;
+    const nextY = state.referenceMarker.y + dy;
+    state.referenceMarker.dom.style.left = `${nextX}px`;
+    state.referenceMarker.dom.style.top = `${nextY}px`;
+    state.referenceMarker.x = nextX;
+    state.referenceMarker.y = nextY;
+  }
+
+  const boardBossTokens = state.bossTokens
+    .filter((token) => token?.dom && isOnBoardLayer(token.dom.parentElement));
+  for (const token of boardBossTokens) {
+    positionBossToken(token, token.x + dx, token.y + dy);
+    updateBossTokenTransform(token);
+  }
+}
+
+function toggleBothDrawers() {
+  const collapseBoth = !(state.leftDrawerCollapsed && state.rightDrawerCollapsed);
+  state.leftDrawerCollapsed = collapseBoth;
+  state.rightDrawerCollapsed = collapseBoth;
+  applyDrawerCollapseState({ preserveBoardScreenPosition: true });
+  setStatus(collapseBoth ? "Both drawers collapsed." : "Both drawers expanded.");
 }
 
 function loadUiThemeId() {
@@ -1344,11 +1511,51 @@ function getBossTileSources(tileSetId = state.selectedTileSetId) {
   return bossIds.map((bossId) => `./tiles/${tileSet.id}/${tileSet.id}_boss_${bossId}.png`);
 }
 
+function ensureBossPileOrder(tileSetId = state.selectedTileSetId) {
+  const canonical = getBossTileSources(tileSetId);
+  const existing = Array.isArray(state.bossPileOrderByTileSet[tileSetId])
+    ? state.bossPileOrderByTileSet[tileSetId]
+    : [];
+  const seen = new Set();
+  const normalized = [];
+
+  for (const src of existing) {
+    if (!canonical.includes(src)) continue;
+    if (seen.has(src)) continue;
+    seen.add(src);
+    normalized.push(src);
+  }
+  for (const src of canonical) {
+    if (seen.has(src)) continue;
+    seen.add(src);
+    normalized.push(src);
+  }
+
+  state.bossPileOrderByTileSet[tileSetId] = normalized;
+  return normalized;
+}
+
+function rotateBossPileTop(tileSetId = state.selectedTileSetId) {
+  const order = ensureBossPileOrder(tileSetId);
+  if (order.length < 2) return;
+  const top = order.pop();
+  order.unshift(top);
+  state.bossPileOrderByTileSet[tileSetId] = order;
+}
+
+function pushBossBackToPile(src, tileSetId = state.selectedTileSetId) {
+  const order = ensureBossPileOrder(tileSetId);
+  const filtered = order.filter((entry) => entry !== src);
+  filtered.push(src);
+  state.bossPileOrderByTileSet[tileSetId] = filtered;
+}
+
 function renderBossPile() {
   if (!bossPile) return;
   bossPile.innerHTML = "";
   const placedBossSources = new Set(state.bossTokens.map((token) => token.src));
-  const sources = getBossTileSources().filter((src) => !placedBossSources.has(src));
+  const order = ensureBossPileOrder(state.selectedTileSetId);
+  const sources = order.filter((src) => !placedBossSources.has(src));
   if (!sources.length) {
     bossPile.classList.add("is-empty");
     return;
@@ -1359,9 +1566,7 @@ function renderBossPile() {
     { dx: -20, dy: 10, rot: -9, z: 1, scale: 0.98 },
     { dx: 16, dy: -6, rot: 5, z: 2, scale: 1.0 },
   ];
-  const ordered = state.bossOrderFlipped && sources.length >= 2
-    ? [sources[1], sources[0], ...sources.slice(2)]
-    : sources;
+  const ordered = sources;
 
   for (let i = 0; i < ordered.length; i += 1) {
     const card = document.createElement("div");
@@ -1399,7 +1604,7 @@ function renderBossPile() {
       }
       if (!state.bossEditMode) return;
       if (ordered.length < 2) return;
-      state.bossOrderFlipped = !state.bossOrderFlipped;
+      rotateBossPileTop(state.selectedTileSetId);
       renderBossPile();
     });
 
@@ -1411,9 +1616,6 @@ function renderBossPile() {
 function setBossEditMode(enabled) {
   state.bossEditMode = Boolean(enabled);
   document.body.classList.toggle("boss-edit-mode", state.bossEditMode);
-  if (toggleBossEditBtn) {
-    toggleBossEditBtn.textContent = state.bossEditMode ? "Boss Selection: Active" : "Boss Selection";
-  }
   updateModeIndicators();
 }
 
@@ -1434,23 +1636,51 @@ function isClickInTopRightCloseHit(event, containerEl) {
   );
 }
 
+function isPointInsideElement(clientX, clientY, element) {
+  if (!element) return false;
+  const rect = element.getBoundingClientRect();
+  return (
+    clientX >= rect.left
+    && clientX <= rect.right
+    && clientY >= rect.top
+    && clientY <= rect.bottom
+  );
+}
+
 function beginBossSpawnDrag(event, src, onDragStart = null) {
   if (event.button !== 0) return;
   event.preventDefault();
   event.stopPropagation();
+  const HOLD_TO_DRAG_MS = 150;
 
   const cardEl = event.currentTarget;
   const workspaceRect = workspace.getBoundingClientRect();
   const boardRect = board.getBoundingClientRect();
-  const startX = event.clientX;
-  const startY = event.clientY;
   const pointerId = event.pointerId;
+  let latestX = event.clientX;
+  let latestY = event.clientY;
+  let pointerActive = true;
   let moved = false;
   let droppedToBoard = false;
+  let holdElapsed = false;
+  const startDragMode = () => {
+    if (moved || !pointerActive) return;
+    moved = true;
+    preview.style.display = "";
+    cardEl.classList.add("boss-card-drag-origin");
+    if (typeof onDragStart === "function") onDragStart();
+    setPreviewPos(latestX, latestY);
+  };
+  const holdTimer = setTimeout(() => {
+    holdElapsed = true;
+    startDragMode();
+  }, HOLD_TO_DRAG_MS);
+  document.body.classList.add("boss-drag-cursor");
 
   const preview = document.createElement("div");
   preview.className = "boss-token boss-token-preview";
   preview.style.width = `${TILE_SIZE}px`;
+  preview.style.display = "none";
   const previewImg = document.createElement("img");
   previewImg.src = src;
   previewImg.alt = "";
@@ -1466,6 +1696,9 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
   setPreviewPos(event.clientX, event.clientY);
 
   const cleanup = () => {
+    pointerActive = false;
+    clearTimeout(holdTimer);
+    document.body.classList.remove("boss-drag-cursor");
     window.removeEventListener("pointermove", handleMove);
     window.removeEventListener("pointerup", handleUp);
     window.removeEventListener("pointercancel", handleUp);
@@ -1481,13 +1714,11 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
       cleanup();
       return;
     }
+    latestX = moveEvent.clientX;
+    latestY = moveEvent.clientY;
     if (!moved) {
-      const distance = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
-      if (distance >= 4) {
-        moved = true;
-        cardEl.classList.add("boss-card-drag-origin");
-        if (typeof onDragStart === "function") onDragStart();
-      }
+      if (!holdElapsed) return;
+      startDragMode();
     }
     setPreviewPos(moveEvent.clientX, moveEvent.clientY);
   };
@@ -1564,15 +1795,28 @@ function beginBossTokenDrag(token, event) {
   event.preventDefault();
   event.stopPropagation();
 
+  const workspaceRect = workspace.getBoundingClientRect();
   const boardRect = board.getBoundingClientRect();
+  const startX = token.x;
+  const startY = token.y;
+  const boardOffsetX = (boardRect.left + board.clientLeft) - workspaceRect.left;
+  const boardOffsetY = (boardRect.top + board.clientTop) - workspaceRect.top;
+  const zoom = getBoardZoom();
   const pointerId = event.pointerId;
   token.dom.classList.add("boss-token-dragging");
+  document.body.classList.add("boss-drag-cursor");
+  if (token.dom.parentElement !== dragLayer) {
+    dragLayer.appendChild(token.dom);
+  }
+  positionBossToken(token, startX * zoom + boardOffsetX, startY * zoom + boardOffsetY);
+  updateBossTokenTransform(token);
 
   const cleanup = () => {
     window.removeEventListener("pointermove", handleMove);
     window.removeEventListener("pointerup", handleUp);
     window.removeEventListener("pointercancel", handleUp);
     token.dom.classList.remove("boss-token-dragging");
+    document.body.classList.remove("boss-drag-cursor");
   };
 
   const handleMove = (moveEvent) => {
@@ -1581,17 +1825,42 @@ function beginBossTokenDrag(token, event) {
       cleanup();
       return;
     }
-    const boardOriginX = boardRect.left + board.clientLeft;
-    const boardOriginY = boardRect.top + board.clientTop;
-    const zoom = getBoardZoom();
-    const bx = clamp((moveEvent.clientX - boardOriginX) / zoom, 0, board.clientWidth);
-    const by = clamp((moveEvent.clientY - boardOriginY) / zoom, 0, board.clientHeight);
-    positionBossToken(token, bx, by);
+    const x = moveEvent.clientX - workspaceRect.left;
+    const y = moveEvent.clientY - workspaceRect.top;
+    positionBossToken(token, x, y);
     updateBossTokenTransform(token);
   };
 
   const handleUp = (upEvent) => {
     if (upEvent.pointerId !== pointerId) return;
+    const droppedInsideBossPile = isPointInsideElement(upEvent.clientX, upEvent.clientY, bossPile);
+    if (droppedInsideBossPile) {
+      pushBossBackToPile(token.src, state.selectedTileSetId);
+      state.bossTokens = state.bossTokens.filter((entry) => entry.id !== token.id);
+      token.dom.remove();
+      renderBossPile();
+      cleanup();
+      return;
+    }
+
+    const droppedInsideBoard = isPointInsideElement(upEvent.clientX, upEvent.clientY, board);
+    if (droppedInsideBoard) {
+      if (token.dom.parentElement !== getBoardContentLayer()) {
+        getBoardContentLayer().appendChild(token.dom);
+      }
+      const bx = clamp((token.x - boardOffsetX) / zoom, 0, board.clientWidth);
+      const by = clamp((token.y - boardOffsetY) / zoom, 0, board.clientHeight);
+      positionBossToken(token, bx, by);
+      updateBossTokenTransform(token);
+      cleanup();
+      return;
+    }
+
+    if (!isOnBoardLayer(token.dom.parentElement)) {
+      getBoardContentLayer().appendChild(token.dom);
+    }
+    positionBossToken(token, startX, startY);
+    updateBossTokenTransform(token);
     cleanup();
   };
 
@@ -2818,6 +3087,15 @@ function beginDrag(tile, event) {
     moved: false,
   };
 
+  // Enter drag visual state immediately on press/hold, before pointer movement.
+  tile.dom.classList.add("dragging");
+  const initialX = event.clientX - workspaceRect.left - pointerOffsetX;
+  const initialY = event.clientY - workspaceRect.top - pointerOffsetY;
+  updateTileParent(tile, dragLayer);
+  tile.dom.classList.add("floating");
+  positionTile(tile, initialX, initialY);
+  updateTileTransform(tile);
+
   let cleanedUp = false;
 
   const cleanupDrag = () => {
@@ -2838,13 +3116,7 @@ function beginDrag(tile, event) {
       return;
     }
 
-    if (!tile.drag.startedFromBoard && tile.dom.parentElement !== dragLayer) {
-      updateTileParent(tile, dragLayer);
-      tile.dom.classList.add("floating");
-    }
-
     tile.drag.moved = true;
-    tile.dom.classList.add("dragging");
     const zoom = getBoardZoom();
     const boardOriginX = boardRect.left + board.clientLeft;
     const boardOriginY = boardRect.top + board.clientTop;
@@ -2860,30 +3132,21 @@ function beginDrag(tile, event) {
       && moveEvent.clientY >= boardRect.top
       && moveEvent.clientY <= boardRect.bottom;
 
-    if (isOnBoardLayer(tile.dom.parentElement)) {
-      const rawBoardX = (moveEvent.clientX - boardOriginX - tile.drag.offsetX) / zoom;
-      const rawBoardY = (moveEvent.clientY - boardOriginY - tile.drag.offsetY) / zoom;
-      const clampedX = clamp(rawBoardX, 0, board.clientWidth);
-      const clampedY = clamp(rawBoardY, 0, board.clientHeight);
-      const snapped = snapTileCenterToHex(tile, clampedX, clampedY);
-      positionTile(tile, snapped.x, snapped.y);
+    if (pointerInsideBoard) {
+      const boardX = (moveEvent.clientX - boardOriginX - tile.drag.offsetX) / zoom;
+      const boardY = (moveEvent.clientY - boardOriginY - tile.drag.offsetY) / zoom;
+      const clampedBoardX = clamp(boardX, 0, board.clientWidth);
+      const clampedBoardY = clamp(boardY, 0, board.clientHeight);
+      const snapped = snapTileCenterToHex(tile, clampedBoardX, clampedBoardY);
+      const boardOffsetX = boardOriginX - workspaceRect.left;
+      const boardOffsetY = boardOriginY - workspaceRect.top;
+      positionTile(
+        tile,
+        snapped.x * zoom + boardOffsetX,
+        snapped.y * zoom + boardOffsetY,
+      );
     } else {
-      if (pointerInsideBoard) {
-        const boardX = (moveEvent.clientX - boardOriginX - tile.drag.offsetX) / zoom;
-        const boardY = (moveEvent.clientY - boardOriginY - tile.drag.offsetY) / zoom;
-        const clampedBoardX = clamp(boardX, 0, board.clientWidth);
-        const clampedBoardY = clamp(boardY, 0, board.clientHeight);
-        const snapped = snapTileCenterToHex(tile, clampedBoardX, clampedBoardY);
-        const boardOffsetX = boardOriginX - workspaceRect.left;
-        const boardOffsetY = boardOriginY - workspaceRect.top;
-        positionTile(
-          tile,
-          snapped.x * zoom + boardOffsetX,
-          snapped.y * zoom + boardOffsetY,
-        );
-      } else {
-        positionTile(tile, x, y);
-      }
+      positionTile(tile, x, y);
     }
 
     updateTileTransform(tile);
@@ -2897,24 +3160,41 @@ function beginDrag(tile, event) {
 
     if (!tile.drag.moved) {
       setPlacementFeedback(tile, null);
+      if (!tile.drag.startedFromBoard) {
+        tile.placed = false;
+        positionTileAtTrayCenter(tile);
+        updateTileParent(tile, tile.traySlot);
+        updateTileTransform(tile);
+      }
       tile.drag = null;
       return;
     }
 
     if (tile.dom.parentElement === dragLayer) {
+      const droppedInsideLeftDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, leftDrawer);
       const isInsideBoard =
         upEvent.clientX >= boardRect.left &&
         upEvent.clientX <= boardRect.right &&
         upEvent.clientY >= boardRect.top &&
         upEvent.clientY <= boardRect.bottom;
 
-      if (!isInsideBoard) {
+      if (!isInsideBoard && (droppedInsideLeftDrawer || !tile.drag.startedFromBoard)) {
         tile.placed = false;
         positionTileAtTrayCenter(tile);
         updateTileParent(tile, tile.traySlot);
         updateTileTransform(tile);
         setPlacementFeedback(tile, null);
         updatePlacedProgress();
+        tile.drag = null;
+        return;
+      }
+
+      if (!isInsideBoard) {
+        tile.placed = tile.drag.previousPlaced;
+        updateTileParent(tile, board);
+        positionTile(tile, tile.drag.previousX, tile.drag.previousY);
+        updateTileTransform(tile);
+        setPlacementFeedback(tile, null);
         tile.drag = null;
         return;
       }
@@ -3734,13 +4014,30 @@ function isOnBoardLayer(parent) {
 function updateTileTransform(tile) {
   if (!tile.dom) return;
   const scale = tile.dom.parentElement === dragLayer ? getBoardZoom() : 1;
+  let trayNudgeX = 0;
+  let trayNudgeY = 0;
+  const parent = tile.dom.parentElement;
+  if (parent?.classList?.contains("tray-slot") && parent.parentElement === tray) {
+    const slotIndex = Array.prototype.indexOf.call(parent.parentElement.children, parent);
+    if (slotIndex >= 0) {
+      // Pull left/right tray tiles slightly inward without changing slot/card size.
+      trayNudgeX = slotIndex % 2 === 0 ? 2.5 : -2.5;
+      // Pull tray rows slightly toward center to reduce vertical spacing between rows.
+      const row = Math.floor(slotIndex / 2);
+      if (row === 0) trayNudgeY = 12;
+      else if (row === 1) trayNudgeY = 0;
+      else trayNudgeY = -13;
+    }
+  }
+  const translateX = `calc(-50% + ${trayNudgeX}px)`;
+  const translateY = `calc(-50% + ${trayNudgeY}px)`;
   tile.dom.style.left = `${tile.x}px`;
   tile.dom.style.top = `${tile.y}px`;
   tile.dom.style.transformOrigin = "50% 50%";
   tile.dom.style.transform =
     scale !== 1
-      ? `translate(-50%, -50%) scale(${scale})`
-      : "translate(-50%, -50%)";
+      ? `translate(${translateX}, ${translateY}) scale(${scale})`
+      : `translate(${translateX}, ${translateY})`;
   if (tile.bodyDom) {
     tile.bodyDom.style.transform = `rotate(${tile.rotation}deg)`;
   }
