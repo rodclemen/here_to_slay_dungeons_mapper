@@ -1,6 +1,11 @@
 # Changelog
 
 ## 2026-04-02
+- Polished left drawer collapse/expand animation behavior: stabilized toolbar/title layout during transition, kept close-slide timing, and prevented content pop/hide timing regressions so collapse feels continuous instead of jumpy.
+- Fixed board-position preservation during drawer transitions by replacing one-shot compensation with frame-by-frame scene locking, eliminating visible left-shift drift of placed board tiles while drawers animate.
+- Corrected tray-content transition side effects by removing transition-end recenter snaps during drawer-toggle preservation flows, so tray tiles no longer jump into place after opening.
+- Refined drag-layer behavior after regression testing: reverted fade-hiding workaround, kept board edge fade visible, and ensured board-origin drags stay visually above overlays without drawer-boundary jump artifacts.
+- Session note: Chased one 2px animation jitter through three systems; the jitter eventually surrendered.
 - Reworked the Phase 2 layout shell into collapsible left/right drawers with icon toggles, persistent drawer state, and keyboard shortcut `f` to toggle both drawers together, while preserving board pan/zoom and existing gameplay actions.
 - Refined drag/drop behavior for board and drawer workflows: tray tiles now enter drag visuals on press/hold, board tiles and boss tokens can be returned to their drawer zones, and non-target drops keep previous auto-return/restore behavior instead of forcing new placement outcomes.
 - Added hold-to-drag gating for boss-card spawn (`150ms`) so quick taps reliably cycle boss cards while intentional holds start drag mode; also stabilized boss drag cursor state across drawer/board boundaries.

@@ -278,10 +278,11 @@ button:hover {
   min-height: 0;
   display: grid;
   grid-template-columns: var(--left-drawer-width) minmax(0, 1fr) var(--right-drawer-width);
-  gap: 12px;
+  transition: grid-template-columns 220ms ease;
+  gap: 0;
   position: relative;
   overflow: hidden;
-  padding: 12px;
+  padding: 0;
 }
 
 .drawer {
@@ -294,11 +295,31 @@ button:hover {
   padding: 10px;
   overflow-y: auto;
   min-width: 0;
-  transition: width 0.18s ease, padding 0.18s ease;
+  transition: width 0.18s ease;
 }
 
 .drawer-right {
   background: linear-gradient(180deg, #fff6ec 0%, #f2ddca 100%);
+}
+
+.drawer-left {
+  position: relative;
+  border-top: 0;
+  border-left: 0;
+  border-bottom: 0;
+  border-radius: 0;
+}
+
+.drawer-left .drawer-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 20;
+}
+
+.drawer-left .drawer-content {
+  padding-top: 40px;
 }
 
 .drawer-toolbar {
@@ -306,11 +327,15 @@ button:hover {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 34px;
 }
 
 .drawer-toolbar h2 {
   margin: 0;
   font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .drawer-toggle-btn {
@@ -385,11 +410,19 @@ body.right-drawer-collapsed .drawer-right .drawer-toolbar h2 {
 }
 
 body.left-drawer-collapsed .drawer-left .drawer-toolbar {
-  position: absolute;
   top: 10px;
   left: 0;
   z-index: 20;
   pointer-events: auto;
+}
+
+body.left-drawer-collapsed.left-drawer-closing .drawer-left .drawer-toolbar {
+  left: 10px;
+  right: 10px;
+}
+
+body.left-drawer-collapsed.left-drawer-closing .drawer-left .drawer-toolbar h2 {
+  display: block;
 }
 
 body.right-drawer-collapsed .drawer-right .drawer-toolbar {
@@ -403,6 +436,15 @@ body.right-drawer-collapsed .drawer-right .drawer-toolbar {
 body.left-drawer-collapsed .drawer-left .drawer-content,
 body.right-drawer-collapsed .drawer-right .drawer-content {
   display: none;
+}
+
+body.left-drawer-collapsed.left-drawer-closing .drawer-left .drawer-content {
+  display: grid;
+}
+
+body.left-drawer-collapsed.left-drawer-closing .drawer-left {
+  overflow: hidden;
+  padding: 10px;
 }
 
 .wall-editor-page {
@@ -471,8 +513,8 @@ body.wall-edit-mode .wall-editor-page {
 .board {
   --board-zoom: 1;
   position: relative;
-  border: 2px dashed #91a2ad;
-  border-radius: 14px;
+  border: 0;
+  border-radius: 0;
   background: linear-gradient(130deg, #f7f7f2 0%, #ebece5 100%);
   overflow: hidden;
   min-height: 520px;

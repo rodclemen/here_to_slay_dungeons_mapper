@@ -130,6 +130,7 @@ const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
 let boardHexRenderRaf = 0;
+let leftDrawerClosingTimer = null;
 
 const state = {
   tiles: new Map(),
@@ -794,12 +795,28 @@ function bindGlobalControls() {
 
 function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardScreenPosition = false } = {}) {
   const beforeRect = preserveBoardScreenPosition ? board.getBoundingClientRect() : null;
+  const wasLeftCollapsed = document.body.classList.contains("left-drawer-collapsed");
   const canCollapse = window.matchMedia("(min-width: 981px)").matches;
   const leftCollapsed = canCollapse && state.leftDrawerCollapsed;
   const rightCollapsed = canCollapse && state.rightDrawerCollapsed;
 
   document.body.classList.toggle("left-drawer-collapsed", leftCollapsed);
   document.body.classList.toggle("right-drawer-collapsed", rightCollapsed);
+
+  if (leftCollapsed && !wasLeftCollapsed) {
+    document.body.classList.add("left-drawer-closing");
+    if (leftDrawerClosingTimer) clearTimeout(leftDrawerClosingTimer);
+    leftDrawerClosingTimer = setTimeout(() => {
+      document.body.classList.remove("left-drawer-closing");
+      leftDrawerClosingTimer = null;
+    }, 220);
+  } else if (!leftCollapsed) {
+    document.body.classList.remove("left-drawer-closing");
+    if (leftDrawerClosingTimer) {
+      clearTimeout(leftDrawerClosingTimer);
+      leftDrawerClosingTimer = null;
+    }
+  }
 
   if (leftDrawer) leftDrawer.setAttribute("aria-expanded", String(!leftCollapsed));
   if (rightDrawer) rightDrawer.setAttribute("aria-expanded", String(!rightCollapsed));
@@ -820,22 +837,15 @@ function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardS
   if (save) saveDrawerState({ left: leftCollapsed, right: rightCollapsed });
   const completeRerender = () => {
     if (!rerender) return;
-    recenterTrayAndReserveTiles();
+    if (!preserveBoardScreenPosition) {
+      recenterTrayAndReserveTiles();
+    }
     scheduleBoardHexGridRender();
     setTimeout(scheduleBoardHexGridRender, 220);
   };
 
   if (beforeRect) {
-    requestAnimationFrame(() => {
-      const afterRect = board.getBoundingClientRect();
-      const zoom = getBoardZoom();
-      const dx = (beforeRect.left - afterRect.left) / zoom;
-      const dy = (beforeRect.top - afterRect.top) / zoom;
-      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-        shiftBoardSceneBy(dx, dy);
-      }
-      completeRerender();
-    });
+    lockBoardSceneDuringLayoutTransition(beforeRect, 260, completeRerender);
     return;
   }
 
@@ -908,6 +918,32 @@ function shiftBoardSceneBy(dx, dy) {
     positionBossToken(token, token.x + dx, token.y + dy);
     updateBossTokenTransform(token);
   }
+}
+
+function lockBoardSceneDuringLayoutTransition(startRect, durationMs, onDone) {
+  let lastLeft = startRect.left;
+  let lastTop = startRect.top;
+  const endAt = performance.now() + durationMs;
+
+  const step = () => {
+    const rect = board.getBoundingClientRect();
+    const zoom = getBoardZoom();
+    const dx = (lastLeft - rect.left) / zoom;
+    const dy = (lastTop - rect.top) / zoom;
+    if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+      shiftBoardSceneBy(dx, dy);
+    }
+    lastLeft = rect.left;
+    lastTop = rect.top;
+
+    if (performance.now() < endAt) {
+      requestAnimationFrame(step);
+      return;
+    }
+    if (typeof onDone === "function") onDone();
+  };
+
+  requestAnimationFrame(step);
 }
 
 function toggleBothDrawers() {
