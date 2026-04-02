@@ -46,6 +46,7 @@ button {
   padding: 10px 16px;
   background: rgba(255, 247, 238, 0.95);
   backdrop-filter: blur(8px);
+  box-shadow: 0 8px 14px -12px rgba(48, 34, 22, 0.26);
   display: grid;
   grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
   gap: 12px;
@@ -295,11 +296,18 @@ button:hover {
   padding: 10px;
   overflow-y: auto;
   min-width: 0;
+  position: relative;
+  z-index: 6;
   transition: width 0.18s ease;
 }
 
 .drawer-right {
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
   background: linear-gradient(180deg, #fff6ec 0%, #f2ddca 100%);
+  box-shadow: -8px 0 14px -10px rgba(48, 34, 22, 0.22);
 }
 
 .drawer-left {
@@ -308,6 +316,7 @@ button:hover {
   border-left: 0;
   border-bottom: 0;
   border-radius: 0;
+  box-shadow: 8px 0 14px -10px rgba(48, 34, 22, 0.22);
 }
 
 .drawer-left .drawer-toolbar {
@@ -513,6 +522,7 @@ body.wall-edit-mode .wall-editor-page {
 .board {
   --board-zoom: 1;
   position: relative;
+  z-index: 1;
   border: 0;
   border-radius: 0;
   background: linear-gradient(130deg, #f7f7f2 0%, #ebece5 100%);
@@ -542,16 +552,7 @@ body.wall-edit-mode .wall-editor-page {
 }
 
 .board::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  background:
-    linear-gradient(to right, rgba(235, 236, 229, 0.98) 0, rgba(235, 236, 229, 0) 34px),
-    linear-gradient(to left, rgba(235, 236, 229, 0.98) 0, rgba(235, 236, 229, 0) 34px),
-    linear-gradient(to bottom, rgba(235, 236, 229, 0.98) 0, rgba(235, 236, 229, 0) 34px),
-    linear-gradient(to top, rgba(235, 236, 229, 0.98) 0, rgba(235, 236, 229, 0) 34px);
+  content: none;
 }
 
 .board-zoom-indicator {
@@ -719,11 +720,7 @@ body.ui-theme-molten .board {
 }
 
 body.ui-theme-molten .board::after {
-  background:
-    linear-gradient(to right, rgba(247, 228, 207, 0.98) 0, rgba(247, 228, 207, 0) 34px),
-    linear-gradient(to left, rgba(247, 228, 207, 0.98) 0, rgba(247, 228, 207, 0) 34px),
-    linear-gradient(to bottom, rgba(247, 228, 207, 0.98) 0, rgba(247, 228, 207, 0) 34px),
-    linear-gradient(to top, rgba(247, 228, 207, 0.98) 0, rgba(247, 228, 207, 0) 34px);
+  content: none;
 }
 
 body.ui-theme-molten .board-zoom-indicator {

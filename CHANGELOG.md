@@ -1,6 +1,12 @@
 # Changelog
 
 ## 2026-04-02
+- Updated board reset/start framing so horizontal centering is anchored to the Entrance Tile, fixing the persistent right-offset seen on initial load and `Zoom xx%` reset.
+- Reworked board background rendering to use full-hex cell fills with center-to-edge tonal interpolation (light center tied to drawer background tone, warm brown edge tint) instead of flat line-only styling.
+- Tuned hex gradient response to keep a continuous falloff across the full grid while capping the darkest endpoint to the requested visual intensity.
+- Aligned hex stroke color with the app border palette for visual consistency between grid lines and panel chrome.
+- Removed board edge fade overlays and replaced separation cues with softer side drawer shadows, then adjusted shadow strength to a subtler level.
+- Session note: Spent quality time negotiating peace between one gradient, two shadows, and a very opinionated center point.
 - Polished left drawer collapse/expand animation behavior: stabilized toolbar/title layout during transition, kept close-slide timing, and prevented content pop/hide timing regressions so collapse feels continuous instead of jumpy.
 - Fixed board-position preservation during drawer transitions by replacing one-shot compensation with frame-by-frame scene locking, eliminating visible left-shift drift of placed board tiles while drawers animate.
 - Corrected tray-content transition side effects by removing transition-end recenter snaps during drawer-toggle preservation flows, so tray tiles no longer jump into place after opening.

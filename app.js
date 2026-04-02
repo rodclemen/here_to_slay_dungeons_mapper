@@ -935,6 +935,7 @@ function lockBoardSceneDuringLayoutTransition(startRect, durationMs, onDone) {
     }
     lastLeft = rect.left;
     lastTop = rect.top;
+    renderBoardHexGrid();
 
     if (performance.now() < endAt) {
       requestAnimationFrame(step);
@@ -994,10 +995,11 @@ function applyBoardZoom(zoom) {
 }
 
 function resetBoardView() {
+  applyBoardZoom(1);
   const dx = -state.boardPanX;
   const dy = -state.boardPanY;
   translateBoardContent(dx, dy);
-  applyBoardZoom(1);
+  centerBoardViewOnEntranceX();
 }
 
 function zoomBoardAtPoint(delta, anchorBoardX, anchorBoardY) {
@@ -1371,11 +1373,21 @@ function renderBoardHexGrid() {
   svg.replaceChildren();
 
   const strokeColor = state.selectedUiThemeId === "molten"
-    ? "rgba(255, 191, 129, 0.15)"
-    : "rgba(54, 83, 102, 0.15)";
+    ? "rgba(210, 173, 137, 0.45)"
+    : "rgba(216, 198, 180, 0.45)";
+  const centerX = drawW / 2;
+  const centerY = drawH / 2;
+  const maxDist = Math.hypot(centerX, centerY) || 1;
+  const darkestTargetDist = Math.max(layout.dx * 4, layout.radius * 4);
+  const maxMix = Math.pow(clamp(darkestTargetDist / maxDist, 0, 1), 1.25);
+  const lightRgb = state.selectedUiThemeId === "molten"
+    ? { r: 255, g: 238, b: 220 } // matches molten drawer background tone
+    : { r: 255, g: 248, b: 240 }; // matches tile drawer background tone
+  const darkRgb = state.selectedUiThemeId === "molten"
+    ? { r: 126, g: 84, b: 52 }
+    : { r: 114, g: 80, b: 54 };
 
   const group = document.createElementNS(BOARD_HEX_SVG_NS, "g");
-  group.setAttribute("fill", "none");
   group.setAttribute("stroke", strokeColor);
   group.setAttribute("stroke-width", "1");
   group.setAttribute("vector-effect", "non-scaling-stroke");
@@ -1394,8 +1406,16 @@ function renderBoardHexGrid() {
       const y = yBase + panY;
       if (x < -layout.radius || x > drawW + layout.radius) continue;
       if (y < -layout.hexHeight || y > drawH + layout.hexHeight) continue;
+      const dist = Math.hypot(x - centerX, y - centerY);
+      const t = clamp(dist / maxDist, 0, 1);
+      // Keep full-hex "pixel" coloring while darkening cells toward edges.
+      const mix = Math.pow(t, 1.25) * maxMix;
+      const r = Math.round(lightRgb.r + (darkRgb.r - lightRgb.r) * mix);
+      const g = Math.round(lightRgb.g + (darkRgb.g - lightRgb.g) * mix);
+      const b = Math.round(lightRgb.b + (darkRgb.b - lightRgb.b) * mix);
       const path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
       path.setAttribute("d", hexPath(x, y, layout.radius));
+      path.setAttribute("fill", `rgb(${r}, ${g}, ${b})`);
       group.appendChild(path);
     }
   }
@@ -2022,6 +2042,17 @@ function placeStartTileAtCenter() {
   start.placed = true;
   updateTileTransform(start);
   placeReferenceAboveStart(start);
+  centerBoardViewOnEntranceX();
+}
+
+function centerBoardViewOnEntranceX() {
+  const entrance = state.tiles.get(ENTRANCE_TILE_ID);
+  if (!entrance?.placed) return;
+  if (!entrance.dom || !isOnBoardLayer(entrance.dom.parentElement)) return;
+  const targetX = board.clientWidth / 2;
+  const dx = targetX - entrance.x;
+  if (Math.abs(dx) < 0.5) return;
+  translateBoardContent(dx, 0);
 }
 
 function getReferenceTileSrc(tileSetId = state.selectedTileSetId) {
