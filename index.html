@@ -11,7 +11,7 @@
       <header class="topbar">
         <div>
           <h1>Tile Randomizer Prototype</h1>
-          <p>Place <code>molten_entrance</code>, then place 6 random tiles with at least 2-side contact.</p>
+          <p>Place the Entrance Tile, then place 6 random Dungeon Tiles with at least 2-side contact.</p>
         </div>
         <div class="actions">
           <select id="ui-theme-select" aria-label="UI Theme">
@@ -48,10 +48,10 @@
               <input id="load-dungeon-input" type="file" accept="application/json,.json" hidden />
             </div>
           </details>
-          <button id="toggle-wall-edit-btn" type="button">Edit Walls</button>
+          <button id="toggle-wall-edit-btn" type="button">Wall Editor</button>
           <button id="clear-tile-walls-btn" class="wall-edit-only" type="button">Clear Tile Walls</button>
-          <button id="export-wall-data-btn" class="wall-edit-only" type="button">Export Walls</button>
-          <button id="import-wall-data-btn" class="wall-edit-only" type="button">Import Walls</button>
+          <button id="export-wall-data-btn" class="wall-edit-only" type="button">Export Debug Walls</button>
+          <button id="import-wall-data-btn" class="wall-edit-only" type="button">Import Debug Walls</button>
           <input id="import-wall-data-input" type="file" accept="application/json" hidden />
         </div>
       </header>
@@ -72,7 +72,7 @@
             <div class="tray-pickers">
               <label class="theme-picker">
                 <span class="theme-label">Tile Set</span>
-                <select id="theme-select" aria-label="Tile Set">
+                <select id="tile-set-select" aria-label="Tile Set">
                   <option value="molten">Molten</option>
                   <option value="overgrown">Overgrown</option>
                   <option value="dreamscape">Dreamscape</option>
@@ -86,16 +86,16 @@
           <div id="tray" class="tray"></div>
           <div class="reserve-boss-row">
             <div class="reserve-area">
-              <div id="reserve-stack" class="reserve-stack" aria-label="Remaining tiles"></div>
+              <div id="reserve-pile" class="reserve-pile" aria-label="Reserve Tiles"></div>
               <input id="reserve-edit-checkbox" type="checkbox" hidden />
             </div>
-            <div id="boss-stack" class="boss-stack" aria-label="Boss tiles"></div>
+            <div id="boss-pile" class="boss-pile" aria-label="Boss Selection"></div>
           </div>
-          <div id="status" class="status" role="status" aria-live="polite"></div>
+          <div id="status" class="status" role="status" aria-live="polite" aria-label="Placement Feedback"></div>
         </aside>
       </section>
 
-      <section id="wall-editor-page" class="wall-editor-page" aria-label="Wall editor"></section>
+      <section id="wall-editor-page" class="wall-editor-page" aria-label="Wall Editor"></section>
     </main>
 
     <script src="./app.js" type="module"></script>

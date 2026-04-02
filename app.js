@@ -10,34 +10,95 @@ const SNAP_POINT_GAP = 0;
 const MIN_CONTACT_POINTS = 4;
 const INVALID_RETURN_DELAY_MS = 10_000;
 const INVALID_DROP_PUSH_PX = 140;
-const TILE_START_NON_NUMERIC_POINTS = new Set([11, 12]);
+const ENTRANCE_BLOCKED_FACE_INDICES = new Set([11, 12]);
 const BLOCKED_POINT_TOUCH_RADIUS = 4;
 const WALL_OVERRIDES_STORAGE_KEY = "hts_wall_overrides_v1";
 const UI_THEME_STORAGE_KEY = "hts_ui_theme_v1";
-const DEFAULT_THEME_ID = "molten";
+const DEFAULT_TILE_SET_ID = "molten";
 const DEFAULT_UI_THEME_ID = "current";
-const THEME_OPTIONS = [
-  { id: "molten", label: "Molten", folder: "molten", prefix: "molten" },
-  { id: "overgrown", label: "Overgrown", folder: "overgrown", prefix: "overgrown" },
-  { id: "dreamscape", label: "Dreamscape", folder: "dreamscape", prefix: "dreamscape" },
-  { id: "nightmare", label: "Nightmare", folder: "nightmare", prefix: "nightmare" },
-  { id: "submerged", label: "Submerged", folder: "submerged", prefix: "submerged" },
-  { id: "deep_freeze", label: "Deep Freeze", folder: "deep_freeze", prefix: "deep_freeze" },
+const ENTRANCE_TILE_ID = "entrance";
+const TILE_IDS = Array.from({ length: 9 }, (_, i) => `tile_${String(i + 1).padStart(2, "0")}`);
+const REFERENCE_CARD_ID = "reference_card";
+
+const TILE_SET_REGISTRY = [
+  {
+    id: "molten",
+    label: "Molten",
+    status: "not_implemented",
+    gameSetId: "base_game_1",
+    uiThemeId: "molten",
+    entranceTileId: ENTRANCE_TILE_ID,
+    tileIds: TILE_IDS,
+    referenceCardId: REFERENCE_CARD_ID,
+    bossIds: ["flamebeard", "abyss_empress"],
+  },
+  {
+    id: "overgrown",
+    label: "Overgrown",
+    status: "not_implemented",
+    gameSetId: "base_game_1",
+    uiThemeId: "current",
+    entranceTileId: ENTRANCE_TILE_ID,
+    tileIds: TILE_IDS,
+    referenceCardId: REFERENCE_CARD_ID,
+    bossIds: ["bloom_brute", "rootgnaw"],
+  },
+  {
+    id: "dreamscape",
+    label: "Dreamscape",
+    status: "not_implemented",
+    gameSetId: "base_game_2",
+    uiThemeId: "current",
+    entranceTileId: ENTRANCE_TILE_ID,
+    tileIds: TILE_IDS,
+    referenceCardId: REFERENCE_CARD_ID,
+    bossIds: [],
+  },
+  {
+    id: "nightmare",
+    label: "Nightmare",
+    status: "not_implemented",
+    gameSetId: "base_game_2",
+    uiThemeId: "current",
+    entranceTileId: ENTRANCE_TILE_ID,
+    tileIds: TILE_IDS,
+    referenceCardId: REFERENCE_CARD_ID,
+    bossIds: [],
+  },
+  {
+    id: "submerged",
+    label: "Submerged",
+    status: "not_implemented",
+    gameSetId: "base_game_3",
+    uiThemeId: "current",
+    entranceTileId: ENTRANCE_TILE_ID,
+    tileIds: TILE_IDS,
+    referenceCardId: REFERENCE_CARD_ID,
+    bossIds: [],
+  },
+  {
+    id: "deep_freeze",
+    label: "Deep Freeze",
+    status: "not_implemented",
+    gameSetId: "base_game_3",
+    uiThemeId: "current",
+    entranceTileId: ENTRANCE_TILE_ID,
+    tileIds: TILE_IDS,
+    referenceCardId: REFERENCE_CARD_ID,
+    bossIds: [],
+  },
 ];
-const BOSS_TILE_FILES = {
-  molten: ["molten_boss_flamebeard.png", "molten_boss_abyss_empress.png"],
-  overgrown: ["overgrown_boss_bloombrute.png", "overgrown_boss_rootgnaw"],
-};
+const DEFAULT_WALL_FACE_DATA = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
 
 const board = document.getElementById("board");
 const tray = document.getElementById("tray");
-const reserveStack = document.getElementById("reserve-stack");
-const bossStack = document.getElementById("boss-stack");
+const reservePile = document.getElementById("reserve-pile");
+const bossPile = document.getElementById("boss-pile");
 const reserveEditCheckbox = document.getElementById("reserve-edit-checkbox");
 const wallEditorPage = document.getElementById("wall-editor-page");
-const themeSelect = document.getElementById("theme-select");
+const tileSetSelect = document.getElementById("tile-set-select");
 const uiThemeSelect = document.getElementById("ui-theme-select");
 const workspace = document.querySelector(".workspace");
 const statusEl = document.getElementById("status");
@@ -65,7 +126,7 @@ const state = {
   tiles: new Map(),
   selectedTileId: null,
   hoveredTileId: null,
-  selectedThemeId: DEFAULT_THEME_ID,
+  selectedTileSetId: DEFAULT_TILE_SET_ID,
   selectedUiThemeId: loadUiThemeId(),
   tileDefs: [],
   showGuideLabels: false,
@@ -73,7 +134,7 @@ const state = {
   wallEditMode: false,
   wallOverrides: loadWallOverrides(),
   wallEditorTileRefs: new Map(),
-  wallEditorActiveThemeId: null,
+  wallEditorActiveTileSetId: null,
   wallEditorActiveTileId: null,
   pendingSwapSource: null,
   reserveEditMode: false,
@@ -86,10 +147,16 @@ const state = {
   nextBossTokenId: 1,
   boardPanX: 0,
   boardPanY: 0,
-  frontpageSnapshot: null,
+  buildViewSnapshot: null,
   referenceTileSrc: "",
   referenceMarker: null,
   boardZoom: 1,
+  readinessByTileSet: {},
+  legacyMigrationStats: {
+    themeIdLayoutMigrations: 0,
+    tileIdMigrations: 0,
+    wallOverrideTileIdMigrations: 0,
+  },
 };
 
 init().catch((error) => {
@@ -99,27 +166,41 @@ init().catch((error) => {
 
 async function init() {
   bindGlobalControls();
-  if (themeSelect) themeSelect.value = state.selectedThemeId;
+  await auditTileSetReadiness();
+  hydrateTileSetSelector();
+
+  const readyTileSetId = getFirstReadyTileSetId();
+  if (readyTileSetId && getTileSetConfig(state.selectedTileSetId)?.status !== "ready") {
+    state.selectedTileSetId = readyTileSetId;
+  }
+
+  if (tileSetSelect) tileSetSelect.value = state.selectedTileSetId;
   if (uiThemeSelect) uiThemeSelect.value = state.selectedUiThemeId;
   applyUiTheme(state.selectedUiThemeId);
   applyFeedbackMode(state.useFaceFeedback);
   applyBoardZoom(state.boardZoom);
-  state.referenceTileSrc = getReferenceTileSrc(state.selectedThemeId);
-  await applyTheme(state.selectedThemeId, false);
+
+  if (!readyTileSetId) {
+    setStatus("No ready Tile Sets available yet. Check readiness report in console.", true);
+    return;
+  }
+
+  state.referenceTileSrc = getReferenceTileSrc(state.selectedTileSetId);
+  await applyTileSet(state.selectedTileSetId, false);
   scheduleBoardHexGridRender();
 }
 
-async function loadTiles(themeId = state.selectedThemeId) {
-  const defs = buildTileDefs(themeId);
+async function loadTiles(tileSetId = state.selectedTileSetId) {
+  const defs = buildTileDefs(tileSetId);
   state.tileDefs = defs;
   state.tiles.clear();
   for (const def of defs) {
-    const img = await loadImage(def.src);
+    const img = await loadImage(def.imageSrc);
     const shape = getOpaqueBounds(img);
     const alphaMask = getAlphaMask(img);
     const faceGeometry = getFaceGeometry(img, SIDES);
 
-    state.tiles.set(def.id, {
+    state.tiles.set(def.tileId, {
       ...def,
       img,
       x: 0,
@@ -137,52 +218,304 @@ async function loadTiles(themeId = state.selectedThemeId) {
       faceGeometry,
       sideLength: faceGeometry.avgSideLength,
       apothem: faceGeometry.avgOffset,
-      wallFaceSet: new Set(getStoredWallFaces(themeId, def.id)),
+      wallFaceSet: new Set(getStoredWallFaces(tileSetId, def.tileId)),
     });
   }
 }
 
-function getThemeConfig(themeId) {
-  return THEME_OPTIONS.find((t) => t.id === themeId) || THEME_OPTIONS[0];
+function getTileSetConfig(tileSetId) {
+  return TILE_SET_REGISTRY.find((tileSet) => tileSet.id === tileSetId) || TILE_SET_REGISTRY[0];
 }
 
-function buildTileDefs(themeId) {
-  const theme = getThemeConfig(themeId);
-  const basePath = `./tiles/${theme.folder}`;
+function getFirstReadyTileSetId() {
+  const readyTileSet = TILE_SET_REGISTRY.find((tileSet) => tileSet.status === "ready");
+  return readyTileSet?.id || null;
+}
+
+function getTileSetStatusSuffix(status) {
+  if (status === "ready") return "";
+  if (status === "assets_missing") return " - Assets Missing";
+  if (status === "wall_data_missing") return " - Wall Data Missing";
+  return " - Coming Soon";
+}
+
+function hydrateTileSetSelector() {
+  if (!tileSetSelect) return;
+  tileSetSelect.innerHTML = "";
+  for (const tileSet of TILE_SET_REGISTRY) {
+    const option = document.createElement("option");
+    option.value = tileSet.id;
+    option.disabled = tileSet.status !== "ready";
+    option.textContent = `${tileSet.label}${getTileSetStatusSuffix(tileSet.status)}`;
+    tileSetSelect.appendChild(option);
+  }
+}
+
+function buildTileKey(tileSetId, tileId) {
+  return `${tileSetId}:${tileId}`;
+}
+
+function buildTileDefs(tileSetId) {
+  const tileSet = getTileSetConfig(tileSetId);
+  const basePath = `./tiles/${tileSet.id}`;
+  const entranceTileId = tileSet.entranceTileId || ENTRANCE_TILE_ID;
+  const tileIds = Array.isArray(tileSet.tileIds) && tileSet.tileIds.length ? tileSet.tileIds : TILE_IDS;
+
   return [
-    { id: "molten_entrance", src: `${basePath}/${theme.prefix}_entrance.png`, required: true },
-    ...Array.from({ length: 9 }, (_, i) => ({
-      id: `tile${i + 1}`,
-      src: `${basePath}/${theme.prefix}${i + 1}.png`,
+    {
+      tileSetId: tileSet.id,
+      tileId: entranceTileId,
+      key: buildTileKey(tileSet.id, entranceTileId),
+      imageSrc: `${basePath}/${tileSet.id}_entrance.png`,
+      required: true,
+    },
+    ...tileIds.map((tileId) => ({
+      tileSetId: tileSet.id,
+      tileId,
+      key: buildTileKey(tileSet.id, tileId),
+      imageSrc: `${basePath}/${tileSet.id}_${tileId}.png`,
       required: false,
     })),
   ];
 }
 
-async function applyTheme(themeId, showStatus = true) {
-  const nextTheme = getThemeConfig(themeId);
-  const previousThemeId = state.selectedThemeId;
+function isEntranceTile(tile) {
+  return Boolean(tile && tile.tileId === ENTRANCE_TILE_ID);
+}
+
+function getTileDisplayLabel(tileId) {
+  if (tileId === ENTRANCE_TILE_ID) return "Entrance Tile";
+  if (tileId === REFERENCE_CARD_ID) return "Reference Card";
+  const match = /^tile_(\d{2})$/.exec(String(tileId || ""));
+  if (match) return `Dungeon Tile ${match[1]}`;
+  return String(tileId || "Tile");
+}
+
+function migrateLegacyTileId(tileId) {
+  if (tileId === "molten_entrance") {
+    state.legacyMigrationStats.tileIdMigrations += 1;
+    return ENTRANCE_TILE_ID;
+  }
+  const numeric = /^tile([1-9])$/.exec(String(tileId || "").trim());
+  if (numeric) {
+    state.legacyMigrationStats.tileIdMigrations += 1;
+    return `tile_0${numeric[1]}`;
+  }
+  return tileId;
+}
+
+function migrateLegacyLayout(layout) {
+  if (!layout || typeof layout !== "object") return layout;
+  if (layout.themeId && !layout.tileSetId) {
+    state.legacyMigrationStats.themeIdLayoutMigrations += 1;
+  }
+  const tileSetId = layout.tileSetId || layout.themeId || state.selectedTileSetId;
+  const tiles = Array.isArray(layout.tiles)
+    ? layout.tiles.map((tile) => ({
+        ...tile,
+        tileId: migrateLegacyTileId(tile?.tileId || tile?.id),
+      }))
+    : [];
+  const reserveOrder = Array.isArray(layout.reserveOrder)
+    ? layout.reserveOrder.map((tileId) => migrateLegacyTileId(tileId))
+    : [];
+  return {
+    ...layout,
+    tileSetId,
+    reserveOrder,
+    tiles,
+  };
+}
+
+function migrateLegacyWallOverrides(raw) {
+  if (!raw || typeof raw !== "object") return {};
+  const migrated = {};
+  for (const [tileSetId, tileMap] of Object.entries(raw)) {
+    if (!tileMap || typeof tileMap !== "object") continue;
+    const tileOut = {};
+    for (const [tileId, faces] of Object.entries(tileMap)) {
+      const migratedTileId = migrateLegacyTileId(tileId);
+      if (migratedTileId !== tileId) {
+        state.legacyMigrationStats.wallOverrideTileIdMigrations += 1;
+      }
+      tileOut[migratedTileId] = faces;
+    }
+    migrated[tileSetId] = tileOut;
+  }
+  return migrated;
+}
+
+function buildDefaultWallFaceData() {
+  const defaults = {};
+  for (const tileSet of TILE_SET_REGISTRY) {
+    defaults[tileSet.id] = {};
+    for (const def of buildTileDefs(tileSet.id)) {
+      defaults[tileSet.id][def.tileId] = [];
+    }
+  }
+  return defaults;
+}
+
+function getTileSetAssetPaths(tileSet) {
+  const basePath = `./tiles/${tileSet.id}`;
+  const coreAssets = [
+    `${basePath}/${tileSet.id}_entrance.png`,
+    ...TILE_IDS.map((tileId) => `${basePath}/${tileSet.id}_${tileId}.png`),
+    `${basePath}/${tileSet.id}_${REFERENCE_CARD_ID}.png`,
+  ];
+  const bossAssets = (tileSet.bossIds || []).map(
+    (bossId) => `${basePath}/${tileSet.id}_boss_${bossId}.png`,
+  );
+  return { coreAssets, bossAssets };
+}
+
+function imageExists(src) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(true);
+    image.onerror = () => resolve(false);
+    image.src = src;
+  });
+}
+
+function getMissingDefaultWallEntries(tileSet) {
+  const expectedTileIds = [ENTRANCE_TILE_ID, ...TILE_IDS];
+  const defaults = DEFAULT_WALL_FACE_DATA?.[tileSet.id];
+  if (!defaults || typeof defaults !== "object") return [...expectedTileIds];
+  return expectedTileIds.filter((tileId) => !Array.isArray(defaults[tileId]));
+}
+
+function resolveTileSetStatus(tileSet, { coreMissing, bossMissing, missingWallEntries }) {
+  const hasCoreMissing = coreMissing.length > 0;
+  const hasBossMissing = bossMissing.length > 0;
+  const hasWallMissing = missingWallEntries.length > 0;
+  const allCoreMissing = coreMissing.length >= 11;
+  const hasDeclaredBosses = Array.isArray(tileSet?.bossIds) && tileSet.bossIds.length > 0;
+
+  if (!hasCoreMissing && !hasBossMissing && !hasWallMissing) return "ready";
+  if (allCoreMissing && (!hasDeclaredBosses || hasBossMissing)) return "not_implemented";
+  if (hasCoreMissing || hasBossMissing) return "assets_missing";
+  if (hasWallMissing) return "wall_data_missing";
+  return "assets_missing";
+}
+
+function printTileSetReadinessReport(report) {
+  console.group("Here to Slay DUNGEONS - Tile Set Readiness");
+  for (const entry of report) {
+    console.group(`[${entry.tileSetId}] ${entry.tileSetLabel}`);
+    console.info("status:", entry.status);
+    if (entry.missingAssets.length) {
+      console.warn("missing assets:");
+      entry.missingAssets.forEach((asset) => console.warn(`- ${asset}`));
+    } else {
+      console.info("missing assets: none");
+    }
+    if (entry.missingWallEntries.length) {
+      console.warn("missing wall entries:");
+      entry.missingWallEntries.forEach((wallEntry) => console.warn(`- ${wallEntry}`));
+    } else {
+      console.info("missing wall entries: none");
+    }
+    if (entry.registryIssues.length) {
+      console.warn("registry issues:");
+      entry.registryIssues.forEach((issue) => console.warn(`- ${issue}`));
+    } else {
+      console.info("registry issues: none");
+    }
+    console.groupEnd();
+  }
+
+  const readyTileSets = report.filter((entry) => entry.status === "ready").map((entry) => entry.tileSetId);
+  const nonReadyTileSets = report.filter((entry) => entry.status !== "ready").map((entry) => entry.tileSetId);
+  console.group("Readiness Summary");
+  console.info("ready sets:", readyTileSets.length ? readyTileSets.join(", ") : "none");
+  console.info("non-ready sets:", nonReadyTileSets.length ? nonReadyTileSets.join(", ") : "none");
+  console.info("legacy migration counters:", state.legacyMigrationStats);
+  console.groupEnd();
+  console.groupEnd();
+}
+
+function getRegistryIssues(tileSet, seenIds) {
+  const issues = [];
+  if (!tileSet?.id) issues.push("missing id");
+  if (!tileSet?.label) issues.push("missing label");
+  if (!tileSet?.gameSetId) issues.push("missing gameSetId");
+  if (!tileSet?.uiThemeId) issues.push("missing uiThemeId");
+  if (!tileSet?.entranceTileId) issues.push("missing entranceTileId");
+  if (!Array.isArray(tileSet?.tileIds) || tileSet.tileIds.length !== 9) issues.push("invalid tileIds");
+  if (!tileSet?.referenceCardId) issues.push("missing referenceCardId");
+  if (!Array.isArray(tileSet?.bossIds)) issues.push("invalid bossIds");
+  if (seenIds.has(tileSet.id)) issues.push("duplicate tileSetId");
+  return issues;
+}
+
+async function auditTileSetReadiness() {
+  const report = [];
+  const seenIds = new Set();
+  for (const tileSet of TILE_SET_REGISTRY) {
+    const registryIssues = getRegistryIssues(tileSet, seenIds);
+    seenIds.add(tileSet.id);
+    const { coreAssets, bossAssets } = getTileSetAssetPaths(tileSet);
+    const coreChecks = await Promise.all(coreAssets.map((src) => imageExists(src)));
+    const bossChecks = await Promise.all(bossAssets.map((src) => imageExists(src)));
+    const coreMissing = coreAssets.filter((_, idx) => !coreChecks[idx]);
+    const bossMissing = bossAssets.filter((_, idx) => !bossChecks[idx]);
+    const missingWallEntries = getMissingDefaultWallEntries(tileSet);
+    let status = resolveTileSetStatus(tileSet, { coreMissing, bossMissing, missingWallEntries });
+    // Defensive guard: required core assets and default wall entries are mandatory for "ready".
+    if (status === "ready" && (coreMissing.length > 0 || missingWallEntries.length > 0)) {
+      status = coreMissing.length > 0 ? "assets_missing" : "wall_data_missing";
+    }
+
+    tileSet.status = status;
+    const entry = {
+      tileSetId: tileSet.id,
+      tileSetLabel: tileSet.label,
+      status,
+      registryIssues,
+      missingAssets: [...coreMissing, ...bossMissing],
+      missingWallEntries: missingWallEntries.map((tileId) => buildTileKey(tileSet.id, tileId)),
+    };
+    state.readinessByTileSet[tileSet.id] = entry;
+    report.push(entry);
+  }
+
+  printTileSetReadinessReport(report);
+  return report;
+}
+
+async function applyTileSet(tileSetId, showStatus = true) {
+  const nextTileSet = getTileSetConfig(tileSetId);
+  if (nextTileSet.status !== "ready") {
+    setStatus(
+      `Tile Set "${nextTileSet.label}" is unavailable (${nextTileSet.status.replaceAll("_", " ")}).`,
+      true,
+    );
+    if (tileSetSelect) tileSetSelect.value = state.selectedTileSetId;
+    return;
+  }
+  const previousTileSetId = state.selectedTileSetId;
   try {
-    state.selectedThemeId = nextTheme.id;
-    state.referenceTileSrc = getReferenceTileSrc(nextTheme.id);
-    await loadTiles(nextTheme.id);
+    state.selectedTileSetId = nextTileSet.id;
+    state.referenceTileSrc = getReferenceTileSrc(nextTileSet.id);
+    await loadTiles(nextTileSet.id);
     startRound();
-    if (showStatus) setStatus(`Theme set to ${nextTheme.label}.`);
+    if (showStatus) setStatus(`Tile Set: ${nextTileSet.label}.`);
   } catch (error) {
     console.error(error);
-    const previousTheme = getThemeConfig(previousThemeId);
-    state.selectedThemeId = previousTheme.id;
-    state.referenceTileSrc = getReferenceTileSrc(previousTheme.id);
-    if (themeSelect) themeSelect.value = previousTheme.id;
-    if (previousTheme.id !== nextTheme.id) {
+    const previousTileSet = getTileSetConfig(previousTileSetId);
+    state.selectedTileSetId = previousTileSet.id;
+    state.referenceTileSrc = getReferenceTileSrc(previousTileSet.id);
+    if (tileSetSelect) tileSetSelect.value = previousTileSet.id;
+    if (previousTileSet.id !== nextTileSet.id) {
       try {
-        await loadTiles(previousTheme.id);
+        await loadTiles(previousTileSet.id);
         startRound();
       } catch (fallbackError) {
         console.error(fallbackError);
       }
     }
-    setStatus(`Theme "${nextTheme.label}" assets are missing. Keeping ${previousTheme.label}.`, true);
+    setStatus(`Tile Set "${nextTileSet.label}" assets are missing. Keeping ${previousTileSet.label}.`, true);
   }
 }
 
@@ -250,32 +583,32 @@ function bindGlobalControls() {
         setStatus("Select or hover a tile to clear its wall faces.", true);
         return;
       }
-      const { themeId, tile } = active;
+      const { tileSetId, tile } = active;
       tile.wallFaceSet.clear();
-      persistTileWallFaces(themeId, tile.id, tile.wallFaceSet);
+      persistTileWallFaces(tileSetId, tile.tileId, tile.wallFaceSet);
       refreshTileWallGuide(tile);
-      setStatus(`Cleared wall faces for ${tile.id} (${getThemeConfig(themeId).label}).`);
+      setStatus(`Cleared wall faces for ${getTileDisplayLabel(tile.tileId)} (${getTileSetConfig(tileSetId).label}).`);
     });
   }
-  if (themeSelect) {
-    themeSelect.addEventListener("change", async (event) => {
-      const nextThemeId = event.target.value;
-      await applyTheme(nextThemeId, true);
+  if (tileSetSelect) {
+    tileSetSelect.addEventListener("change", async (event) => {
+      const nextTileSetId = event.target.value;
+      await applyTileSet(nextTileSetId, true);
     });
   }
   if (uiThemeSelect) {
     uiThemeSelect.addEventListener("change", (event) => {
-      const nextThemeId = event.target.value || DEFAULT_UI_THEME_ID;
-      state.selectedUiThemeId = nextThemeId;
-      applyUiTheme(nextThemeId);
-      saveUiThemeId(nextThemeId);
-      setStatus(`UI theme set to ${nextThemeId === "molten" ? "Molten" : "Current"}.`);
+      const nextUiThemeId = event.target.value || DEFAULT_UI_THEME_ID;
+      state.selectedUiThemeId = nextUiThemeId;
+      applyUiTheme(nextUiThemeId);
+      saveUiThemeId(nextUiThemeId);
+      setStatus(`UI theme set to ${nextUiThemeId === "molten" ? "Molten" : "Current"}.`);
     });
   }
   if (exportWallDataBtn) {
     exportWallDataBtn.addEventListener("click", () => {
       if (!state.wallEditMode) {
-        setStatus("Export Walls is available only in wall edit mode.", true);
+        setStatus("Export Debug Walls is available only in Wall Editor mode.", true);
         return;
       }
       exportWallOverridesBackup();
@@ -284,7 +617,7 @@ function bindGlobalControls() {
   if (importWallDataBtn && importWallDataInput) {
     importWallDataBtn.addEventListener("click", () => {
       if (!state.wallEditMode) {
-        setStatus("Import Walls is available only in wall edit mode.", true);
+        setStatus("Import Debug Walls is available only in Wall Editor mode.", true);
         return;
       }
       importWallDataInput.click();
@@ -335,25 +668,25 @@ function bindGlobalControls() {
       } else {
         clearPendingReserveSwap();
       }
-      renderInactiveTileStack();
+      renderReservePile();
       if (state.reserveEditMode) {
         setStatus("Reserve edit mode on: inactive tiles are shown side by side.");
       } else {
-        setStatus("Reserve edit mode off: inactive tiles shown as stack.");
+        setStatus("Reserve edit mode off: inactive tiles shown as reserve pile.");
       }
     });
   }
-  if (reserveEditCheckbox && reserveStack) {
-    reserveStack.addEventListener("click", (event) => {
+  if (reserveEditCheckbox && reservePile) {
+    reservePile.addEventListener("click", (event) => {
       if (state.reserveEditMode) {
-        if (!isClickInTopRightCloseHit(event, reserveStack)) return;
+        if (!isClickInTopRightCloseHit(event, reservePile)) return;
       }
       reserveEditCheckbox.checked = !state.reserveEditMode;
       reserveEditCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
     });
   }
-  if (bossStack) {
-    bossStack.addEventListener("click", (event) => {
+  if (bossPile) {
+    bossPile.addEventListener("click", (event) => {
       if (event.target.closest(".boss-card")) return;
       setBossEditMode(!state.bossEditMode);
     });
@@ -418,16 +751,16 @@ function loadUiThemeId() {
   return DEFAULT_UI_THEME_ID;
 }
 
-function saveUiThemeId(themeId) {
+function saveUiThemeId(uiThemeId) {
   try {
-    localStorage.setItem(UI_THEME_STORAGE_KEY, themeId);
+    localStorage.setItem(UI_THEME_STORAGE_KEY, uiThemeId);
   } catch (error) {
     console.warn("Could not save UI theme preference.", error);
   }
 }
 
-function applyUiTheme(themeId) {
-  document.body.classList.toggle("ui-theme-molten", themeId === "molten");
+function applyUiTheme(uiThemeId) {
+  document.body.classList.toggle("ui-theme-molten", uiThemeId === "molten");
   scheduleBoardHexGridRender();
 }
 
@@ -532,16 +865,16 @@ function setWallEditMode(enabled) {
   state.wallEditMode = enabled;
   document.body.classList.toggle("wall-edit-mode", enabled);
   if (toggleWallEditBtn) {
-    toggleWallEditBtn.textContent = enabled ? "Frontpage" : "Edit Walls";
+    toggleWallEditBtn.textContent = enabled ? "Build View" : "Wall Editor";
   }
   if (enabled) {
-    state.frontpageSnapshot = captureFrontpageLayout();
+    state.buildViewSnapshot = captureBuildViewLayout();
     startWallEditSession();
-    setStatus("Wall edit mode: click a face segment to toggle wall ON/OFF. Changes are saved per theme+tile.");
+    setStatus("Wall edit mode: click a face segment to toggle wall ON/OFF. Changes are saved per tile set + tile.");
   } else {
-    syncSelectedThemeWallsFromOverrides();
-    const restored = restoreFrontpageLayout(state.frontpageSnapshot);
-    state.frontpageSnapshot = null;
+    syncSelectedTileSetWallsFromOverrides();
+    const restored = restoreBuildViewLayout(state.buildViewSnapshot);
+    state.buildViewSnapshot = null;
     if (restored) {
       setStatus("Wall edit mode off. Restored previous layout.");
     } else {
@@ -554,7 +887,7 @@ function setWallEditMode(enabled) {
 function startWallEditSession() {
   clearBoard();
   state.wallEditorTileRefs = new Map();
-  state.wallEditorActiveThemeId = null;
+  state.wallEditorActiveTileSetId = null;
   state.wallEditorActiveTileId = null;
   renderWallEditorPage().catch((error) => {
     console.error(error);
@@ -562,11 +895,12 @@ function startWallEditSession() {
   });
 }
 
-function captureFrontpageLayout() {
+function captureBuildViewLayout() {
   const tiles = [];
   for (const tile of state.tiles.values()) {
     tiles.push({
-      id: tile.id,
+      tileId: tile.tileId,
+      key: tile.key,
       active: Boolean(tile.active),
       placed: Boolean(tile.placed),
       x: Number(tile.x) || 0,
@@ -575,7 +909,7 @@ function captureFrontpageLayout() {
     });
   }
   return {
-    themeId: state.selectedThemeId,
+    tileSetId: state.selectedTileSetId,
     boardPanX: Number(state.boardPanX) || 0,
     boardPanY: Number(state.boardPanY) || 0,
     boardZoom: Number(state.boardZoom) || 1,
@@ -584,14 +918,14 @@ function captureFrontpageLayout() {
   };
 }
 
-function restoreFrontpageLayout(snapshot) {
-  if (!snapshot || snapshot.themeId !== state.selectedThemeId) return false;
+function restoreBuildViewLayout(snapshot) {
+  if (!snapshot || snapshot.tileSetId !== state.selectedTileSetId) return false;
 
-  const byId = new Map((snapshot.tiles || []).map((t) => [t.id, t]));
+  const byId = new Map((snapshot.tiles || []).map((t) => [t.tileId || t.id, t]));
   if (!byId.size) return false;
 
   for (const tile of state.tiles.values()) {
-    const saved = byId.get(tile.id);
+    const saved = byId.get(tile.tileId);
     if (!saved) continue;
     tile.active = Boolean(saved.active);
     tile.placed = Boolean(saved.placed);
@@ -616,7 +950,7 @@ function restoreFrontpageLayout(snapshot) {
     updateTileParent(tile, board);
     updateTileTransform(tile);
   }
-  const start = state.tiles.get("molten_entrance");
+  const start = state.tiles.get(ENTRANCE_TILE_ID);
   if (start?.placed) placeReferenceAboveStart(start);
 
   selectTile(null);
@@ -625,13 +959,13 @@ function restoreFrontpageLayout(snapshot) {
 
 function exportDungeonLayout() {
   if (state.wallEditMode) {
-    setStatus("Save Dungeon is available on frontpage only.", true);
+    setStatus("Save Dungeon is available on Build View only.", true);
     return;
   }
   try {
-    const snapshot = captureFrontpageLayout();
+    const snapshot = captureBuildViewLayout();
     const payload = {
-      schema: "hts-dungeon-layout-v1",
+      schema: "hts-dungeon-layout-v2",
       savedAt: new Date().toISOString(),
       layout: snapshot,
     };
@@ -654,24 +988,24 @@ function exportDungeonLayout() {
 
 async function importDungeonLayout(file) {
   if (state.wallEditMode) {
-    setStatus("Load Dungeon is available on frontpage only.", true);
+    setStatus("Load Dungeon is available on Build View only.", true);
     return;
   }
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    const layout = parsed?.layout ?? parsed;
+    const layout = migrateLegacyLayout(parsed?.layout ?? parsed);
     if (!layout || typeof layout !== "object") {
       setStatus("Invalid dungeon file.", true);
       return;
     }
 
-    const targetThemeId = layout.themeId || state.selectedThemeId;
-    if (targetThemeId !== state.selectedThemeId) {
-      await applyTheme(targetThemeId, false);
-      if (themeSelect) themeSelect.value = targetThemeId;
+    const targetTileSetId = layout.tileSetId || state.selectedTileSetId;
+    if (targetTileSetId !== state.selectedTileSetId) {
+      await applyTileSet(targetTileSetId, false);
+      if (tileSetSelect) tileSetSelect.value = state.selectedTileSetId;
     }
-    const ok = restoreFrontpageLayout(layout);
+    const ok = restoreBuildViewLayout(layout);
     if (!ok) {
       setStatus("Could not restore dungeon layout.", true);
       return;
@@ -690,18 +1024,18 @@ function startRound() {
   }
   clearBoard();
 
-  const candidateTiles = state.tileDefs.filter((t) => !t.required).map((t) => t.id);
+  const candidateTiles = state.tileDefs.filter((t) => !t.required).map((t) => t.tileId);
   const selectedIds = shuffle(candidateTiles).slice(0, 6);
 
   for (const tile of state.tiles.values()) {
-    tile.active = tile.id === "molten_entrance" || selectedIds.includes(tile.id);
+    tile.active = isEntranceTile(tile) || selectedIds.includes(tile.tileId);
     tile.placed = false;
     tile.rotation = 0;
   }
   resetReserveOrderForCurrentInactive();
 
   renderActiveTiles();
-  renderBossStack();
+  renderBossPile();
   placeStartTileAtCenter();
 }
 
@@ -714,23 +1048,23 @@ function rerollTrayTiles() {
   const placedRegularIds = new Set(
     Array.from(state.tiles.values())
       .filter((tile) => !tile.required && tile.active && tile.placed)
-      .map((tile) => tile.id),
+      .map((tile) => tile.tileId),
   );
   const trayTargetCount = Math.max(0, 6 - placedRegularIds.size);
   const candidateIds = state.tileDefs
     .filter((def) => !def.required)
-    .map((def) => def.id)
+    .map((def) => def.tileId)
     .filter((id) => !placedRegularIds.has(id));
   const selectedTrayIds = new Set(shuffle(candidateIds).slice(0, trayTargetCount));
 
   for (const tile of state.tiles.values()) {
     if (tile.required) continue;
-    if (placedRegularIds.has(tile.id)) {
+    if (placedRegularIds.has(tile.tileId)) {
       tile.active = true;
       tile.placed = true;
       continue;
     }
-    if (selectedTrayIds.has(tile.id)) {
+    if (selectedTrayIds.has(tile.tileId)) {
       tile.active = true;
       tile.placed = false;
       tile.rotation = 0;
@@ -770,7 +1104,7 @@ function clearBoard() {
   getBoardContentLayer();
   mountBoardHexGrid();
   tray.innerHTML = "";
-  reserveStack.innerHTML = "";
+  reservePile.innerHTML = "";
   if (wallEditorPage && !state.wallEditMode) wallEditorPage.innerHTML = "";
   state.selectedTileId = null;
   state.hoveredTileId = null;
@@ -932,7 +1266,7 @@ function renderActiveTiles() {
     const tileEl = createTileElement(tile);
     tile.dom = tileEl;
 
-    if (tile.id === "molten_entrance") {
+    if (isEntranceTile(tile)) {
       updateTileParent(tile, board);
       tile.placed = true;
     } else {
@@ -948,12 +1282,12 @@ function renderActiveTiles() {
     updateTileTransform(tile);
   }
 
-  renderInactiveTileStack();
+  renderReservePile();
 }
 
 function rerenderTrayAndReserve() {
   tray.innerHTML = "";
-  reserveStack.innerHTML = "";
+  reservePile.innerHTML = "";
   state.hoveredTileId = null;
   selectTile(null);
   clearPendingReserveSwap();
@@ -986,26 +1320,26 @@ function rerenderTrayAndReserve() {
     updateTileTransform(tile);
   }
 
-  renderInactiveTileStack();
-  renderBossStack();
+  renderReservePile();
+  renderBossPile();
 }
 
-function getBossTileSources(themeId = state.selectedThemeId) {
-  const theme = getThemeConfig(themeId);
-  const files = BOSS_TILE_FILES[theme.id] || [];
-  return files.map((file) => `./tiles/${theme.folder}/${file}`);
+function getBossTileSources(tileSetId = state.selectedTileSetId) {
+  const tileSet = getTileSetConfig(tileSetId);
+  const bossIds = Array.isArray(tileSet.bossIds) ? tileSet.bossIds : [];
+  return bossIds.map((bossId) => `./tiles/${tileSet.id}/${tileSet.id}_boss_${bossId}.png`);
 }
 
-function renderBossStack() {
-  if (!bossStack) return;
-  bossStack.innerHTML = "";
+function renderBossPile() {
+  if (!bossPile) return;
+  bossPile.innerHTML = "";
   const placedBossSources = new Set(state.bossTokens.map((token) => token.src));
   const sources = getBossTileSources().filter((src) => !placedBossSources.has(src));
   if (!sources.length) {
-    bossStack.classList.add("is-empty");
+    bossPile.classList.add("is-empty");
     return;
   }
-  bossStack.classList.remove("is-empty");
+  bossPile.classList.remove("is-empty");
 
   const offsets = [
     { dx: -20, dy: 10, rot: -9, z: 1, scale: 0.98 },
@@ -1032,7 +1366,7 @@ function renderBossStack() {
     img.addEventListener("dragstart", (event) => event.preventDefault());
     img.addEventListener("error", () => {
       card.remove();
-      if (!bossStack.querySelector(".boss-card")) bossStack.classList.add("is-empty");
+      if (!bossPile.querySelector(".boss-card")) bossPile.classList.add("is-empty");
     });
     const isTopCard = i === ordered.length - 1;
     let draggedOut = false;
@@ -1052,11 +1386,11 @@ function renderBossStack() {
       if (!state.bossEditMode) return;
       if (ordered.length < 2) return;
       state.bossOrderFlipped = !state.bossOrderFlipped;
-      renderBossStack();
+      renderBossPile();
     });
 
     card.appendChild(img);
-    bossStack.appendChild(card);
+    bossPile.appendChild(card);
   }
 }
 
@@ -1156,7 +1490,7 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
       const by = clamp((upEvent.clientY - boardOriginY) / zoom, 0, board.clientHeight);
       createBossToken(src, bx, by, TILE_SIZE);
       droppedToBoard = true;
-      renderBossStack();
+      renderBossPile();
     }
     cleanup();
   };
@@ -1248,9 +1582,9 @@ function beginBossTokenDrag(token, event) {
   window.addEventListener("pointercancel", handleUp);
 }
 
-function renderInactiveTileStack() {
-  reserveStack.innerHTML = "";
-  reserveStack.classList.toggle("edit-mode", state.reserveEditMode);
+function renderReservePile() {
+  reservePile.innerHTML = "";
+  reservePile.classList.toggle("edit-mode", state.reserveEditMode);
   const inactiveTiles = getInactiveTilesInReserveOrder();
 
   const offsets = [
@@ -1277,24 +1611,24 @@ function renderInactiveTileStack() {
       card.style.setProperty("--z", "1");
       card.style.setProperty("--scale", "1");
     }
-    card.dataset.tileId = tile.id;
+    card.dataset.tileId = tile.tileId;
     const isSelectedSource =
       state.pendingSwapSource?.zone === "reserve"
-      && state.pendingSwapSource?.tileId === tile.id;
+      && state.pendingSwapSource?.tileId === tile.tileId;
     card.classList.toggle("selected", isSelectedSource);
     card.addEventListener("click", () => {
       if (state.wallEditMode) return;
       if (!state.reserveEditMode) return;
-      handleSwapClick("reserve", tile.id);
+      handleSwapClick("reserve", tile.tileId);
     });
 
     const img = document.createElement("img");
-    img.src = tile.src;
-    img.alt = `${tile.id} (inactive)`;
+    img.src = tile.imageSrc;
+    img.alt = `${getTileDisplayLabel(tile.tileId)} (inactive)`;
     img.draggable = false;
     card.appendChild(img);
     card.appendChild(createReserveGuideOverlay(tile));
-    reserveStack.appendChild(card);
+    reservePile.appendChild(card);
   }
 
   updateReserveSwapHighlights();
@@ -1304,7 +1638,7 @@ function getInactiveTilesInReserveOrder() {
   const inactiveSet = new Set(
     Array.from(state.tiles.values())
       .filter((tile) => !tile.required && !tile.active)
-      .map((tile) => tile.id),
+      .map((tile) => tile.tileId),
   );
 
   const orderedIds = [];
@@ -1329,12 +1663,12 @@ function getInactiveTilesInReserveOrder() {
 function resetReserveOrderForCurrentInactive() {
   const inactiveIds = Array.from(state.tiles.values())
     .filter((tile) => !tile.required && !tile.active)
-    .map((tile) => tile.id);
+    .map((tile) => tile.tileId);
   state.reserveOrder = shuffle(inactiveIds);
 }
 
 function randomizeCurrentInactiveReserveOrder() {
-  const currentIds = getInactiveTilesInReserveOrder().map((tile) => tile.id);
+  const currentIds = getInactiveTilesInReserveOrder().map((tile) => tile.tileId);
   state.reserveOrder = shuffle(currentIds);
 }
 
@@ -1353,7 +1687,7 @@ function createReserveGuideOverlay(tile) {
 }
 
 function placeStartTileAtCenter() {
-  const start = state.tiles.get("molten_entrance");
+  const start = state.tiles.get(ENTRANCE_TILE_ID);
   const rect = board.getBoundingClientRect();
   const desiredX = rect.width / 2;
   const desiredY = TILE_SIZE / 2 + 92;
@@ -1366,9 +1700,9 @@ function placeStartTileAtCenter() {
   placeReferenceAboveStart(start);
 }
 
-function getReferenceTileSrc(themeId = state.selectedThemeId) {
-  const theme = getThemeConfig(themeId);
-  return `./tiles/${theme.folder}/${theme.prefix}_reference.png`;
+function getReferenceTileSrc(tileSetId = state.selectedTileSetId) {
+  const tileSet = getTileSetConfig(tileSetId);
+  return `./tiles/${tileSet.id}/${tileSet.id}_${tileSet.referenceCardId}.png`;
 }
 
 function placeReferenceAboveStart(startTile) {
@@ -1381,7 +1715,7 @@ function placeReferenceAboveStart(startTile) {
   marker.className = "board-reference-tile";
   const img = document.createElement("img");
   img.src = state.referenceTileSrc;
-  img.alt = `${getThemeConfig(state.selectedThemeId).label} reference`;
+  img.alt = `${getTileSetConfig(state.selectedTileSetId).label} Reference Card`;
   img.draggable = false;
   img.addEventListener("dragstart", (event) => event.preventDefault());
   marker.appendChild(img);
@@ -1501,14 +1835,14 @@ function beginBoardPan(event) {
 function createTileElement(tile) {
   const tileEl = document.createElement("div");
   tileEl.className = "tile";
-  tileEl.dataset.tileId = tile.id;
+  tileEl.dataset.tileId = tile.tileId;
 
   const body = document.createElement("div");
   body.className = "tile-body";
 
   const img = document.createElement("img");
-  img.src = tile.src;
-  img.alt = tile.id;
+  img.src = tile.imageSrc;
+  img.alt = getTileDisplayLabel(tile.tileId);
   img.draggable = false;
   img.addEventListener("dragstart", (event) => event.preventDefault());
   body.appendChild(img);
@@ -1556,7 +1890,7 @@ function createTileElement(tile) {
     if (state.wallEditMode && faceHit) {
       event.preventDefault();
       event.stopPropagation();
-      if (tile.id === "molten_entrance") {
+      if (isEntranceTile(tile)) {
         setStatus("Entrance tile wall editing is disabled. Edit regular tiles only.", true);
         return;
       }
@@ -1567,10 +1901,10 @@ function createTileElement(tile) {
       } else {
         tile.wallFaceSet.add(faceIdx);
       }
-      persistTileWallFaces(state.selectedThemeId, tile.id, tile.wallFaceSet);
+      persistTileWallFaces(state.selectedTileSetId, tile.tileId, tile.wallFaceSet);
       refreshTileWallGuide(tile);
       setStatus(
-        `${tile.id} wall faces: ${Array.from(tile.wallFaceSet).sort((a, b) => a - b).join(", ") || "none"}.`,
+        `${getTileDisplayLabel(tile.tileId)} wall faces: ${Array.from(tile.wallFaceSet).sort((a, b) => a - b).join(", ") || "none"}.`,
       );
       return;
     }
@@ -1588,37 +1922,37 @@ function createTileElement(tile) {
         }
         event.preventDefault();
         event.stopPropagation();
-        performReserveToTraySwap(tile.id, state.pendingSwapSource.tileId);
+        performReserveToTraySwap(tile.tileId, state.pendingSwapSource.tileId);
       } else if (isTraySwapTarget(tile)) {
         event.preventDefault();
         event.stopPropagation();
-        performReserveToTraySwap(state.pendingSwapSource.tileId, tile.id);
+        performReserveToTraySwap(state.pendingSwapSource.tileId, tile.tileId);
       } else {
         setStatus("Choose a tile currently in the tray to swap with the selected reserve tile.", true);
       }
       return;
     }
     event.preventDefault();
-    selectTile(tile.id);
+    selectTile(tile.tileId);
     beginDrag(tile, event);
   });
 
   tileEl.addEventListener("click", () => {
     if (state.reserveEditMode && isTraySwapTarget(tile)) {
-      handleSwapClick("tray", tile.id);
+      handleSwapClick("tray", tile.tileId);
       return;
     }
     if (state.pendingSwapSource) return;
-    selectTile(tile.id);
+    selectTile(tile.tileId);
   });
   tileEl.addEventListener("mouseenter", () => {
-    state.hoveredTileId = tile.id;
-    if (state.selectedTileId && state.selectedTileId !== tile.id) {
+    state.hoveredTileId = tile.tileId;
+    if (state.selectedTileId && state.selectedTileId !== tile.tileId) {
       selectTile(null);
     }
   });
   tileEl.addEventListener("mouseleave", () => {
-    if (state.hoveredTileId === tile.id) state.hoveredTileId = null;
+    if (state.hoveredTileId === tile.tileId) state.hoveredTileId = null;
     if (state.selectedTileId && !state.hoveredTileId) selectTile(null);
   });
   tileEl.addEventListener("dragstart", (event) => event.preventDefault());
@@ -1643,9 +1977,9 @@ function handleSwapClick(zone, tileId) {
     state.pendingSwapSource = { zone, tileId };
     updateReserveSwapHighlights();
     if (zone === "reserve") {
-      setStatus(`Reserve ${tileId} selected. Click a tray tile to swap.`);
+      setStatus(`Reserve Tiles: ${getTileDisplayLabel(tileId)} selected. Click a Dungeon Tile to swap.`);
     } else {
-      setStatus(`Tray ${tileId} selected. Click a reserve tile to swap.`);
+      setStatus(`Dungeon Tiles: ${getTileDisplayLabel(tileId)} selected. Click a Reserve Tile to swap.`);
     }
     return;
   }
@@ -1663,9 +1997,9 @@ function handleSwapClick(zone, tileId) {
   state.pendingSwapSource = { zone, tileId };
   updateReserveSwapHighlights();
   if (zone === "reserve") {
-    setStatus(`Reserve ${tileId} selected. Click a tray tile to swap.`);
+    setStatus(`Reserve Tiles: ${getTileDisplayLabel(tileId)} selected. Click a Dungeon Tile to swap.`);
   } else {
-    setStatus(`Tray ${tileId} selected. Click a reserve tile to swap.`);
+    setStatus(`Dungeon Tiles: ${getTileDisplayLabel(tileId)} selected. Click a Reserve Tile to swap.`);
   }
 }
 
@@ -1677,7 +2011,7 @@ function clearPendingReserveSwap() {
 
 function updateReserveSwapHighlights() {
   document.body.classList.toggle("reserve-swap-pending", Boolean(state.pendingSwapSource));
-  const cards = reserveStack.querySelectorAll(".reserve-card");
+  const cards = reservePile.querySelectorAll(".reserve-card");
   for (const card of cards) {
     const isSelectedSource =
       state.pendingSwapSource?.zone === "reserve"
@@ -1690,7 +2024,7 @@ function updateReserveSwapHighlights() {
     if (!tile.dom) continue;
     const isTraySource =
       state.pendingSwapSource?.zone === "tray"
-      && state.pendingSwapSource?.tileId === tile.id;
+      && state.pendingSwapSource?.tileId === tile.tileId;
     tile.dom.classList.toggle("swap-source", isTraySource);
     tile.dom.classList.toggle("swap-target", Boolean(state.pendingSwapSource) && isSwapTargetHighlight(tile));
   }
@@ -1766,19 +2100,21 @@ function performReserveToTraySwap(reserveTileId, trayTileId) {
     ];
   }
   clearPendingReserveSwap();
-  renderInactiveTileStack();
-  setStatus(`Swapped in ${reserveTileId}. Moved ${trayTileId} to reserve pile.`);
+  renderReservePile();
+  setStatus(
+    `Swapped in ${getTileDisplayLabel(reserveTileId)}. Moved ${getTileDisplayLabel(trayTileId)} to Reserve Tiles.`,
+  );
 }
 
 function createPlacementOverlay(tile) {
   const overlay = document.createElement("div");
   overlay.className = "tile-placement-overlay";
   overlay.setAttribute("aria-hidden", "true");
-  overlay.style.maskImage = `url("${tile.src}")`;
+  overlay.style.maskImage = `url("${tile.imageSrc}")`;
   overlay.style.maskRepeat = "no-repeat";
   overlay.style.maskPosition = "center";
   overlay.style.maskSize = "contain";
-  overlay.style.webkitMaskImage = `url("${tile.src}")`;
+  overlay.style.webkitMaskImage = `url("${tile.imageSrc}")`;
   overlay.style.webkitMaskRepeat = "no-repeat";
   overlay.style.webkitMaskPosition = "center";
   overlay.style.webkitMaskSize = "contain";
@@ -1889,9 +2225,9 @@ function createTileGuideOverlay(tile) {
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
     label.setAttribute("x", lx.toFixed(2));
     label.setAttribute("y", ly.toFixed(2));
-    if (tile.id === "molten_entrance" && i === 12) {
+    if (isEntranceTile(tile) && i === 12) {
       label.textContent = "A";
-    } else if (tile.id === "molten_entrance" && i === 11) {
+    } else if (isEntranceTile(tile) && i === 11) {
       label.textContent = "B";
     } else {
       label.textContent = String(i);
@@ -1906,10 +2242,10 @@ function createTileGuideOverlay(tile) {
 
 function getGuideFacePoints(tile) {
   const points = tile.faceGeometry.points.map((p) => ({ ...p }));
-  if (tile.id === "molten_entrance") {
+  if (isEntranceTile(tile)) {
     const templateTile =
-      state.tiles.get("tile1")
-      || Array.from(state.tiles.values()).find((t) => t.id !== "molten_entrance");
+      state.tiles.get("tile_01")
+      || Array.from(state.tiles.values()).find((t) => !isEntranceTile(t));
     if (!templateTile) return points;
 
     const templateBase = templateTile.faceGeometry.points.map((p) => ({ ...p }));
@@ -2147,7 +2483,7 @@ function loadWallOverrides() {
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return {};
-    return parsed;
+    return sanitizeWallOverrides(migrateLegacyWallOverrides(parsed));
   } catch (error) {
     console.warn("Could not load wall overrides from storage.", error);
     return {};
@@ -2162,9 +2498,9 @@ function saveWallOverrides() {
   }
 }
 
-function getStoredWallFaces(themeId, tileId) {
-  const theme = state.wallOverrides?.[themeId];
-  const arr = theme?.[tileId];
+function getStoredWallFaces(tileSetId, tileId) {
+  const tileSetOverrides = state.wallOverrides?.[tileSetId];
+  const arr = tileSetOverrides?.[tileId] ?? DEFAULT_WALL_FACE_DATA?.[tileSetId]?.[tileId] ?? [];
   if (!Array.isArray(arr)) return [];
   return arr.filter((n) => Number.isInteger(n) && n >= 0).sort((a, b) => a - b);
 }
@@ -2186,10 +2522,10 @@ function exportWallOverridesBackup() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    setStatus("Wall data exported.");
+    setStatus("Debug wall override data exported.");
   } catch (error) {
     console.error(error);
-    setStatus("Failed to export wall data.", true);
+    setStatus("Failed to export debug wall override data.", true);
   }
 }
 
@@ -2198,53 +2534,53 @@ async function importWallOverridesBackup(file) {
     const text = await file.text();
     const parsed = JSON.parse(text);
     const raw = parsed?.wallOverrides ?? parsed;
-    const sanitized = sanitizeWallOverrides(raw);
+    const sanitized = sanitizeWallOverrides(migrateLegacyWallOverrides(raw));
     state.wallOverrides = sanitized;
     saveWallOverrides();
-    syncSelectedThemeWallsFromOverrides();
+    syncSelectedTileSetWallsFromOverrides();
     if (state.wallEditMode) {
       await renderWallEditorPage();
-      if (state.wallEditorActiveThemeId && state.wallEditorActiveTileId) {
-        setActiveWallEditorTile(state.wallEditorActiveThemeId, state.wallEditorActiveTileId);
+      if (state.wallEditorActiveTileSetId && state.wallEditorActiveTileId) {
+        setActiveWallEditorTile(state.wallEditorActiveTileSetId, state.wallEditorActiveTileId);
       }
     }
-    setStatus("Wall data imported.");
+    setStatus("Debug wall override data imported.");
   } catch (error) {
     console.error(error);
-    setStatus("Invalid wall data file. Import failed.", true);
+    setStatus("Invalid debug wall override file. Import failed.", true);
   }
 }
 
 function sanitizeWallOverrides(input) {
   if (!input || typeof input !== "object") return {};
   const clean = {};
-  for (const theme of THEME_OPTIONS) {
-    const themeValue = input[theme.id];
-    if (!themeValue || typeof themeValue !== "object") continue;
-    const themeOut = {};
-    const defs = buildTileDefs(theme.id);
+  for (const tileSet of TILE_SET_REGISTRY) {
+    const tileSetValue = input[tileSet.id];
+    if (!tileSetValue || typeof tileSetValue !== "object") continue;
+    const tileSetOut = {};
+    const defs = buildTileDefs(tileSet.id);
     for (const def of defs) {
-      const arr = themeValue[def.id];
+      const arr = tileSetValue[def.tileId];
       if (!Array.isArray(arr)) continue;
       const uniq = [...new Set(
         arr
           .filter((n) => Number.isInteger(n) && n >= 0 && n < 64)
           .map((n) => Number(n)),
       )].sort((a, b) => a - b);
-      themeOut[def.id] = uniq;
+      tileSetOut[def.tileId] = uniq;
     }
-    if (Object.keys(themeOut).length) clean[theme.id] = themeOut;
+    if (Object.keys(tileSetOut).length) clean[tileSet.id] = tileSetOut;
   }
   return clean;
 }
 
-function persistTileWallFaces(themeId, tileId, faceSet) {
-  if (!state.wallOverrides[themeId]) state.wallOverrides[themeId] = {};
+function persistTileWallFaces(tileSetId, tileId, faceSet) {
+  if (!state.wallOverrides[tileSetId]) state.wallOverrides[tileSetId] = {};
   const sorted = Array.from(faceSet).sort((a, b) => a - b);
-  state.wallOverrides[themeId][tileId] = sorted;
+  state.wallOverrides[tileSetId][tileId] = sorted;
   saveWallOverrides();
 
-  if (themeId === state.selectedThemeId) {
+  if (tileSetId === state.selectedTileSetId) {
     const activeTile = state.tiles.get(tileId);
     if (activeTile) {
       activeTile.wallFaceSet = new Set(sorted);
@@ -2254,18 +2590,18 @@ function persistTileWallFaces(themeId, tileId, faceSet) {
 }
 
 function getActiveTileForWallEditing() {
-  const editorKey = state.wallEditorActiveThemeId && state.wallEditorActiveTileId
-    ? `${state.wallEditorActiveThemeId}:${state.wallEditorActiveTileId}`
+  const editorKey = state.wallEditorActiveTileSetId && state.wallEditorActiveTileId
+    ? `${state.wallEditorActiveTileSetId}:${state.wallEditorActiveTileId}`
     : null;
   if (editorKey && state.wallEditorTileRefs.has(editorKey)) {
     const ref = state.wallEditorTileRefs.get(editorKey);
-    return { themeId: ref.themeId, tile: ref.tile };
+    return { tileSetId: ref.tileSetId, tile: ref.tile };
   }
 
   const id = state.hoveredTileId || state.selectedTileId;
   const tile = id ? state.tiles.get(id) : null;
   if (!tile) return null;
-  return { themeId: state.selectedThemeId, tile };
+  return { tileSetId: state.selectedTileSetId, tile };
 }
 
 async function renderWallEditorPage() {
@@ -2274,78 +2610,81 @@ async function renderWallEditorPage() {
   wallEditorPage.innerHTML = "";
   const intro = document.createElement("div");
   intro.className = "wall-editor-intro";
-  intro.textContent = "Wall Editor: click face segments to toggle wall ON/OFF. Saved per theme + tile.";
+  intro.textContent = "Wall Editor: click face segments to toggle wall ON/OFF. Saved per tile set + tile.";
   wallEditorPage.appendChild(intro);
 
   const trays = document.createElement("div");
   trays.className = "wall-editor-trays";
   wallEditorPage.appendChild(trays);
 
-  const panels = await Promise.all(THEME_OPTIONS.map((theme) => buildWallEditorThemePanel(theme)));
+  const panels = await Promise.all(TILE_SET_REGISTRY.map((tileSet) => buildWallEditorTileSetPanel(tileSet)));
   for (const panel of panels) trays.appendChild(panel);
 }
 
-async function buildWallEditorThemePanel(theme) {
+async function buildWallEditorTileSetPanel(tileSet) {
   const panel = document.createElement("section");
-  panel.className = "theme-wall-panel";
+  panel.className = "tile-set-wall-panel";
 
   const title = document.createElement("h3");
-  title.textContent = theme.label;
+  title.textContent = tileSet.label;
   panel.appendChild(title);
 
   const tray = document.createElement("div");
-  tray.className = "theme-wall-tray";
+  tray.className = "tile-set-wall-tray";
   panel.appendChild(tray);
 
-  const defs = buildTileDefs(theme.id);
+  const defs = buildTileDefs(tileSet.id);
   let missingCount = 0;
 
   for (const def of defs) {
     try {
-      const img = await loadImage(def.src);
+      const img = await loadImage(def.imageSrc);
       const faceGeometry = getFaceGeometry(img, SIDES);
       const tile = {
-        id: def.id,
-        src: def.src,
+        tileSetId: def.tileSetId,
+        tileId: def.tileId,
+        key: def.key,
+        imageSrc: def.imageSrc,
+        required: def.required,
         img,
         faceGeometry,
-        wallFaceSet: new Set(getStoredWallFaces(theme.id, def.id)),
+        wallFaceSet: new Set(getStoredWallFaces(tileSet.id, def.tileId)),
       };
-      const tileEl = createWallEditorTileElement(theme.id, tile);
+      const tileEl = createWallEditorTileElement(tileSet.id, tile);
       tray.appendChild(tileEl);
-      state.wallEditorTileRefs.set(`${theme.id}:${tile.id}`, {
-        themeId: theme.id,
+      state.wallEditorTileRefs.set(`${tileSet.id}:${tile.tileId}`, {
+        tileSetId: tileSet.id,
         tile,
         el: tileEl,
       });
     } catch (error) {
-      console.warn(`Missing asset for ${theme.id}/${def.id}`, error);
+      console.warn(`Missing asset for ${tileSet.id}/${def.tileId}`, error);
       missingCount += 1;
     }
   }
 
   if (missingCount > 0) {
     const note = document.createElement("p");
-    note.className = "theme-wall-note";
-    note.textContent = `${missingCount} tile asset(s) missing in this theme.`;
+    note.className = "tile-set-wall-note";
+    note.textContent = `${missingCount} tile asset(s) missing in this tile set.`;
     panel.appendChild(note);
   }
 
   return panel;
 }
 
-function createWallEditorTileElement(themeId, tile) {
+function createWallEditorTileElement(tileSetId, tile) {
   const tileEl = document.createElement("div");
   tileEl.className = "tile wall-editor-tile";
-  tileEl.dataset.themeId = themeId;
-  tileEl.dataset.tileId = tile.id;
+  tileEl.dataset.tileSetId = tileSetId;
+  tileEl.dataset.tileId = tile.tileId;
 
   const body = document.createElement("div");
   body.className = "tile-body";
 
   const img = document.createElement("img");
-  img.src = tile.src;
-  img.alt = `${themeId} ${tile.id}`;
+  img.src = tile.imageSrc;
+  img.alt = `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)}`;
   img.draggable = false;
   img.addEventListener("dragstart", (event) => event.preventDefault());
   body.appendChild(img);
@@ -2355,7 +2694,7 @@ function createWallEditorTileElement(themeId, tile) {
   tile.guideDom = guideOverlay;
   tileEl.appendChild(body);
 
-  const assignActive = () => setActiveWallEditorTile(themeId, tile.id);
+  const assignActive = () => setActiveWallEditorTile(tileSetId, tile.tileId);
   tileEl.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
     const faceHit = event.target.closest(".tile-guide-face-hit");
@@ -2370,30 +2709,30 @@ function createWallEditorTileElement(themeId, tile) {
     } else {
       tile.wallFaceSet.add(faceIdx);
     }
-    persistTileWallFaces(themeId, tile.id, tile.wallFaceSet);
+    persistTileWallFaces(tileSetId, tile.tileId, tile.wallFaceSet);
     refreshTileWallGuide(tile);
     const list = Array.from(tile.wallFaceSet).sort((a, b) => a - b).join(", ") || "none";
-    setStatus(`${getThemeConfig(themeId).label} ${tile.id} wall faces: ${list}.`);
+    setStatus(`${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} wall faces: ${list}.`);
   });
   tileEl.addEventListener("click", assignActive);
 
   return tileEl;
 }
 
-function setActiveWallEditorTile(themeId, tileId) {
-  state.wallEditorActiveThemeId = themeId;
+function setActiveWallEditorTile(tileSetId, tileId) {
+  state.wallEditorActiveTileSetId = tileSetId;
   state.wallEditorActiveTileId = tileId;
   for (const ref of state.wallEditorTileRefs.values()) {
     ref.el.classList.remove("selected");
   }
-  const key = `${themeId}:${tileId}`;
+  const key = `${tileSetId}:${tileId}`;
   const ref = state.wallEditorTileRefs.get(key);
   if (ref) ref.el.classList.add("selected");
 }
 
-function syncSelectedThemeWallsFromOverrides() {
+function syncSelectedTileSetWallsFromOverrides() {
   for (const tile of state.tiles.values()) {
-    tile.wallFaceSet = new Set(getStoredWallFaces(state.selectedThemeId, tile.id));
+    tile.wallFaceSet = new Set(getStoredWallFaces(state.selectedTileSetId, tile.tileId));
     refreshTileWallGuide(tile);
   }
 }
@@ -2413,7 +2752,7 @@ function selectTile(id) {
   state.selectedTileId = id;
   for (const tile of state.tiles.values()) {
     if (!tile.dom) continue;
-    tile.dom.classList.toggle("selected", tile.id === id);
+    tile.dom.classList.toggle("selected", tile.tileId === id);
   }
 }
 
@@ -2563,17 +2902,17 @@ function finishDrop(tile) {
   positionTile(tile, snappedCenter.x, snappedCenter.y);
   updateTileTransform(tile);
 
-  if (tile.id === "molten_entrance") {
+  if (isEntranceTile(tile)) {
     tile.placed = true;
     setPlacementFeedback(tile, null);
-    setStatus("molten_entrance placed. Now add the other 6 tiles.");
+    setStatus("Entrance tile placed. Now add the other 6 tiles.");
     return;
   }
 
-  const placedTiles = getPlacedTiles().filter((t) => t.id !== tile.id);
+  const placedTiles = getPlacedTiles().filter((t) => t.tileId !== tile.tileId);
 
   if (placedTiles.length === 0) {
-    revertToTray(tile, "Place molten_entrance first.");
+    revertToTray(tile, "Place the Entrance Tile first.");
     return;
   }
 
@@ -2597,9 +2936,9 @@ function finishDrop(tile) {
 
   tile.placed = true;
   if (result.valid) {
-    setStatus(`Placed ${tile.id} with ${result.count} point contacts.`);
+    setStatus(`Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} point contacts.`);
   } else {
-    setStatus(`Placed ${tile.id} with ${result.count} contacts (4-point rule ignored).`, true);
+    setStatus(`Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} contacts (4-point rule ignored).`, true);
   }
   selectTile(null);
 }
@@ -2609,7 +2948,7 @@ function snapTileCenterToHex(tile, tileCenterX, tileCenterY) {
   const desiredGuideX = tileCenterX + anchor.x;
   const desiredGuideY = tileCenterY + anchor.y;
   const snappedGuide = snapBoardPointToHex(desiredGuideX, desiredGuideY);
-  const entranceYOffset = tile.id === "molten_entrance" ? 9 : 0;
+  const entranceYOffset = isEntranceTile(tile) ? 9 : 0;
   return {
     x: snappedGuide.x - anchor.x,
     y: snappedGuide.y - anchor.y + entranceYOffset,
@@ -2617,7 +2956,7 @@ function snapTileCenterToHex(tile, tileCenterX, tileCenterY) {
 }
 
 function getTileSnapAnchorForRotation(tile, rotationDeg) {
-  if (tile.id !== "molten_entrance") return { x: 0, y: 0 };
+  if (!isEntranceTile(tile)) return { x: 0, y: 0 };
   const local = getTileGuideLocalCenter(tile);
   const rad = (rotationDeg * Math.PI) / 180;
   const cos = Math.cos(rad);
@@ -2650,10 +2989,10 @@ function rotateTile(tile, delta) {
     setStatus("Rotation is disabled in wall edit mode.", true);
     return;
   }
-  if (tile.id === "molten_entrance") {
-    const hasOtherPlaced = getPlacedTiles().some((t) => t.id !== "molten_entrance");
+  if (isEntranceTile(tile)) {
+    const hasOtherPlaced = getPlacedTiles().some((t) => !isEntranceTile(t));
     if (hasOtherPlaced) {
-      setStatus("molten_entrance rotation is locked once another tile is placed.", true);
+      setStatus("Entrance Tile rotation is locked once another tile is placed.", true);
       return;
     }
   }
@@ -2661,13 +3000,16 @@ function rotateTile(tile, delta) {
   tile.rotation = normalizeAngle(tile.rotation + delta);
   updateTileTransform(tile);
 
-  if (tile.placed && tile.id !== "molten_entrance") {
-    const placedTiles = getPlacedTiles().filter((t) => t.id !== tile.id);
+  if (tile.placed && !isEntranceTile(tile)) {
+    const placedTiles = getPlacedTiles().filter((t) => t.tileId !== tile.tileId);
     const result = findBestContact(tile, placedTiles);
     if (!result.valid) {
-      setStatus(`Rotation broke contact for ${tile.id}. Need at least ${MIN_CONTACT_POINTS} points.`, true);
+      setStatus(
+        `Rotation broke contact for ${getTileDisplayLabel(tile.tileId)}. Need at least ${MIN_CONTACT_POINTS} points.`,
+        true,
+      );
     } else {
-      setStatus(`${tile.id} rotated to ${tile.rotation}°. Contact points: ${result.count}.`);
+      setStatus(`${getTileDisplayLabel(tile.tileId)} rotated to ${tile.rotation}°. Contact points: ${result.count}.`);
     }
   }
 }
@@ -3032,21 +3374,21 @@ function getContactFaces(tile) {
 }
 
 function isBlockedContactFace(tile, face) {
-  if (tile.id !== "molten_entrance") return false;
+  if (!isEntranceTile(tile)) return false;
   return (
-    TILE_START_NON_NUMERIC_POINTS.has(face.startIdx)
-    || TILE_START_NON_NUMERIC_POINTS.has(face.endIdx)
+    ENTRANCE_BLOCKED_FACE_INDICES.has(face.startIdx)
+    || ENTRANCE_BLOCKED_FACE_INDICES.has(face.endIdx)
   );
 }
 
 function isTouchingTileStartBlockedPoints(tile, otherTile, touchRadius) {
-  if (tile.id !== "molten_entrance") return false;
+  if (!isEntranceTile(tile)) return false;
   const points = getGuideFacePoints(tile);
   const rotationRad = (tile.rotation * Math.PI) / 180;
   const cos = Math.cos(rotationRad);
   const sin = Math.sin(rotationRad);
 
-  for (const idx of TILE_START_NON_NUMERIC_POINTS) {
+  for (const idx of ENTRANCE_BLOCKED_FACE_INDICES) {
     const p = points[idx];
     if (!p) continue;
     const wx = tile.x + p.x * cos - p.y * sin;
@@ -3058,8 +3400,8 @@ function isTouchingTileStartBlockedPoints(tile, otherTile, touchRadius) {
 }
 
 function isTouchingMoltenEntranceBlockedPoints(tile) {
-  if (!tile || tile.id === "molten_entrance") return false;
-  const entrance = state.tiles.get("molten_entrance");
+  if (!tile || isEntranceTile(tile)) return false;
+  const entrance = state.tiles.get(ENTRANCE_TILE_ID);
   if (!entrance || !entrance.placed) return false;
   return isTouchingTileStartBlockedPoints(entrance, tile, BLOCKED_POINT_TOUCH_RADIUS);
 }
@@ -3141,7 +3483,7 @@ function handleInvalidDrop(tile, placedTiles, message = null, force = false) {
     updateTileTransform(tile);
     selectTile(null);
     setPlacementFeedback(tile, null);
-    setStatus(`${tile.id} returned to tray after invalid placement.`, true);
+    setStatus(`${getTileDisplayLabel(tile.tileId)} returned to tray after invalid placement.`, true);
   }, INVALID_RETURN_DELAY_MS);
 }
 
@@ -3642,7 +3984,7 @@ function pointOnPolygonEdge(p, poly) {
 
 
 function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect, workspaceRect) {
-  if (tile.id === "molten_entrance") {
+  if (isEntranceTile(tile)) {
     setPlacementFeedback(tile, null);
     return;
   }
@@ -3658,7 +4000,7 @@ function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect
     return;
   }
 
-  const placedTiles = getPlacedTiles().filter((t) => t.id !== tile.id);
+  const placedTiles = getPlacedTiles().filter((t) => t.tileId !== tile.tileId);
   if (placedTiles.length === 0) {
     setPlacementFeedback(tile, null);
     return;

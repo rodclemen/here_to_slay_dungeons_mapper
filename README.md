@@ -4,7 +4,7 @@ Browser prototype for testing tile placement rules, snap behavior, and tile-face
 
 ## What The App Does (Current)
 
-- Places the set entrance tile (`<prefix>_entrance`) in the board center.
+- Places the Entrance Tile (`entrance`) in the board center.
 - Randomly selects 6 playable tiles each round from 9 available regular tiles.
 - Lets you drag/drop and rotate tiles in 60deg steps.
 - Uses point/face contact validation before a tile can be placed.
@@ -60,14 +60,13 @@ Browser prototype for testing tile placement rules, snap behavior, and tile-face
   - `F` = -60deg
 - Rotate buttons (`⟲` / `⟳`) also rotate ±60deg.
 - `Reroll Tiles`: rerolls only tray tiles (grid placements stay as-is).
-- `Randomize Rotation`: randomizes only tray tile rotations.
-- `Reset Rotation`: resets only tray tile rotations to `0°`.
-- `Edit Walls`: enters wall-edit mode.
-- In wall-edit mode, a dedicated editor page opens with six side-by-side trays (one per theme), each showing that theme's 9 regular tiles.
+- `Reset Tiles`: returns active dungeon tiles to tray positions while preserving tile-set selection.
+- `Wall Editor`: enters wall-edit mode.
+- In wall-edit mode, a dedicated editor page opens with six side-by-side trays (one per tile set), each showing that tile set's 9 regular tiles.
 - `Clear Tile Walls`: clears wall faces for the currently hovered/selected regular tile.
-- In wall-edit mode, click face segments to toggle wall ON/OFF (saved per `theme + tile` in browser localStorage).
-- `Export Walls`: downloads a JSON backup of all wall-face mappings.
-- `Import Walls`: restores wall-face mappings from a previously exported JSON file.
+- In wall-edit mode, click face segments to toggle wall ON/OFF (saved per `tile set + tile` in browser localStorage).
+- `Export Debug Walls`: downloads a JSON backup of wall-override debug mappings.
+- `Import Debug Walls`: restores wall-override debug mappings from a previously exported JSON file.
 - `Debug` dropdown:
   - `Show Numbers`: toggles face-number labels.
   - `Show Walls`: highlights currently configured wall faces in red.
@@ -78,7 +77,7 @@ Browser prototype for testing tile placement rules, snap behavior, and tile-face
 ## Tray / UI Notes
 
 - Tray shows 6 active tiles in slots.
-- Remaining 3 inactive tiles are shown below as a stacked preview.
+- Remaining 3 inactive tiles are shown below as the Reserve Tile pile.
 - Reserve `⋯` menu has an `Edit` toggle:
   - off: inactive tiles display as a pile
   - on: inactive tiles display side by side for easier picking
@@ -99,33 +98,61 @@ Available options in UI:
 - Submerged
 - Deep Freeze
 
+Only tile sets with readiness status `ready` are selectable. Non-ready sets remain visible but disabled with a status suffix (`Assets Missing`, `Wall Data Missing`, or `Coming Soon`).
+
+### Readiness Status
+
+Each tile set is runtime-audited at startup and assigned one status:
+
+- `ready`
+- `assets_missing`
+- `wall_data_missing`
+- `not_implemented`
+
+Audit checks include:
+
+- Entrance asset exists.
+- All nine dungeon tile assets (`tile_01..tile_09`) exist.
+- Reference card asset exists.
+- All declared boss assets exist.
+- Embedded default wall data exists for `entrance` and all 9 dungeon tiles.
+
+The app prints a developer readiness report to the console with one block per tile set and a final summary.
+
 ### Naming Convention (Important)
 
 For any tile set, assets must follow:
 
-- Entrance tile: `<prefix>_entrance.png`
-- Regular tiles: `<prefix>1.png` to `<prefix>9.png`
+- Entrance tile: `{tileSetId}_entrance.png`
+- Regular tiles: `{tileSetId}_tile_01.png` to `{tileSetId}_tile_09.png`
+- Reference card: `{tileSetId}_reference_card.png`
+- Boss cards: `{tileSetId}_boss_{bossId}.png`
 
 And live in:
 
-- `tiles/<folder>/`
+- `tiles/{tileSetId}/`
 
 Example mapping (current default):
 
 - Molten:
   - folder: `tiles/molten/`
-  - prefix: `molten`
-  - files: `molten_entrance.png`, `molten1.png` ... `molten9.png`
+  - files: `molten_entrance.png`, `molten_tile_01.png` ... `molten_tile_09.png`, `molten_reference_card.png`
 
 Planned sets (already in dropdown, assets can be added later):
 
-- Overgrown: `tiles/overgrown/overgrown_entrance.png`, `overgrown1..9.png`
-- Dreamscape: `tiles/dreamscape/dreamscape_entrance.png`, `dreamscape1..9.png`
-- Nightmare: `tiles/nightmare/nightmare_entrance.png`, `nightmare1..9.png`
-- Submerged: `tiles/submerged/submerged_entrance.png`, `submerged1..9.png`
-- Deep Freeze: `tiles/deep_freeze/deep_freeze_entrance.png`, `deep_freeze1..9.png`
+- Overgrown: `tiles/overgrown/overgrown_entrance.png`, `overgrown_tile_01..09.png`
+- Dreamscape: `tiles/dreamscape/dreamscape_entrance.png`, `dreamscape_tile_01..09.png`
+- Nightmare: `tiles/nightmare/nightmare_entrance.png`, `nightmare_tile_01..09.png`
+- Submerged: `tiles/submerged/submerged_entrance.png`, `submerged_tile_01..09.png`
+- Deep Freeze: `tiles/deep_freeze/deep_freeze_entrance.png`, `deep_freeze_tile_01..09.png`
 
-If a selected set is missing files, app falls back and shows a status warning.
+If a selected tile set is not `ready`, selection is blocked and the app keeps the current ready tile set.
+
+## Wall Data Model
+
+- Base wall data is embedded in-app (`DEFAULT_WALL_FACE_DATA`) and always available on cold start.
+- Debug wall imports/exports are override data only; they are not required for normal play.
+- If no local storage data exists, placement validation and Wall Editor still work immediately from embedded defaults.
 
 ## How To Request Changes (Recommended Phrasing)
 
@@ -151,8 +178,8 @@ Use short, explicit instructions with exact targets.
 
 ### Theme/asset edits
 
-- `add new tile set Volcanic with prefix volcanic and folder volcanic`
-- `switch default set folder from molten to volcanic`
+- `add new tile set volcanic in game set base_game_3`
+- `switch default tile set from molten to volcanic`
 
 ## Key Files
 
@@ -171,11 +198,16 @@ Static app. Open `index.html` directly or serve with any local static server.
   - Hard refresh the browser (`Cmd+Shift+R` on macOS) to clear cached CSS.
   - Confirm the exact rule/value in `styles.css` before testing.
 
-- **Theme switch says assets are missing**
+- **Tile Set switch says assets are missing**
   - Verify filenames exactly match:
-    - `<prefix>_entrance.png`
-    - `<prefix>1.png` ... `<prefix>9.png`
-  - Verify folder name matches the configured theme folder.
+    - `{tileSetId}_entrance.png`
+    - `{tileSetId}_tile_01.png` ... `{tileSetId}_tile_09.png`
+    - `{tileSetId}_reference_card.png`
+  - Verify folder name matches the configured tile set ID.
+
+- **A tile set is disabled as Coming Soon / Assets Missing**
+  - Open browser console and check the readiness report block for that tile set.
+  - Add any missing files listed in `missing assets`.
 
 - **Tile keeps jumping to invalid hold / tray**
   - Current rule requires valid contact logic, and A/B hard-block can override.

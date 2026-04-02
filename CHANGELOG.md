@@ -1,6 +1,13 @@
 # Changelog
 
 ## 2026-04-02
+- Refactored dungeon tile naming to a tile-set-aware model: standardized tile IDs to `entrance`, `tile_01..tile_09`, and `reference_card`; normalized global tile keys as `${tileSetId}:${tileId}`; and removed Molten-specific logic coupling from placement/runtime behavior.
+- Reworked tile set registry and asset wiring to separate dungeon tile-set identity from UI theme identity, including normalized boss IDs (`abyss_empress`, `flamebeard`, `rootgnaw`, `bloom_brute`) and computed asset paths (`{tileSetId}_entrance`, `{tileSetId}_tile_01..09`, `{tileSetId}_reference_card`, `{tileSetId}_boss_{bossId}.png`).
+- Updated save/load compatibility: added migration paths for legacy layout keys (`themeId` -> `tileSetId`) and legacy tile IDs (`molten_entrance`, `tile1..tile9`) so existing dungeon files and stored wall overrides can still load.
+- Hardened embedded wall-data defaults so cold starts with empty local storage still have complete wall definitions loaded for all tile sets and tiles; debug wall import/export remains optional override data only.
+- Added runtime tile-set readiness auditing (core assets, boss assets, default wall entries, registry shape checks), dynamic registry status assignment (`ready`, `assets_missing`, `wall_data_missing`, `not_implemented`), selector gating for non-ready sets, and explicit per-tile-set developer reporting in console with final ready/non-ready summary and legacy migration counters.
+- Renamed and aligned build-view terminology and pile naming across HTML/CSS/JS (`tile-set-select`, `reserve-pile`, `boss-pile`, `Build View`, `Wall Editor`) while removing raw internal ID leaks from user-facing status/alt copy.
+- Session note: Counted naming migrations instead of sheep; both eventually started looking like `tile_01`.
 - Reworked board zoom architecture to use a unified `.board-content` layer so grid, tiles, reference card, and overlays scale from the same origin; fixed previous per-element center-scaling drift.
 - Added cursor-anchored mouse-wheel zoom and kept `Zoom 100%` as a hard reset for both scale and board pan offset, so view reset returns to the original board framing.
 - Added an in-board zoom readout (`Zoom xx%`) in the top-right with stable column layout, click-to-reset behavior, and non-highlighted text-only styling.

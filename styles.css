@@ -292,7 +292,7 @@ button:hover {
   padding-bottom: 8px;
 }
 
-.theme-wall-panel {
+.tile-set-wall-panel {
   flex: 0 0 332px;
   border: 1px solid #c4ced5;
   border-radius: 10px;
@@ -300,18 +300,18 @@ button:hover {
   padding: 10px;
 }
 
-.theme-wall-panel h3 {
+.tile-set-wall-panel h3 {
   margin: 0 0 8px;
   font-size: 0.92rem;
 }
 
-.theme-wall-tray {
+.tile-set-wall-tray {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 12px;
 }
 
-.theme-wall-note {
+.tile-set-wall-note {
   margin: 8px 0 0;
   font-size: 0.8rem;
   color: #8f3a22;
@@ -544,9 +544,9 @@ body.ui-theme-molten .board-zoom-indicator {
 }
 
 body.ui-theme-molten .tray-slot,
-body.ui-theme-molten .reserve-stack,
-body.ui-theme-molten .boss-stack,
-body.ui-theme-molten .theme-wall-panel {
+body.ui-theme-molten .reserve-pile,
+body.ui-theme-molten .boss-pile,
+body.ui-theme-molten .tile-set-wall-panel {
   border-color: #8f5138;
 }
 
@@ -597,7 +597,7 @@ body.ui-theme-molten .status {
   overflow: visible;
 }
 
-.reserve-stack {
+.reserve-pile {
   position: relative;
   height: 170px;
   box-sizing: border-box;
@@ -633,7 +633,7 @@ body.boss-edit-mode:not(.reserve-edit-mode) .reserve-area {
   visibility: hidden;
 }
 
-body.boss-edit-mode:not(.reserve-edit-mode) .boss-stack {
+body.boss-edit-mode:not(.reserve-edit-mode) .boss-pile {
   display: block !important;
 }
 
@@ -641,11 +641,11 @@ body.reserve-edit-mode .reserve-boss-row {
   grid-template-columns: 1fr;
 }
 
-body.reserve-edit-mode .boss-stack {
+body.reserve-edit-mode .boss-pile {
   display: none;
 }
 
-.boss-stack {
+.boss-pile {
   position: relative;
   height: 170px;
   border: 1px dashed #c4ced5;
@@ -656,7 +656,7 @@ body.reserve-edit-mode .boss-stack {
   -webkit-user-select: none;
 }
 
-.boss-stack.is-empty {
+.boss-pile.is-empty {
   opacity: 0.72;
 }
 
@@ -721,13 +721,13 @@ body.boss-edit-mode .boss-card {
   transform: translate(-50%, -50%);
 }
 
-.reserve-stack,
-.boss-stack {
+.reserve-pile,
+.boss-pile {
   cursor: pointer;
 }
 
-.reserve-stack::after,
-.boss-stack::after {
+.reserve-pile::after,
+.boss-pile::after {
   content: "";
   position: absolute;
   top: 6px;
@@ -739,15 +739,15 @@ body.boss-edit-mode .boss-card {
   pointer-events: none;
 }
 
-body.reserve-edit-mode .reserve-stack::after {
+body.reserve-edit-mode .reserve-pile::after {
   content: "✕";
 }
 
-body.boss-edit-mode .boss-stack::after {
+body.boss-edit-mode .boss-pile::after {
   content: "✕";
 }
 
-.reserve-stack.edit-mode {
+.reserve-pile.edit-mode {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
@@ -820,7 +820,7 @@ body.ui-theme-molten .tray-action-icons button img {
   filter: none;
 }
 
-.reserve-stack.edit-mode .reserve-card {
+.reserve-pile.edit-mode .reserve-card {
   position: relative;
   left: auto;
   top: auto;
