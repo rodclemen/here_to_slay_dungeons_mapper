@@ -14,12 +14,36 @@ const ENTRANCE_BLOCKED_FACE_INDICES = new Set([11, 12]);
 const BLOCKED_POINT_TOUCH_RADIUS = 4;
 const WALL_OVERRIDES_STORAGE_KEY = "hts_wall_overrides_v1";
 const UI_THEME_STORAGE_KEY = "hts_ui_theme_v1";
+const APPEARANCE_MODE_STORAGE_KEY = "hts_appearance_mode_v1";
+const LAST_LIGHT_UI_THEME_STORAGE_KEY = "hts_last_light_ui_theme_v1";
+const LAST_DARK_UI_THEME_STORAGE_KEY = "hts_last_dark_ui_theme_v1";
 const DRAWER_STATE_STORAGE_KEY = "hts_drawer_state_v1";
 const DEFAULT_TILE_SET_ID = "molten";
-const DEFAULT_UI_THEME_ID = "current";
+const DEFAULT_UI_THEME_ID = "molten";
+const DEFAULT_APPEARANCE_MODE = "system";
 const ENTRANCE_TILE_ID = "entrance";
 const TILE_IDS = Array.from({ length: 9 }, (_, i) => `tile_${String(i + 1).padStart(2, "0")}`);
 const REFERENCE_CARD_ID = "reference_card";
+const UI_THEME_IDS = new Set([
+  "molten",
+  "overgrown",
+  "deep_freeze",
+  "nightmare",
+  "submerged",
+  "dreamscape_lunar",
+  "molten_dark",
+  "overgrown_dark",
+  "submerged_dark",
+  "deep_freeze_dark",
+  "dreamscape_lunar_dark",
+  "nightmare_corrupted_dark",
+]);
+const APPEARANCE_MODE_IDS = new Set(["light", "system", "dark"]);
+const APPEARANCE_MODE_ICON_SVG = {
+  light: `<svg width="19" height="19" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M361.5 1.2c5 2.1 8.6 6.6 9.6 11.9L391 121l107.9 19.8c5.3 1 9.8 4.6 11.9 9.6s1.5 10.7-1.6 15.2L446.9 256l62.3 90.3c3.1 4.5 3.7 10.2 1.6 15.2s-6.6 8.6-11.9 9.6L391 391 371.1 498.9c-1 5.3-4.6 9.8-9.6 11.9s-10.7 1.5-15.2-1.6L256 446.9l-90.3 62.3c-4.5 3.1-10.2 3.7-15.2 1.6s-8.6-6.6-9.6-11.9L121 391 13.1 371.1c-5.3-1-9.8-4.6-11.9-9.6s-1.5-10.7 1.6-15.2L65.1 256 2.8 165.7c-3.1-4.5-3.7-10.2-1.6-15.2s6.6-8.6 11.9-9.6L121 121 140.9 13.1c1-5.3 4.6-9.8 9.6-11.9s10.7-1.5 15.2 1.6L256 65.1 346.3 2.8c4.5-3.1 10.2-3.7 15.2-1.6zM160 256a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zm224 0a128 128 0 1 0 -256 0 128 128 0 1 0 256 0z"/></svg>`,
+  dark: `<svg width="19" height="19" viewBox="0 0 384 512" aria-hidden="true"><path fill="currentColor" d="M223.5 32C100 32 0 132.3 0 256S100 480 223.5 480c60.6 0 115.5-24.2 155.8-63.4c5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6c-96.9 0-175.5-78.8-175.5-176c0-65.8 36-123.1 89.3-153.3c6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"/></svg>`,
+  system: `<svg width="19" height="19" viewBox="0 0 576 512" aria-hidden="true"><path fill="currentColor" d="M64 0C28.7 0 0 28.7 0 64L0 352c0 35.3 28.7 64 64 64l176 0-10.7 32L160 448c-17.7 0-32 14.3-32 32s14.3 32 32 32l256 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-69.3 0L336 416l176 0c35.3 0 64-28.7 64-64l0-288c0-35.3-28.7-64-64-64L64 0zM512 64l0 224L64 288 64 64l448 0z"/></svg>`,
+};
 
 const TILE_SET_REGISTRY = [
   {
@@ -38,7 +62,7 @@ const TILE_SET_REGISTRY = [
     label: "Overgrown",
     status: "not_implemented",
     gameSetId: "base_game_1",
-    uiThemeId: "current",
+    uiThemeId: "overgrown",
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
@@ -49,7 +73,7 @@ const TILE_SET_REGISTRY = [
     label: "Dreamscape",
     status: "not_implemented",
     gameSetId: "base_game_2",
-    uiThemeId: "current",
+    uiThemeId: "molten",
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
@@ -60,7 +84,7 @@ const TILE_SET_REGISTRY = [
     label: "Nightmare",
     status: "not_implemented",
     gameSetId: "base_game_2",
-    uiThemeId: "current",
+    uiThemeId: "molten",
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
@@ -71,7 +95,7 @@ const TILE_SET_REGISTRY = [
     label: "Submerged",
     status: "not_implemented",
     gameSetId: "base_game_3",
-    uiThemeId: "current",
+    uiThemeId: "molten",
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
@@ -82,7 +106,7 @@ const TILE_SET_REGISTRY = [
     label: "Deep Freeze",
     status: "not_implemented",
     gameSetId: "base_game_3",
-    uiThemeId: "current",
+    uiThemeId: "deep_freeze",
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
@@ -92,15 +116,36 @@ const TILE_SET_REGISTRY = [
 const DEFAULT_WALL_FACE_DATA = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
+const BOSS_REFERENCE_MAGNET_GAP = 8;
+const BOSS_REFERENCE_MAGNET_RADIUS = 72;
+const BOSS_REFERENCE_MAGNET_TOP_GAP = -62;
+const BOSS_REFERENCE_MAGNET_SIDE_RADIUS = 44;
+const BOSS_REFERENCE_MAGNET_SIDE_Y_TOLERANCE = 24;
+const BOSS_REFERENCE_MAGNET_TOP_RADIUS = 56;
+const BOSS_REFERENCE_MAGNET_TOP_X_TOLERANCE = 24;
+const DRAG_EDGE_AUTO_PAN_ZONE = 64;
+const DRAG_EDGE_AUTO_PAN_MAX_SPEED = 4.5;
 
 const board = document.getElementById("board");
 const tray = document.getElementById("tray");
 const reservePile = document.getElementById("reserve-pile");
 const bossPile = document.getElementById("boss-pile");
+const tileSetInlineBtn = document.querySelector(".tile-set-inline-btn");
+const tileSetInlineLabel = tileSetInlineBtn?.querySelector("span") || null;
 const reserveEditCheckbox = document.getElementById("reserve-edit-checkbox");
 const wallEditorPage = document.getElementById("wall-editor-page");
 const tileSetSelect = document.getElementById("tile-set-select");
+const appearanceModeMenu = document.getElementById("appearance-mode-menu");
+const appearanceModeTrigger = document.getElementById("appearance-mode-trigger");
+const appearanceModeDropdown = document.getElementById("appearance-mode-dropdown");
+const quickActionsMenu = document.getElementById("quick-actions-menu");
+const quickActionsTrigger = document.getElementById("quick-actions-trigger");
+const quickActionsDropdown = document.getElementById("quick-actions-dropdown");
+const uiThemeMenu = document.getElementById("ui-theme-menu");
+const uiThemeTrigger = document.getElementById("ui-theme-trigger");
+const uiThemeDropdown = document.getElementById("ui-theme-dropdown");
 const uiThemeSelect = document.getElementById("ui-theme-select");
+let uiThemeOptionCatalog = null;
 const workspace = document.querySelector(".workspace");
 const leftDrawer = document.getElementById("left-drawer");
 const rightDrawer = document.getElementById("right-drawer");
@@ -110,6 +155,10 @@ const toggleLeftDrawerBtn = document.getElementById("toggle-left-drawer-btn");
 const toggleRightDrawerBtn = document.getElementById("toggle-right-drawer-btn");
 const statusEl = document.getElementById("status");
 const placedProgressEl = document.getElementById("placed-progress");
+const feedbackTilesRowEl = document.getElementById("feedback-tiles-row");
+const feedbackBossRowEl = document.getElementById("feedback-boss-row");
+const feedbackTilesCheckEl = document.getElementById("feedback-tiles-check");
+const feedbackBossCheckEl = document.getElementById("feedback-boss-check");
 const modeIndicatorsEl = document.getElementById("mode-indicators");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
@@ -122,7 +171,6 @@ const importWallDataInput = document.getElementById("import-wall-data-input");
 const saveDungeonBtn = document.getElementById("save-dungeon-btn");
 const loadDungeonBtn = document.getElementById("load-dungeon-btn");
 const loadDungeonInput = document.getElementById("load-dungeon-input");
-const zoomResetBtn = document.getElementById("zoom-reset-btn");
 const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
 const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-contact-checkbox");
 const toggleFaceFeedbackCheckbox = document.getElementById("toggle-face-feedback-checkbox");
@@ -137,7 +185,10 @@ const state = {
   selectedTileId: null,
   hoveredTileId: null,
   selectedTileSetId: DEFAULT_TILE_SET_ID,
+  selectedAppearanceMode: loadAppearanceMode(),
   selectedUiThemeId: loadUiThemeId(),
+  lastLightUiThemeId: loadLastLightUiThemeId(),
+  lastDarkUiThemeId: loadLastDarkUiThemeId(),
   tileDefs: [],
   showGuideLabels: false,
   showWallFaces: false,
@@ -157,6 +208,7 @@ const state = {
   nextBossTokenId: 1,
   boardPanX: 0,
   boardPanY: 0,
+  activeTileDragCount: 0,
   buildViewSnapshot: null,
   referenceTileSrc: "",
   referenceMarker: null,
@@ -190,8 +242,8 @@ async function init() {
   }
 
   if (tileSetSelect) tileSetSelect.value = state.selectedTileSetId;
-  if (uiThemeSelect) uiThemeSelect.value = state.selectedUiThemeId;
-  applyUiTheme(state.selectedUiThemeId);
+  updateTileSetControlWidth();
+  applyAppearanceMode(state.selectedAppearanceMode, { showStatus: false, save: false });
   applyFeedbackMode(state.useFaceFeedback);
   setBossEditMode(true);
   applyDrawerCollapseState({ save: false, rerender: false });
@@ -267,6 +319,34 @@ function hydrateTileSetSelector() {
     option.textContent = `${tileSet.label}${getTileSetStatusSuffix(tileSet.status)}`;
     tileSetSelect.appendChild(option);
   }
+  updateTileSetControlWidth();
+}
+
+function updateTileSetControlWidth() {
+  if (!tileSetSelect || !tileSetInlineBtn) return;
+  const selectedText = tileSetSelect.options[tileSetSelect.selectedIndex]?.textContent?.trim() || "";
+  const probe = document.createElement("span");
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.whiteSpace = "nowrap";
+  probe.style.pointerEvents = "none";
+  probe.style.inset = "-9999px auto auto -9999px";
+  const selectStyles = window.getComputedStyle(tileSetSelect);
+  const labelStyles = tileSetInlineLabel ? window.getComputedStyle(tileSetInlineLabel) : selectStyles;
+  probe.style.font = selectStyles.font;
+  probe.textContent = selectedText;
+  document.body.appendChild(probe);
+  const selectedWidth = Math.ceil(probe.getBoundingClientRect().width);
+  probe.style.font = labelStyles.font;
+  probe.textContent = tileSetInlineLabel?.textContent?.trim() || "Tile Set:";
+  const labelWidth = Math.ceil(probe.getBoundingClientRect().width);
+  probe.remove();
+
+  const nameWidth = Math.max(26, selectedWidth + 18);
+  const totalWidth = Math.max(120, labelWidth + nameWidth + 20);
+  tileSetInlineBtn.style.width = `${totalWidth}px`;
+  tileSetInlineBtn.style.minWidth = `${totalWidth}px`;
+  tileSetSelect.style.width = `${nameWidth}px`;
 }
 
 function buildTileKey(tileSetId, tileId) {
@@ -510,6 +590,7 @@ async function applyTileSet(tileSetId, showStatus = true) {
       true,
     );
     if (tileSetSelect) tileSetSelect.value = state.selectedTileSetId;
+    updateTileSetControlWidth();
     return;
   }
   const previousTileSetId = state.selectedTileSetId;
@@ -525,6 +606,7 @@ async function applyTileSet(tileSetId, showStatus = true) {
     state.selectedTileSetId = previousTileSet.id;
     state.referenceTileSrc = getReferenceTileSrc(previousTileSet.id);
     if (tileSetSelect) tileSetSelect.value = previousTileSet.id;
+    updateTileSetControlWidth();
     if (previousTileSet.id !== nextTileSet.id) {
       try {
         await loadTiles(previousTileSet.id);
@@ -612,15 +694,90 @@ function bindGlobalControls() {
     tileSetSelect.addEventListener("change", async (event) => {
       const nextTileSetId = event.target.value;
       await applyTileSet(nextTileSetId, true);
+      updateTileSetControlWidth();
     });
   }
   if (uiThemeSelect) {
     uiThemeSelect.addEventListener("change", (event) => {
       const nextUiThemeId = event.target.value || DEFAULT_UI_THEME_ID;
-      state.selectedUiThemeId = nextUiThemeId;
-      applyUiTheme(nextUiThemeId);
-      saveUiThemeId(nextUiThemeId);
-      setStatus(`UI theme set to ${nextUiThemeId === "molten" ? "Molten" : "Current"}.`);
+      if (isDarkUiTheme(nextUiThemeId)) {
+        state.lastDarkUiThemeId = sanitizeDarkUiThemeId(nextUiThemeId);
+        saveLastDarkUiThemeId(state.lastDarkUiThemeId);
+        applyAppearanceMode("dark");
+        return;
+      }
+
+      const nextLightTheme = sanitizeLightUiThemeId(nextUiThemeId);
+      state.lastLightUiThemeId = nextLightTheme;
+      saveLastLightUiThemeId(nextLightTheme);
+      applyAppearanceMode("light");
+    });
+  }
+  if (uiThemeTrigger && uiThemeDropdown && uiThemeSelect) {
+    uiThemeTrigger.addEventListener("click", () => {
+      setAppearanceModeMenuOpen(false);
+      setQuickActionsMenuOpen(false);
+      const shouldOpen = uiThemeDropdown.hidden;
+      setUiThemeMenuOpen(shouldOpen);
+    });
+    uiThemeDropdown.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-ui-theme]");
+      if (!option) return;
+      const nextUiThemeId = option.dataset.uiTheme || DEFAULT_UI_THEME_ID;
+      uiThemeSelect.value = nextUiThemeId;
+      uiThemeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      setUiThemeMenuOpen(false);
+    });
+    document.addEventListener("click", (event) => {
+      if (!uiThemeMenu?.contains(event.target)) {
+        setUiThemeMenuOpen(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setUiThemeMenuOpen(false);
+    });
+  }
+  if (appearanceModeTrigger && appearanceModeDropdown) {
+    appearanceModeTrigger.addEventListener("click", () => {
+      setUiThemeMenuOpen(false);
+      setQuickActionsMenuOpen(false);
+      const shouldOpen = appearanceModeDropdown.hidden;
+      setAppearanceModeMenuOpen(shouldOpen);
+    });
+    appearanceModeDropdown.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-appearance-mode]");
+      if (!option) return;
+      const nextMode = option.dataset.appearanceMode || DEFAULT_APPEARANCE_MODE;
+      applyAppearanceMode(nextMode);
+      setAppearanceModeMenuOpen(false);
+    });
+    document.addEventListener("click", (event) => {
+      if (!appearanceModeMenu?.contains(event.target)) {
+        setAppearanceModeMenuOpen(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setAppearanceModeMenuOpen(false);
+    });
+  }
+  if (quickActionsTrigger && quickActionsDropdown) {
+    quickActionsTrigger.addEventListener("click", () => {
+      setUiThemeMenuOpen(false);
+      setAppearanceModeMenuOpen(false);
+      const shouldOpen = quickActionsDropdown.hidden;
+      setQuickActionsMenuOpen(shouldOpen);
+    });
+    quickActionsDropdown.addEventListener("click", (event) => {
+      if (!event.target.closest(".quick-action-option")) return;
+      setQuickActionsMenuOpen(false);
+    });
+    document.addEventListener("click", (event) => {
+      if (!quickActionsMenu?.contains(event.target)) {
+        setQuickActionsMenuOpen(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setQuickActionsMenuOpen(false);
     });
   }
   if (exportWallDataBtn) {
@@ -665,14 +822,6 @@ function bindGlobalControls() {
       event.target.value = "";
       if (!file) return;
       await importDungeonLayout(file);
-    });
-  }
-  if (zoomResetBtn) {
-    zoomResetBtn.addEventListener("click", () => {
-      resetBoardView();
-      setStatus("Board view reset.");
-      const menu = zoomResetBtn.closest(".advanced-menu");
-      if (menu) menu.open = false;
     });
   }
   if (reserveEditCheckbox) {
@@ -790,6 +939,12 @@ function bindGlobalControls() {
     },
     { passive: true },
   );
+
+  const systemModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  systemModeQuery.addEventListener("change", () => {
+    if (state.selectedAppearanceMode !== "system") return;
+    applyAppearanceMode("system", { showStatus: false, save: false });
+  });
 
 }
 
@@ -955,14 +1110,70 @@ function toggleBothDrawers() {
   setStatus(collapseBoth ? "Both drawers collapsed." : "Both drawers expanded.");
 }
 
+function loadAppearanceMode() {
+  try {
+    const saved = localStorage.getItem(APPEARANCE_MODE_STORAGE_KEY);
+    if (APPEARANCE_MODE_IDS.has(saved)) return saved;
+  } catch (error) {
+    console.warn("Could not load appearance mode preference.", error);
+  }
+  return DEFAULT_APPEARANCE_MODE;
+}
+
+function saveAppearanceMode(mode) {
+  try {
+    localStorage.setItem(APPEARANCE_MODE_STORAGE_KEY, mode);
+  } catch (error) {
+    console.warn("Could not save appearance mode preference.", error);
+  }
+}
+
 function loadUiThemeId() {
   try {
     const saved = localStorage.getItem(UI_THEME_STORAGE_KEY);
-    if (saved === "molten" || saved === "current") return saved;
+    if (saved === "current") return DEFAULT_UI_THEME_ID;
+    if (UI_THEME_IDS.has(saved)) return saved;
   } catch (error) {
     console.warn("Could not load UI theme preference.", error);
   }
   return DEFAULT_UI_THEME_ID;
+}
+
+function loadLastLightUiThemeId() {
+  try {
+    const saved = localStorage.getItem(LAST_LIGHT_UI_THEME_STORAGE_KEY);
+    if (saved === "current") return DEFAULT_UI_THEME_ID;
+    if (saved === "molten" || saved === "overgrown" || saved === "deep_freeze" || saved === "dreamscape_lunar" || saved === "nightmare" || saved === "submerged") return saved;
+  } catch (error) {
+    console.warn("Could not load light theme preference.", error);
+  }
+  return DEFAULT_UI_THEME_ID;
+}
+
+function loadLastDarkUiThemeId() {
+  try {
+    const saved = localStorage.getItem(LAST_DARK_UI_THEME_STORAGE_KEY);
+    if (saved === "molten_dark" || saved === "overgrown_dark" || saved === "submerged_dark" || saved === "deep_freeze_dark" || saved === "dreamscape_lunar_dark" || saved === "nightmare_corrupted_dark") return saved;
+  } catch (error) {
+    console.warn("Could not load dark theme preference.", error);
+  }
+  return "overgrown_dark";
+}
+
+function saveLastLightUiThemeId(uiThemeId) {
+  try {
+    localStorage.setItem(LAST_LIGHT_UI_THEME_STORAGE_KEY, sanitizeLightUiThemeId(uiThemeId));
+  } catch (error) {
+    console.warn("Could not save light theme preference.", error);
+  }
+}
+
+function saveLastDarkUiThemeId(uiThemeId) {
+  try {
+    localStorage.setItem(LAST_DARK_UI_THEME_STORAGE_KEY, sanitizeDarkUiThemeId(uiThemeId));
+  } catch (error) {
+    console.warn("Could not save dark theme preference.", error);
+  }
 }
 
 function saveUiThemeId(uiThemeId) {
@@ -973,9 +1184,246 @@ function saveUiThemeId(uiThemeId) {
   }
 }
 
+function sanitizeLightUiThemeId(uiThemeId) {
+  if (uiThemeId === "current") return DEFAULT_UI_THEME_ID;
+  if (uiThemeId === "overgrown") return "overgrown";
+  if (uiThemeId === "deep_freeze") return "deep_freeze";
+  if (uiThemeId === "dreamscape_lunar") return "dreamscape_lunar";
+  if (uiThemeId === "nightmare") return "nightmare";
+  if (uiThemeId === "submerged") return "submerged";
+  return uiThemeId === "molten" ? "molten" : DEFAULT_UI_THEME_ID;
+}
+
+function sanitizeDarkUiThemeId(uiThemeId) {
+  if (uiThemeId === "molten_dark") return "molten_dark";
+  if (uiThemeId === "overgrown_dark") return "overgrown_dark";
+  if (uiThemeId === "submerged_dark") return "submerged_dark";
+  if (uiThemeId === "deep_freeze_dark") return "deep_freeze_dark";
+  if (uiThemeId === "dreamscape_lunar_dark") return "dreamscape_lunar_dark";
+  if (uiThemeId === "nightmare_corrupted_dark") return "nightmare_corrupted_dark";
+  return "overgrown_dark";
+}
+
+function isDarkUiTheme(uiThemeId) {
+  return uiThemeId === "molten_dark" || uiThemeId === "overgrown_dark" || uiThemeId === "submerged_dark" || uiThemeId === "deep_freeze_dark" || uiThemeId === "dreamscape_lunar_dark" || uiThemeId === "nightmare_corrupted_dark";
+}
+
+function resolvePairedUiThemeIdForMode(uiThemeId, mode) {
+  const baseThemeId = isDarkUiTheme(uiThemeId)
+    ? uiThemeId.replace(/_dark$/, "")
+    : uiThemeId;
+  if (mode === "dark") {
+    if (baseThemeId === "nightmare") return "nightmare_corrupted_dark";
+    return sanitizeDarkUiThemeId(`${baseThemeId}_dark`);
+  }
+  if (mode === "light") {
+    if (baseThemeId === "nightmare_corrupted") return "nightmare";
+    return sanitizeLightUiThemeId(baseThemeId);
+  }
+  return uiThemeId;
+}
+
+function resolveUiThemeForAppearanceMode(mode) {
+  if (mode === "dark") return sanitizeDarkUiThemeId(state.lastDarkUiThemeId || state.selectedUiThemeId);
+  if (mode === "light") return sanitizeLightUiThemeId(state.lastLightUiThemeId || state.selectedUiThemeId);
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? sanitizeDarkUiThemeId(state.lastDarkUiThemeId || state.selectedUiThemeId)
+    : sanitizeLightUiThemeId(state.lastLightUiThemeId || state.selectedUiThemeId);
+}
+
+function syncUiThemeSelectAvailability(mode) {
+  if (!uiThemeSelect) return;
+  if (!Array.isArray(uiThemeOptionCatalog)) {
+    uiThemeOptionCatalog = Array.from(uiThemeSelect.options).map((option) => ({
+      value: option.value,
+      label: option.textContent || option.value,
+    }));
+  }
+  const effectiveMode =
+    mode === "system"
+      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : mode;
+  const optionCatalog = uiThemeOptionCatalog;
+  const selectedBefore = state.selectedUiThemeId;
+  const allowedOptions = optionCatalog.filter((entry) => {
+    const darkOption = isDarkUiTheme(entry.value);
+    if (effectiveMode === "dark") return darkOption;
+    if (effectiveMode === "light") return !darkOption;
+    return true;
+  });
+
+  uiThemeSelect.innerHTML = "";
+  for (const entry of allowedOptions) {
+    const option = document.createElement("option");
+    option.value = entry.value;
+    option.textContent = entry.label;
+    uiThemeSelect.appendChild(option);
+  }
+
+  if (allowedOptions.some((entry) => entry.value === selectedBefore)) {
+    uiThemeSelect.value = selectedBefore;
+  }
+  syncUiThemeMenuOptions();
+}
+
+function getAppearanceModeLabel(mode) {
+  if (mode === "light") return "Light";
+  if (mode === "dark") return "Dark";
+  return "System";
+}
+
+function getAppearanceModeMenuItemLabel(mode) {
+  if (mode === "light") return "Light Mode";
+  if (mode === "dark") return "Dark Mode";
+  return "System";
+}
+
+function applyAppearanceMode(mode, { showStatus = true, save = true } = {}) {
+  const nextMode = APPEARANCE_MODE_IDS.has(mode) ? mode : DEFAULT_APPEARANCE_MODE;
+  const previousMode = state.selectedAppearanceMode;
+  const previousThemeId = state.selectedUiThemeId;
+  state.selectedAppearanceMode = nextMode;
+
+  let resolvedUiThemeId = resolveUiThemeForAppearanceMode(nextMode);
+  const changedToExplicitMode =
+    (nextMode === "light" || nextMode === "dark") &&
+    previousMode !== nextMode;
+  if (changedToExplicitMode && previousThemeId) {
+    resolvedUiThemeId = resolvePairedUiThemeIdForMode(previousThemeId, nextMode);
+  }
+  syncUiThemeSelectAvailability(nextMode);
+  state.selectedUiThemeId = resolvedUiThemeId;
+  if (isDarkUiTheme(resolvedUiThemeId)) {
+    state.lastDarkUiThemeId = sanitizeDarkUiThemeId(resolvedUiThemeId);
+    if (save) saveLastDarkUiThemeId(state.lastDarkUiThemeId);
+  } else {
+    state.lastLightUiThemeId = sanitizeLightUiThemeId(resolvedUiThemeId);
+    if (save) saveLastLightUiThemeId(state.lastLightUiThemeId);
+  }
+
+  applyUiTheme(resolvedUiThemeId);
+  if (uiThemeSelect) uiThemeSelect.value = resolvedUiThemeId;
+  syncUiThemeMenuOptions();
+  if (save) {
+    saveUiThemeId(resolvedUiThemeId);
+    saveAppearanceMode(nextMode);
+  }
+  if (showStatus) {
+    setStatus(`Appearance mode: ${getAppearanceModeLabel(nextMode)}. Theme: ${getUiThemeLabel(resolvedUiThemeId)}.`);
+  }
+  syncAppearanceModeMenu(nextMode);
+}
+
+function syncAppearanceModeMenu(mode) {
+  if (!appearanceModeTrigger || !appearanceModeDropdown) return;
+  const nextMode = APPEARANCE_MODE_IDS.has(mode) ? mode : DEFAULT_APPEARANCE_MODE;
+  const nextLabel = getAppearanceModeLabel(nextMode);
+  appearanceModeTrigger.innerHTML = APPEARANCE_MODE_ICON_SVG[nextMode] || APPEARANCE_MODE_ICON_SVG.system;
+  appearanceModeTrigger.dataset.appearanceMode = nextMode;
+  const triggerSvg = appearanceModeTrigger.querySelector("svg");
+  if (triggerSvg) {
+    const triggerIconSize = nextMode === "dark" ? 20 : 38;
+    triggerSvg.setAttribute("width", String(triggerIconSize));
+    triggerSvg.setAttribute("height", String(triggerIconSize));
+    triggerSvg.style.width = `${triggerIconSize}px`;
+    triggerSvg.style.height = `${triggerIconSize}px`;
+  }
+  appearanceModeTrigger.setAttribute("aria-label", `${nextLabel} Mode`);
+  appearanceModeTrigger.setAttribute("title", `${nextLabel} Mode`);
+
+  const remainingModes = ["light", "system", "dark"].filter((modeId) => modeId !== nextMode);
+  appearanceModeDropdown.innerHTML = remainingModes
+    .map((modeId) => {
+      const label = getAppearanceModeMenuItemLabel(modeId);
+      const icon = APPEARANCE_MODE_ICON_SVG[modeId] || "";
+      return `<button class="appearance-mode-option" type="button" data-appearance-mode="${modeId}" role="menuitem" aria-label="${label}">${icon}<span>${label}</span></button>`;
+    })
+    .join("");
+}
+
+function setAppearanceModeMenuOpen(open) {
+  if (!appearanceModeDropdown || !appearanceModeTrigger) return;
+  const shouldOpen = Boolean(open);
+  appearanceModeDropdown.hidden = !shouldOpen;
+  appearanceModeMenu?.classList.toggle("is-open", shouldOpen);
+  appearanceModeTrigger.setAttribute("aria-expanded", String(shouldOpen));
+  if (!shouldOpen) {
+    appearanceModeTrigger.blur();
+  }
+}
+
+function setQuickActionsMenuOpen(open) {
+  if (!quickActionsDropdown || !quickActionsTrigger) return;
+  const shouldOpen = Boolean(open);
+  quickActionsDropdown.hidden = !shouldOpen;
+  quickActionsMenu?.classList.toggle("is-open", shouldOpen);
+  quickActionsTrigger.setAttribute("aria-expanded", String(shouldOpen));
+  if (!shouldOpen) {
+    quickActionsTrigger.blur();
+  }
+}
+
+function syncUiThemeMenuOptions() {
+  if (!uiThemeDropdown || !uiThemeTrigger || !uiThemeSelect) return;
+  const stripModeSuffix = (label) => label.replace(/\s*-\s*(Light|Dark)\s*$/i, "").trim();
+  const options = Array.from(uiThemeSelect.options);
+  uiThemeDropdown.innerHTML = options
+    .map((option) => {
+      const value = option.value;
+      const label = stripModeSuffix(option.textContent || value);
+      const selectedClass = value === state.selectedUiThemeId ? " is-selected" : "";
+      return `<button class="ui-theme-option${selectedClass}" type="button" data-ui-theme="${value}" role="menuitemradio" aria-checked="${value === state.selectedUiThemeId ? "true" : "false"}">${label}</button>`;
+    })
+    .join("");
+  const selectedLabel = stripModeSuffix(getUiThemeLabel(state.selectedUiThemeId));
+  uiThemeTrigger.textContent = selectedLabel;
+  uiThemeTrigger.setAttribute("title", selectedLabel);
+  uiThemeTrigger.setAttribute("aria-label", `Theme: ${selectedLabel}`);
+}
+
+function setUiThemeMenuOpen(open) {
+  if (!uiThemeDropdown || !uiThemeTrigger) return;
+  const shouldOpen = Boolean(open);
+  uiThemeDropdown.hidden = !shouldOpen;
+  uiThemeMenu?.classList.toggle("is-open", shouldOpen);
+  uiThemeTrigger.setAttribute("aria-expanded", String(shouldOpen));
+  if (!shouldOpen) {
+    uiThemeTrigger.blur();
+  }
+}
+
 function applyUiTheme(uiThemeId) {
   document.body.classList.toggle("ui-theme-molten", uiThemeId === "molten");
+  document.body.classList.toggle("ui-theme-overgrown", uiThemeId === "overgrown");
+  document.body.classList.toggle("ui-theme-submerged", uiThemeId === "submerged");
+  document.body.classList.toggle("ui-theme-deep-freeze", uiThemeId === "deep_freeze");
+  document.body.classList.toggle("ui-theme-dreamscape", uiThemeId === "dreamscape");
+  document.body.classList.toggle("ui-theme-nightmare", uiThemeId === "nightmare");
+  document.body.classList.toggle("ui-theme-dreamscape-lunar", uiThemeId === "dreamscape_lunar");
+  document.body.classList.toggle("ui-theme-molten-dark", uiThemeId === "molten_dark");
+  document.body.classList.toggle("ui-theme-overgrown-dark", uiThemeId === "overgrown_dark");
+  document.body.classList.toggle("ui-theme-submerged-dark", uiThemeId === "submerged_dark");
+  document.body.classList.toggle("ui-theme-deep-freeze-dark", uiThemeId === "deep_freeze_dark");
+  document.body.classList.toggle("ui-theme-dreamscape-lunar-dark", uiThemeId === "dreamscape_lunar_dark");
+  document.body.classList.toggle("ui-theme-nightmare-corrupted-dark", uiThemeId === "nightmare_corrupted_dark");
   scheduleBoardHexGridRender();
+}
+
+function getUiThemeLabel(uiThemeId) {
+  if (uiThemeId === "molten") return "Molten - Light";
+  if (uiThemeId === "overgrown") return "Overgrown - Light";
+  if (uiThemeId === "deep_freeze") return "Deep Freeze - Light";
+  if (uiThemeId === "dreamscape") return "Dreamscape - Light";
+  if (uiThemeId === "dreamscape_lunar") return "Dreamscape - Light";
+  if (uiThemeId === "nightmare") return "Nightmare - Light";
+  if (uiThemeId === "submerged") return "Submerged - Light";
+  if (uiThemeId === "molten_dark") return "Molten - Dark";
+  if (uiThemeId === "overgrown_dark") return "Overgrown - Dark";
+  if (uiThemeId === "submerged_dark") return "Submerged - Dark";
+  if (uiThemeId === "deep_freeze_dark") return "Deep Freeze - Dark";
+  if (uiThemeId === "dreamscape_lunar_dark") return "Dreamscape - Dark";
+  if (uiThemeId === "nightmare_corrupted_dark") return "Nightmare - Dark";
+  return "Molten - Light";
 }
 
 function applyFeedbackMode(useFaceFeedback) {
@@ -1372,20 +1820,118 @@ function renderBoardHexGrid() {
   svg.setAttribute("viewBox", `0 0 ${drawW} ${drawH}`);
   svg.replaceChildren();
 
-  const strokeColor = state.selectedUiThemeId === "molten"
+  const isMolten = state.selectedUiThemeId === "molten";
+  const isOvergrown = state.selectedUiThemeId === "overgrown";
+  const isDeepFreeze = state.selectedUiThemeId === "deep_freeze";
+  const isSubmerged = state.selectedUiThemeId === "submerged";
+  const isDreamscape = state.selectedUiThemeId === "dreamscape";
+  const isDreamscapeLunar = state.selectedUiThemeId === "dreamscape_lunar";
+  const isNightmare = state.selectedUiThemeId === "nightmare";
+  const isMoltenDark = state.selectedUiThemeId === "molten_dark";
+  const isOvergrownDark = state.selectedUiThemeId === "overgrown_dark";
+  const isSubmergedDark = state.selectedUiThemeId === "submerged_dark";
+  const isDeepFreezeDark = state.selectedUiThemeId === "deep_freeze_dark";
+  const isDreamscapeLunarDark = state.selectedUiThemeId === "dreamscape_lunar_dark";
+  const isNightmareCorruptedDark = state.selectedUiThemeId === "nightmare_corrupted_dark";
+  const isDarkTheme = isMoltenDark || isOvergrownDark || isSubmergedDark || isDeepFreezeDark || isDreamscapeLunarDark || isNightmareCorruptedDark;
+  const strokeColor = isMolten
     ? "rgba(210, 173, 137, 0.45)"
-    : "rgba(216, 198, 180, 0.45)";
+    : isOvergrown
+      ? "rgba(146, 168, 124, 0.5)"
+    : isDeepFreeze
+      ? "rgba(124, 172, 190, 0.48)"
+    : isSubmerged
+      ? "rgba(57, 184, 223, 0.54)"
+    : isDreamscape
+      ? "rgba(164, 150, 220, 0.52)"
+    : isDreamscapeLunar
+      ? "rgba(189, 170, 233, 0.48)"
+    : isNightmare
+      ? "rgba(182, 118, 166, 0.52)"
+    : isMoltenDark
+      ? "rgba(125, 102, 84, 0.55)"
+      : isOvergrownDark
+        ? "rgba(214, 217, 139, 0.45)"
+        : isSubmergedDark
+          ? "rgba(71, 198, 232, 0.48)"
+          : isDeepFreezeDark
+            ? "rgba(163, 216, 220, 0.46)"
+          : isDreamscapeLunarDark
+            ? "rgba(208, 176, 246, 0.46)"
+          : isNightmareCorruptedDark
+            ? "rgba(246, 105, 188, 0.54)"
+        : "rgba(216, 198, 180, 0.45)";
+  const borderRgb = isMolten
+    ? { r: 198, g: 149, b: 105 } // matches .panel-section border in molten theme (#c69569)
+    : isOvergrown
+      ? { r: 153, g: 168, b: 131 } // matches .panel-section border in overgrown theme (#99a883)
+      : isDeepFreeze
+        ? { r: 132, g: 176, b: 186 } // deep-freeze light border tone
+      : isSubmerged
+        ? { r: 76, g: 194, b: 222 } // submerged light border tone
+      : isDreamscape
+        ? { r: 164, g: 150, b: 220 }
+      : isDreamscapeLunar
+        ? { r: 184, g: 166, b: 226 }
+      : isNightmare
+        ? { r: 180, g: 108, b: 164 }
+      : isMoltenDark
+        ? { r: 105, g: 74, b: 54 } // matches .panel-section border in molten dark theme (#694a36)
+        : isOvergrownDark
+          ? { r: 214, g: 217, b: 139 } // matches .panel-section border tone in overgrown dark
+          : isSubmergedDark
+            ? { r: 72, g: 185, b: 225 } // submerged dark panel border tone
+            : isDeepFreezeDark
+              ? { r: 156, g: 211, b: 215 } // deep-freeze dark border tone
+            : isDreamscapeLunarDark
+              ? { r: 207, g: 173, b: 246 }
+            : isNightmareCorruptedDark
+              ? { r: 224, g: 94, b: 165 }
+          : { r: 196, g: 206, b: 213 }; // default .panel-section border (#c4ced5)
   const centerX = drawW / 2;
   const centerY = drawH / 2;
   const maxDist = Math.hypot(centerX, centerY) || 1;
-  const darkestTargetDist = Math.max(layout.dx * 4, layout.radius * 4);
-  const maxMix = Math.pow(clamp(darkestTargetDist / maxDist, 0, 1), 1.25);
-  const lightRgb = state.selectedUiThemeId === "molten"
+  const darkestTargetHexes = isSubmergedDark ? 12 : (isDeepFreezeDark ? 10 : ((isMoltenDark || isOvergrownDark || isDreamscapeLunarDark || isNightmareCorruptedDark) ? 9 : 4));
+  const darkestTargetDist = Math.max(layout.dx * darkestTargetHexes, layout.radius * darkestTargetHexes);
+  const lightRgb = isMolten
     ? { r: 255, g: 238, b: 220 } // matches molten drawer background tone
-    : { r: 255, g: 248, b: 240 }; // matches tile drawer background tone
-  const darkRgb = state.selectedUiThemeId === "molten"
-    ? { r: 126, g: 84, b: 52 }
-    : { r: 114, g: 80, b: 54 };
+    : isOvergrown
+      ? { r: 237, g: 242, b: 201 } // overgrown light center tone
+    : isDeepFreeze
+      ? { r: 233, g: 246, b: 248 } // pale frozen center tone
+    : isSubmerged
+      ? { r: 226, g: 251, b: 255 } // bright aquatic center tone
+    : isDreamscape
+      ? { r: 236, g: 229, b: 252 }
+    : isDreamscapeLunar
+      ? { r: 244, g: 235, b: 253 }
+    : isNightmare
+      ? { r: 246, g: 228, b: 244 }
+    : isMoltenDark
+      ? { r: 46, g: 34, b: 27 } // matches Boss Selection panel background in molten dark (#2e221b)
+      : isOvergrownDark
+        ? { r: 95, g: 123, b: 98 } // matches Boss Selection panel background tone in overgrown dark
+        : isSubmergedDark
+          ? { r: 25, g: 64, b: 88 } // submerged dark panel surface
+          : isDeepFreezeDark
+            ? { r: 38, g: 68, b: 76 } // deep-freeze dark panel surface
+          : isDreamscapeLunarDark
+            ? { r: 80, g: 67, b: 124 }
+          : isNightmareCorruptedDark
+            ? { r: 70, g: 26, b: 56 }
+      : { r: 255, g: 248, b: 240 }; // matches tile drawer background tone
+  const darkEndpoint = isDarkTheme
+    ? {
+        r: Math.round(lightRgb.r * 0.62),
+        g: Math.round(lightRgb.g * 0.62),
+        b: Math.round(lightRgb.b * 0.62),
+      }
+    : {
+        // Light-mode only: soften the edge tone by blending border color toward center color.
+        r: Math.round(borderRgb.r + (lightRgb.r - borderRgb.r) * 0.4),
+        g: Math.round(borderRgb.g + (lightRgb.g - borderRgb.g) * 0.4),
+        b: Math.round(borderRgb.b + (lightRgb.b - borderRgb.b) * 0.4),
+      };
 
   const group = document.createElementNS(BOARD_HEX_SVG_NS, "g");
   group.setAttribute("stroke", strokeColor);
@@ -1407,15 +1953,21 @@ function renderBoardHexGrid() {
       if (x < -layout.radius || x > drawW + layout.radius) continue;
       if (y < -layout.hexHeight || y > drawH + layout.hexHeight) continue;
       const dist = Math.hypot(x - centerX, y - centerY);
-      const t = clamp(dist / maxDist, 0, 1);
+      const t = isDarkTheme
+        ? clamp(dist / Math.max(1, darkestTargetDist), 0, 1)
+        : clamp(dist / maxDist, 0, 1);
       // Keep full-hex "pixel" coloring while darkening cells toward edges.
-      const mix = Math.pow(t, 1.25) * maxMix;
-      const r = Math.round(lightRgb.r + (darkRgb.r - lightRgb.r) * mix);
-      const g = Math.round(lightRgb.g + (darkRgb.g - lightRgb.g) * mix);
-      const b = Math.round(lightRgb.b + (darkRgb.b - lightRgb.b) * mix);
+      const mixExponent = isDarkTheme ? 0.8 : 1.25;
+      const mix = isDarkTheme
+        ? Math.pow(t, mixExponent)
+        : Math.pow(t, mixExponent);
+      const r = Math.round(lightRgb.r + (darkEndpoint.r - lightRgb.r) * mix);
+      const g = Math.round(lightRgb.g + (darkEndpoint.g - lightRgb.g) * mix);
+      const b = Math.round(lightRgb.b + (darkEndpoint.b - lightRgb.b) * mix);
+      const a = 1;
       const path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
       path.setAttribute("d", hexPath(x, y, layout.radius));
-      path.setAttribute("fill", `rgb(${r}, ${g}, ${b})`);
+      path.setAttribute("fill", `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`);
       group.appendChild(path);
     }
   }
@@ -1496,6 +2048,34 @@ function hexPath(cx, cy, radius) {
   return `M ${p1} L ${p2} L ${p3} L ${p4} L ${p5} L ${p6} Z`;
 }
 
+function createTraySlotGuideElement() {
+  const size = 150;
+  const center = size / 2;
+  const radius = 28;
+  const halfH = (Math.sqrt(3) * radius) / 2;
+  const dy = Math.sqrt(3) * radius;
+  const centers = [
+    [center, center],
+    [center + 1.5 * radius, center + halfH],
+    [center + 1.5 * radius, center - halfH],
+    [center, center + dy],
+    [center, center - dy],
+    [center - 1.5 * radius, center + halfH],
+    [center - 1.5 * radius, center - halfH],
+  ];
+
+  const svg = document.createElementNS(BOARD_HEX_SVG_NS, "svg");
+  svg.classList.add("tray-slot-guide");
+  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+  svg.setAttribute("aria-hidden", "true");
+  for (const [cx, cy] of centers) {
+    const path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
+    path.setAttribute("d", hexPath(cx, cy, radius));
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
 function renderActiveTiles() {
   for (const tile of state.tiles.values()) {
     if (!tile.active) continue;
@@ -1509,6 +2089,7 @@ function renderActiveTiles() {
     } else {
       const slot = document.createElement("div");
       slot.className = "tray-slot";
+      slot.appendChild(createTraySlotGuideElement());
       slot.appendChild(tileEl);
       tray.appendChild(slot);
       tile.traySlot = slot;
@@ -1545,6 +2126,7 @@ function rerenderTrayAndReserve() {
   for (let i = 0; i < traySlotCount; i += 1) {
     const slot = document.createElement("div");
     slot.className = "tray-slot";
+    slot.appendChild(createTraySlotGuideElement());
     tray.appendChild(slot);
 
     const tile = trayTiles[i];
@@ -1614,6 +2196,7 @@ function renderBossPile() {
   const sources = order.filter((src) => !placedBossSources.has(src));
   if (!sources.length) {
     bossPile.classList.add("is-empty");
+    updatePlacementFeedbackChecklist();
     return;
   }
   bossPile.classList.remove("is-empty");
@@ -1667,6 +2250,7 @@ function renderBossPile() {
     card.appendChild(img);
     bossPile.appendChild(card);
   }
+  updatePlacementFeedbackChecklist();
 }
 
 function setBossEditMode(enabled) {
@@ -1703,6 +2287,156 @@ function isPointInsideElement(clientX, clientY, element) {
   );
 }
 
+function isPointOverBoardSurface(clientX, clientY, boardRect = board.getBoundingClientRect()) {
+  const insideBoardRect =
+    clientX >= boardRect.left
+    && clientX <= boardRect.right
+    && clientY >= boardRect.top
+    && clientY <= boardRect.bottom;
+  if (!insideBoardRect) return false;
+
+  const topEl = document.elementFromPoint(clientX, clientY);
+  if (!topEl) return false;
+  return topEl === board || board.contains(topEl);
+}
+
+function getEdgeAutoPanAxisDelta(pointer, min, max, zone, maxSpeed) {
+  if (pointer < min + zone) {
+    const t = clamp((min + zone - pointer) / zone, 0, 1);
+    return maxSpeed * t * t;
+  }
+  if (pointer > max - zone) {
+    const t = clamp((pointer - (max - zone)) / zone, 0, 1);
+    return -(maxSpeed * t * t);
+  }
+  return 0;
+}
+
+function applyDragEdgeAutoPan(clientX, clientY, boardRect, dragPanState) {
+  if (!dragPanState) return;
+  if (!isPointOverBoardSurface(clientX, clientY, boardRect)) {
+    dragPanState.lastTs = null;
+    return;
+  }
+
+  const now = performance.now();
+  const prevTs = Number.isFinite(dragPanState.lastTs) ? dragPanState.lastTs : now;
+  const dt = clamp(now - prevTs, 0, 32);
+  dragPanState.lastTs = now;
+
+  const vx = getEdgeAutoPanAxisDelta(
+    clientX,
+    boardRect.left,
+    boardRect.right,
+    DRAG_EDGE_AUTO_PAN_ZONE,
+    DRAG_EDGE_AUTO_PAN_MAX_SPEED,
+  );
+  const vy = getEdgeAutoPanAxisDelta(
+    clientY,
+    boardRect.top,
+    boardRect.bottom,
+    DRAG_EDGE_AUTO_PAN_ZONE,
+    DRAG_EDGE_AUTO_PAN_MAX_SPEED,
+  );
+  if (Math.abs(vx) < 1e-3 && Math.abs(vy) < 1e-3) return;
+
+  const frameScale = dt / 16.667;
+  const zoom = getBoardZoom();
+  const dx = (vx * frameScale) / zoom;
+  const dy = (vy * frameScale) / zoom;
+  translateBoardContent(dx, dy);
+}
+
+function updateDragEdgeAutoPanState(dragPanState, clientX, clientY, boardRect) {
+  if (!dragPanState) return;
+  dragPanState.clientX = clientX;
+  dragPanState.clientY = clientY;
+  dragPanState.boardRect = boardRect;
+  dragPanState.active = true;
+  if (dragPanState.rafId != null) return;
+
+  const step = () => {
+    if (!dragPanState.active) {
+      dragPanState.rafId = null;
+      return;
+    }
+    applyDragEdgeAutoPan(
+      dragPanState.clientX,
+      dragPanState.clientY,
+      dragPanState.boardRect,
+      dragPanState,
+    );
+    dragPanState.rafId = requestAnimationFrame(step);
+  };
+
+  dragPanState.rafId = requestAnimationFrame(step);
+}
+
+function stopDragEdgeAutoPan(dragPanState) {
+  if (!dragPanState) return;
+  dragPanState.active = false;
+  dragPanState.lastTs = null;
+  if (dragPanState.rafId != null) {
+    cancelAnimationFrame(dragPanState.rafId);
+    dragPanState.rafId = null;
+  }
+}
+
+function getBossReferenceMagnetBoardPosition(boardX, boardY) {
+  const reference = state.referenceMarker;
+  if (!reference) return null;
+  const sideOffset = TILE_SIZE + BOSS_REFERENCE_MAGNET_GAP;
+  const topOffset = TILE_SIZE + BOSS_REFERENCE_MAGNET_TOP_GAP;
+  const anchors = [
+    {
+      type: "side",
+      x: reference.x - sideOffset,
+      y: reference.y,
+      radius: BOSS_REFERENCE_MAGNET_SIDE_RADIUS,
+    },
+    {
+      type: "side",
+      x: reference.x + sideOffset,
+      y: reference.y,
+      radius: BOSS_REFERENCE_MAGNET_SIDE_RADIUS,
+    },
+    {
+      type: "top",
+      x: reference.x,
+      y: reference.y - topOffset,
+      radius: BOSS_REFERENCE_MAGNET_TOP_RADIUS,
+    },
+  ];
+
+  let best = null;
+  for (const anchor of anchors) {
+    const dx = boardX - anchor.x;
+    const dy = boardY - anchor.y;
+    if (anchor.type === "side" && Math.abs(dy) > BOSS_REFERENCE_MAGNET_SIDE_Y_TOLERANCE) continue;
+    if (anchor.type === "top" && Math.abs(dx) > BOSS_REFERENCE_MAGNET_TOP_X_TOLERANCE) continue;
+    const d2 = dx * dx + dy * dy;
+    const maxD2 = anchor.radius * anchor.radius;
+    if (d2 > maxD2) continue;
+    if (!best || d2 < best.d2) best = { ...anchor, d2 };
+  }
+
+  if (!best) return null;
+  return { x: best.x, y: best.y };
+}
+
+function getBoardDropPositionFromPointer(clientX, clientY, boardRect, zoom = getBoardZoom()) {
+  const boardOriginX = boardRect.left + board.clientLeft;
+  const boardOriginY = boardRect.top + board.clientTop;
+  const rawX = clamp((clientX - boardOriginX) / zoom, 0, board.clientWidth);
+  const rawY = clamp((clientY - boardOriginY) / zoom, 0, board.clientHeight);
+  const magnet = getBossReferenceMagnetBoardPosition(rawX, rawY);
+  if (!magnet) return { x: rawX, y: rawY };
+  return {
+    x: clamp(magnet.x, 0, board.clientWidth),
+    y: clamp(magnet.y, 0, board.clientHeight),
+  };
+}
+
 function beginBossSpawnDrag(event, src, onDragStart = null) {
   if (event.button !== 0) return;
   event.preventDefault();
@@ -1719,6 +2453,14 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
   let moved = false;
   let droppedToBoard = false;
   let holdElapsed = false;
+  const dragPanState = {
+    lastTs: null,
+    rafId: null,
+    active: false,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    boardRect,
+  };
   const startDragMode = () => {
     if (moved || !pointerActive) return;
     moved = true;
@@ -1754,6 +2496,7 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
   const cleanup = () => {
     pointerActive = false;
     clearTimeout(holdTimer);
+    stopDragEdgeAutoPan(dragPanState);
     document.body.classList.remove("boss-drag-cursor");
     window.removeEventListener("pointermove", handleMove);
     window.removeEventListener("pointerup", handleUp);
@@ -1776,23 +2519,28 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
       if (!holdElapsed) return;
       startDragMode();
     }
+    updateDragEdgeAutoPanState(dragPanState, moveEvent.clientX, moveEvent.clientY, boardRect);
+    const pointerOverBoard = isPointOverBoardSurface(moveEvent.clientX, moveEvent.clientY, boardRect);
+    if (pointerOverBoard) {
+      const zoom = getBoardZoom();
+      const boardPos = getBoardDropPositionFromPointer(moveEvent.clientX, moveEvent.clientY, boardRect, zoom);
+      const boardOriginX = boardRect.left + board.clientLeft;
+      const boardOriginY = boardRect.top + board.clientTop;
+      const workspaceX = boardPos.x * zoom + (boardOriginX - workspaceRect.left);
+      const workspaceY = boardPos.y * zoom + (boardOriginY - workspaceRect.top);
+      setPreviewPos(workspaceX + workspaceRect.left, workspaceY + workspaceRect.top);
+      return;
+    }
     setPreviewPos(moveEvent.clientX, moveEvent.clientY);
   };
 
   const handleUp = (upEvent) => {
     if (upEvent.pointerId !== pointerId) return;
-    const droppedInsideBoard =
-      upEvent.clientX >= boardRect.left
-      && upEvent.clientX <= boardRect.right
-      && upEvent.clientY >= boardRect.top
-      && upEvent.clientY <= boardRect.bottom;
+    const droppedInsideBoard = isPointOverBoardSurface(upEvent.clientX, upEvent.clientY, boardRect);
 
     if (moved && droppedInsideBoard) {
-      const boardOriginX = boardRect.left + board.clientLeft;
-      const boardOriginY = boardRect.top + board.clientTop;
       const zoom = getBoardZoom();
-      const bx = clamp((upEvent.clientX - boardOriginX) / zoom, 0, board.clientWidth);
-      const by = clamp((upEvent.clientY - boardOriginY) / zoom, 0, board.clientHeight);
+      const { x: bx, y: by } = getBoardDropPositionFromPointer(upEvent.clientX, upEvent.clientY, boardRect, zoom);
       createBossToken(src, bx, by, TILE_SIZE);
       droppedToBoard = true;
       renderBossPile();
@@ -1859,6 +2607,14 @@ function beginBossTokenDrag(token, event) {
   const boardOffsetY = (boardRect.top + board.clientTop) - workspaceRect.top;
   const zoom = getBoardZoom();
   const pointerId = event.pointerId;
+  const dragPanState = {
+    lastTs: null,
+    rafId: null,
+    active: false,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    boardRect,
+  };
   token.dom.classList.add("boss-token-dragging");
   document.body.classList.add("boss-drag-cursor");
   if (token.dom.parentElement !== dragLayer) {
@@ -1868,6 +2624,7 @@ function beginBossTokenDrag(token, event) {
   updateBossTokenTransform(token);
 
   const cleanup = () => {
+    stopDragEdgeAutoPan(dragPanState);
     window.removeEventListener("pointermove", handleMove);
     window.removeEventListener("pointerup", handleUp);
     window.removeEventListener("pointercancel", handleUp);
@@ -1881,8 +2638,15 @@ function beginBossTokenDrag(token, event) {
       cleanup();
       return;
     }
-    const x = moveEvent.clientX - workspaceRect.left;
-    const y = moveEvent.clientY - workspaceRect.top;
+    updateDragEdgeAutoPanState(dragPanState, moveEvent.clientX, moveEvent.clientY, boardRect);
+    let x = moveEvent.clientX - workspaceRect.left;
+    let y = moveEvent.clientY - workspaceRect.top;
+    const pointerOverBoard = isPointOverBoardSurface(moveEvent.clientX, moveEvent.clientY, boardRect);
+    if (pointerOverBoard) {
+      const boardPos = getBoardDropPositionFromPointer(moveEvent.clientX, moveEvent.clientY, boardRect, zoom);
+      x = boardPos.x * zoom + boardOffsetX;
+      y = boardPos.y * zoom + boardOffsetY;
+    }
     positionBossToken(token, x, y);
     updateBossTokenTransform(token);
   };
@@ -1890,7 +2654,8 @@ function beginBossTokenDrag(token, event) {
   const handleUp = (upEvent) => {
     if (upEvent.pointerId !== pointerId) return;
     const droppedInsideBossPile = isPointInsideElement(upEvent.clientX, upEvent.clientY, bossPile);
-    if (droppedInsideBossPile) {
+    const droppedInsideInfoDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, rightDrawer);
+    if (droppedInsideBossPile || droppedInsideInfoDrawer) {
       pushBossBackToPile(token.src, state.selectedTileSetId);
       state.bossTokens = state.bossTokens.filter((entry) => entry.id !== token.id);
       token.dom.remove();
@@ -1899,13 +2664,12 @@ function beginBossTokenDrag(token, event) {
       return;
     }
 
-    const droppedInsideBoard = isPointInsideElement(upEvent.clientX, upEvent.clientY, board);
+    const droppedInsideBoard = isPointOverBoardSurface(upEvent.clientX, upEvent.clientY, boardRect);
     if (droppedInsideBoard) {
       if (token.dom.parentElement !== getBoardContentLayer()) {
         getBoardContentLayer().appendChild(token.dom);
       }
-      const bx = clamp((token.x - boardOffsetX) / zoom, 0, board.clientWidth);
-      const by = clamp((token.y - boardOffsetY) / zoom, 0, board.clientHeight);
+      const { x: bx, y: by } = getBoardDropPositionFromPointer(upEvent.clientX, upEvent.clientY, boardRect, zoom);
       positionBossToken(token, bx, by);
       updateBossTokenTransform(token);
       cleanup();
@@ -3112,9 +3876,20 @@ function selectTile(id) {
 }
 
 function updatePlacedProgress() {
-  if (!placedProgressEl) return;
   const placedCount = getPlacedTiles().filter((tile) => !isEntranceTile(tile)).length;
-  placedProgressEl.textContent = `Placed ${placedCount} / 6 tiles`;
+  if (placedProgressEl) placedProgressEl.textContent = `Placed ${placedCount} / 6 tiles`;
+  updatePlacementFeedbackChecklist();
+}
+
+function updatePlacementFeedbackChecklist() {
+  const placedCount = getPlacedTiles().filter((tile) => !isEntranceTile(tile)).length;
+  const tilesComplete = placedCount >= 6;
+  const bossSelected = state.bossTokens.length > 0;
+
+  if (feedbackTilesCheckEl) feedbackTilesCheckEl.textContent = tilesComplete ? "✓" : "○";
+  if (feedbackBossCheckEl) feedbackBossCheckEl.textContent = bossSelected ? "✓" : "○";
+  if (feedbackTilesRowEl) feedbackTilesRowEl.classList.toggle("done", tilesComplete);
+  if (feedbackBossRowEl) feedbackBossRowEl.classList.toggle("done", bossSelected);
 }
 
 function updateModeIndicators() {
@@ -3152,10 +3927,18 @@ function beginDrag(tile, event) {
     pointerId: event.pointerId,
     startedFromBoard,
     moved: false,
+    lastTs: null,
+    rafId: null,
+    active: false,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    boardRect,
   };
 
   // Enter drag visual state immediately on press/hold, before pointer movement.
   tile.dom.classList.add("dragging");
+  state.activeTileDragCount += 1;
+  document.body.classList.add("tile-drag-active");
   const initialX = event.clientX - workspaceRect.left - pointerOffsetX;
   const initialY = event.clientY - workspaceRect.top - pointerOffsetY;
   updateTileParent(tile, dragLayer);
@@ -3169,6 +3952,11 @@ function beginDrag(tile, event) {
     if (cleanedUp) return;
     cleanedUp = true;
     tile.dom.classList.remove("dragging");
+    state.activeTileDragCount = Math.max(0, state.activeTileDragCount - 1);
+    if (state.activeTileDragCount === 0) {
+      document.body.classList.remove("tile-drag-active");
+    }
+    stopDragEdgeAutoPan(tile.drag);
     window.removeEventListener("pointermove", handleMove);
     window.removeEventListener("pointerup", handleUp);
     window.removeEventListener("pointercancel", handleUp);
@@ -3184,6 +3972,7 @@ function beginDrag(tile, event) {
     }
 
     tile.drag.moved = true;
+    updateDragEdgeAutoPanState(tile.drag, moveEvent.clientX, moveEvent.clientY, boardRect);
     const zoom = getBoardZoom();
     const boardOriginX = boardRect.left + board.clientLeft;
     const boardOriginY = boardRect.top + board.clientTop;
@@ -3193,11 +3982,7 @@ function beginDrag(tile, event) {
         : tile.dom.parentElement.getBoundingClientRect();
     const x = moveEvent.clientX - parentRect.left - tile.drag.offsetX;
     const y = moveEvent.clientY - parentRect.top - tile.drag.offsetY;
-    const pointerInsideBoard =
-      moveEvent.clientX >= boardRect.left
-      && moveEvent.clientX <= boardRect.right
-      && moveEvent.clientY >= boardRect.top
-      && moveEvent.clientY <= boardRect.bottom;
+    const pointerInsideBoard = isPointOverBoardSurface(moveEvent.clientX, moveEvent.clientY, boardRect);
 
     if (pointerInsideBoard) {
       const boardX = (moveEvent.clientX - boardOriginX - tile.drag.offsetX) / zoom;
@@ -3239,11 +4024,7 @@ function beginDrag(tile, event) {
 
     if (tile.dom.parentElement === dragLayer) {
       const droppedInsideLeftDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, leftDrawer);
-      const isInsideBoard =
-        upEvent.clientX >= boardRect.left &&
-        upEvent.clientX <= boardRect.right &&
-        upEvent.clientY >= boardRect.top &&
-        upEvent.clientY <= boardRect.bottom;
+      const isInsideBoard = isPointOverBoardSurface(upEvent.clientX, upEvent.clientY, boardRect);
 
       if (!isInsideBoard && (droppedInsideLeftDrawer || !tile.drag.startedFromBoard)) {
         tile.placed = false;
@@ -4400,11 +5181,7 @@ function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect
     return;
   }
 
-  const isInsideBoard =
-    pointerClientX >= boardRect.left &&
-    pointerClientX <= boardRect.right &&
-    pointerClientY >= boardRect.top &&
-    pointerClientY <= boardRect.bottom;
+  const isInsideBoard = isPointOverBoardSurface(pointerClientX, pointerClientY, boardRect);
 
   if (!isInsideBoard) {
     setPlacementFeedback(tile, null);
