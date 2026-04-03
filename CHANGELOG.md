@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-03
+- Added `icons/dice.png` to version control so newly introduced dice icon UI (selected-tiles row + boss random button) resolves correctly from tracked project assets.
 - Removed legacy Dreamscape/Nightmare UI theme naming leftovers and aliases across CSS/JS/HTML, standardizing active theme IDs to the clean set (`dreamscape`, `dreamscape_dark`, `nightmare`, `nightmare_dark`) and simplifying paired light/dark resolution to the default `<name>` / `<name>_dark` behavior.
 - Refined drawer action/header UI placement: moved `Reroll Tiles` into the `Selected Tiles` row, matched icon sizing/opacity with drawer controls, adjusted alignment offsets, and positioned `Placed X / 6 tiles` as a tray-adjacent overlay without changing tray tile flow.
 - Added `dice.png` iconography to selected/boss sections and implemented clickable boss-random action in the info drawer that places a random available boss at the reference top magnet, now with proper in-place exchange behavior (replaces existing top-magnet boss instead of stacking) and off-screen-safe magnet anchoring.
