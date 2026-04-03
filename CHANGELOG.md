@@ -1,12 +1,16 @@
 # Changelog
 
 ## 2026-04-03
+- Removed legacy Dreamscape/Nightmare UI theme naming leftovers and aliases across CSS/JS/HTML, standardizing active theme IDs to the clean set (`dreamscape`, `dreamscape_dark`, `nightmare`, `nightmare_dark`) and simplifying paired light/dark resolution to the default `<name>` / `<name>_dark` behavior.
+- Refined drawer action/header UI placement: moved `Reroll Tiles` into the `Selected Tiles` row, matched icon sizing/opacity with drawer controls, adjusted alignment offsets, and positioned `Placed X / 6 tiles` as a tray-adjacent overlay without changing tray tile flow.
+- Added `dice.png` iconography to selected/boss sections and implemented clickable boss-random action in the info drawer that places a random available boss at the reference top magnet, now with proper in-place exchange behavior (replaces existing top-magnet boss instead of stacking) and off-screen-safe magnet anchoring.
 - Reworked UI theme selection to use the custom in-app dropdown as the primary control path, with hidden native select options acting only as the source catalog for rendered menu items.
 - Updated appearance-mode filtering so light mode only shows light themes and dark mode only shows dark themes, and aligned mode switching to keep users on the same paired theme name when toggling between light/dark.
 - Expanded and reordered active theme variants in the selector/runtime mapping, including Submerged/Deep Freeze light+dark ordering adjustments and current Dreamscape/Nightmare variant mapping updates.
 - Simplified displayed theme names in the custom dropdown by stripping `- Light` / `- Dark` suffixes from menu labels while preserving canonical internal theme IDs.
 - Removed legacy UI-theme migration handling tied to old saved theme state so theme preference code matches the current storage model and active theme set.
 - Session note: Spent more time untangling theme aliases than picking actual colors.
+- Session note: Replaced one boss with another so many times the dice now feels like a deployment strategy.
 
 ## 2026-04-02
 - Updated board reset/start framing so horizontal centering is anchored to the Entrance Tile, fixing the persistent right-offset seen on initial load and `Zoom xx%` reset.

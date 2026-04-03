@@ -30,13 +30,13 @@ const UI_THEME_IDS = new Set([
   "deep_freeze",
   "nightmare",
   "submerged",
-  "dreamscape_lunar",
+  "dreamscape",
   "molten_dark",
   "overgrown_dark",
   "submerged_dark",
   "deep_freeze_dark",
-  "dreamscape_lunar_dark",
-  "nightmare_corrupted_dark",
+  "dreamscape_dark",
+  "nightmare_dark",
 ]);
 const APPEARANCE_MODE_IDS = new Set(["light", "system", "dark"]);
 const APPEARANCE_MODE_ICON_SVG = {
@@ -159,6 +159,7 @@ const feedbackTilesRowEl = document.getElementById("feedback-tiles-row");
 const feedbackBossRowEl = document.getElementById("feedback-boss-row");
 const feedbackTilesCheckEl = document.getElementById("feedback-tiles-check");
 const feedbackBossCheckEl = document.getElementById("feedback-boss-check");
+const bossRandomBtn = document.getElementById("boss-random-btn");
 const modeIndicatorsEl = document.getElementById("mode-indicators");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
@@ -867,6 +868,11 @@ function bindGlobalControls() {
       setStatus(state.rightDrawerCollapsed ? "Right drawer collapsed." : "Right drawer expanded.");
     });
   }
+  if (bossRandomBtn) {
+    bossRandomBtn.addEventListener("click", () => {
+      spawnRandomBossAtReferenceTopMagnet();
+    });
+  }
 
   document.addEventListener("keydown", (event) => {
     const isTypingTarget = event.target instanceof HTMLElement
@@ -1143,7 +1149,7 @@ function loadLastLightUiThemeId() {
   try {
     const saved = localStorage.getItem(LAST_LIGHT_UI_THEME_STORAGE_KEY);
     if (saved === "current") return DEFAULT_UI_THEME_ID;
-    if (saved === "molten" || saved === "overgrown" || saved === "deep_freeze" || saved === "dreamscape_lunar" || saved === "nightmare" || saved === "submerged") return saved;
+    if (saved === "molten" || saved === "overgrown" || saved === "deep_freeze" || saved === "dreamscape" || saved === "nightmare" || saved === "submerged") return saved;
   } catch (error) {
     console.warn("Could not load light theme preference.", error);
   }
@@ -1153,7 +1159,7 @@ function loadLastLightUiThemeId() {
 function loadLastDarkUiThemeId() {
   try {
     const saved = localStorage.getItem(LAST_DARK_UI_THEME_STORAGE_KEY);
-    if (saved === "molten_dark" || saved === "overgrown_dark" || saved === "submerged_dark" || saved === "deep_freeze_dark" || saved === "dreamscape_lunar_dark" || saved === "nightmare_corrupted_dark") return saved;
+    if (saved === "molten_dark" || saved === "overgrown_dark" || saved === "submerged_dark" || saved === "deep_freeze_dark" || saved === "dreamscape_dark" || saved === "nightmare_dark") return saved;
   } catch (error) {
     console.warn("Could not load dark theme preference.", error);
   }
@@ -1188,7 +1194,7 @@ function sanitizeLightUiThemeId(uiThemeId) {
   if (uiThemeId === "current") return DEFAULT_UI_THEME_ID;
   if (uiThemeId === "overgrown") return "overgrown";
   if (uiThemeId === "deep_freeze") return "deep_freeze";
-  if (uiThemeId === "dreamscape_lunar") return "dreamscape_lunar";
+  if (uiThemeId === "dreamscape") return "dreamscape";
   if (uiThemeId === "nightmare") return "nightmare";
   if (uiThemeId === "submerged") return "submerged";
   return uiThemeId === "molten" ? "molten" : DEFAULT_UI_THEME_ID;
@@ -1199,13 +1205,13 @@ function sanitizeDarkUiThemeId(uiThemeId) {
   if (uiThemeId === "overgrown_dark") return "overgrown_dark";
   if (uiThemeId === "submerged_dark") return "submerged_dark";
   if (uiThemeId === "deep_freeze_dark") return "deep_freeze_dark";
-  if (uiThemeId === "dreamscape_lunar_dark") return "dreamscape_lunar_dark";
-  if (uiThemeId === "nightmare_corrupted_dark") return "nightmare_corrupted_dark";
+  if (uiThemeId === "dreamscape_dark") return "dreamscape_dark";
+  if (uiThemeId === "nightmare_dark") return "nightmare_dark";
   return "overgrown_dark";
 }
 
 function isDarkUiTheme(uiThemeId) {
-  return uiThemeId === "molten_dark" || uiThemeId === "overgrown_dark" || uiThemeId === "submerged_dark" || uiThemeId === "deep_freeze_dark" || uiThemeId === "dreamscape_lunar_dark" || uiThemeId === "nightmare_corrupted_dark";
+  return uiThemeId === "molten_dark" || uiThemeId === "overgrown_dark" || uiThemeId === "submerged_dark" || uiThemeId === "deep_freeze_dark" || uiThemeId === "dreamscape_dark" || uiThemeId === "nightmare_dark";
 }
 
 function resolvePairedUiThemeIdForMode(uiThemeId, mode) {
@@ -1213,11 +1219,9 @@ function resolvePairedUiThemeIdForMode(uiThemeId, mode) {
     ? uiThemeId.replace(/_dark$/, "")
     : uiThemeId;
   if (mode === "dark") {
-    if (baseThemeId === "nightmare") return "nightmare_corrupted_dark";
     return sanitizeDarkUiThemeId(`${baseThemeId}_dark`);
   }
   if (mode === "light") {
-    if (baseThemeId === "nightmare_corrupted") return "nightmare";
     return sanitizeLightUiThemeId(baseThemeId);
   }
   return uiThemeId;
@@ -1397,15 +1401,14 @@ function applyUiTheme(uiThemeId) {
   document.body.classList.toggle("ui-theme-overgrown", uiThemeId === "overgrown");
   document.body.classList.toggle("ui-theme-submerged", uiThemeId === "submerged");
   document.body.classList.toggle("ui-theme-deep-freeze", uiThemeId === "deep_freeze");
-  document.body.classList.toggle("ui-theme-dreamscape", uiThemeId === "dreamscape");
   document.body.classList.toggle("ui-theme-nightmare", uiThemeId === "nightmare");
-  document.body.classList.toggle("ui-theme-dreamscape-lunar", uiThemeId === "dreamscape_lunar");
+  document.body.classList.toggle("ui-theme-dreamscape", uiThemeId === "dreamscape");
   document.body.classList.toggle("ui-theme-molten-dark", uiThemeId === "molten_dark");
   document.body.classList.toggle("ui-theme-overgrown-dark", uiThemeId === "overgrown_dark");
   document.body.classList.toggle("ui-theme-submerged-dark", uiThemeId === "submerged_dark");
   document.body.classList.toggle("ui-theme-deep-freeze-dark", uiThemeId === "deep_freeze_dark");
-  document.body.classList.toggle("ui-theme-dreamscape-lunar-dark", uiThemeId === "dreamscape_lunar_dark");
-  document.body.classList.toggle("ui-theme-nightmare-corrupted-dark", uiThemeId === "nightmare_corrupted_dark");
+  document.body.classList.toggle("ui-theme-dreamscape-dark", uiThemeId === "dreamscape_dark");
+  document.body.classList.toggle("ui-theme-nightmare-dark", uiThemeId === "nightmare_dark");
   scheduleBoardHexGridRender();
 }
 
@@ -1414,15 +1417,14 @@ function getUiThemeLabel(uiThemeId) {
   if (uiThemeId === "overgrown") return "Overgrown - Light";
   if (uiThemeId === "deep_freeze") return "Deep Freeze - Light";
   if (uiThemeId === "dreamscape") return "Dreamscape - Light";
-  if (uiThemeId === "dreamscape_lunar") return "Dreamscape - Light";
   if (uiThemeId === "nightmare") return "Nightmare - Light";
   if (uiThemeId === "submerged") return "Submerged - Light";
   if (uiThemeId === "molten_dark") return "Molten - Dark";
   if (uiThemeId === "overgrown_dark") return "Overgrown - Dark";
   if (uiThemeId === "submerged_dark") return "Submerged - Dark";
   if (uiThemeId === "deep_freeze_dark") return "Deep Freeze - Dark";
-  if (uiThemeId === "dreamscape_lunar_dark") return "Dreamscape - Dark";
-  if (uiThemeId === "nightmare_corrupted_dark") return "Nightmare - Dark";
+  if (uiThemeId === "dreamscape_dark") return "Dreamscape - Dark";
+  if (uiThemeId === "nightmare_dark") return "Nightmare - Dark";
   return "Molten - Light";
 }
 
@@ -1820,106 +1822,31 @@ function renderBoardHexGrid() {
   svg.setAttribute("viewBox", `0 0 ${drawW} ${drawH}`);
   svg.replaceChildren();
 
-  const isMolten = state.selectedUiThemeId === "molten";
-  const isOvergrown = state.selectedUiThemeId === "overgrown";
-  const isDeepFreeze = state.selectedUiThemeId === "deep_freeze";
-  const isSubmerged = state.selectedUiThemeId === "submerged";
-  const isDreamscape = state.selectedUiThemeId === "dreamscape";
-  const isDreamscapeLunar = state.selectedUiThemeId === "dreamscape_lunar";
-  const isNightmare = state.selectedUiThemeId === "nightmare";
-  const isMoltenDark = state.selectedUiThemeId === "molten_dark";
-  const isOvergrownDark = state.selectedUiThemeId === "overgrown_dark";
-  const isSubmergedDark = state.selectedUiThemeId === "submerged_dark";
-  const isDeepFreezeDark = state.selectedUiThemeId === "deep_freeze_dark";
-  const isDreamscapeLunarDark = state.selectedUiThemeId === "dreamscape_lunar_dark";
-  const isNightmareCorruptedDark = state.selectedUiThemeId === "nightmare_corrupted_dark";
-  const isDarkTheme = isMoltenDark || isOvergrownDark || isSubmergedDark || isDeepFreezeDark || isDreamscapeLunarDark || isNightmareCorruptedDark;
-  const strokeColor = isMolten
-    ? "rgba(210, 173, 137, 0.45)"
-    : isOvergrown
-      ? "rgba(146, 168, 124, 0.5)"
-    : isDeepFreeze
-      ? "rgba(124, 172, 190, 0.48)"
-    : isSubmerged
-      ? "rgba(57, 184, 223, 0.54)"
-    : isDreamscape
-      ? "rgba(164, 150, 220, 0.52)"
-    : isDreamscapeLunar
-      ? "rgba(189, 170, 233, 0.48)"
-    : isNightmare
-      ? "rgba(182, 118, 166, 0.52)"
-    : isMoltenDark
-      ? "rgba(125, 102, 84, 0.55)"
-      : isOvergrownDark
-        ? "rgba(214, 217, 139, 0.45)"
-        : isSubmergedDark
-          ? "rgba(71, 198, 232, 0.48)"
-          : isDeepFreezeDark
-            ? "rgba(163, 216, 220, 0.46)"
-          : isDreamscapeLunarDark
-            ? "rgba(208, 176, 246, 0.46)"
-          : isNightmareCorruptedDark
-            ? "rgba(246, 105, 188, 0.54)"
-        : "rgba(216, 198, 180, 0.45)";
-  const borderRgb = isMolten
-    ? { r: 198, g: 149, b: 105 } // matches .panel-section border in molten theme (#c69569)
-    : isOvergrown
-      ? { r: 153, g: 168, b: 131 } // matches .panel-section border in overgrown theme (#99a883)
-      : isDeepFreeze
-        ? { r: 132, g: 176, b: 186 } // deep-freeze light border tone
-      : isSubmerged
-        ? { r: 76, g: 194, b: 222 } // submerged light border tone
-      : isDreamscape
-        ? { r: 164, g: 150, b: 220 }
-      : isDreamscapeLunar
-        ? { r: 184, g: 166, b: 226 }
-      : isNightmare
-        ? { r: 180, g: 108, b: 164 }
-      : isMoltenDark
-        ? { r: 105, g: 74, b: 54 } // matches .panel-section border in molten dark theme (#694a36)
-        : isOvergrownDark
-          ? { r: 214, g: 217, b: 139 } // matches .panel-section border tone in overgrown dark
-          : isSubmergedDark
-            ? { r: 72, g: 185, b: 225 } // submerged dark panel border tone
-            : isDeepFreezeDark
-              ? { r: 156, g: 211, b: 215 } // deep-freeze dark border tone
-            : isDreamscapeLunarDark
-              ? { r: 207, g: 173, b: 246 }
-            : isNightmareCorruptedDark
-              ? { r: 224, g: 94, b: 165 }
-          : { r: 196, g: 206, b: 213 }; // default .panel-section border (#c4ced5)
+  const cssVars = getComputedStyle(document.body);
+  const isDarkTheme = isDarkUiTheme(state.selectedUiThemeId);
+  const parseRgbTripletVar = (name, fallback) => {
+    const raw = cssVars.getPropertyValue(name).trim();
+    if (!raw) return fallback;
+    const parts = raw.split(",").map((part) => Number.parseInt(part.trim(), 10));
+    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return fallback;
+    return { r: parts[0], g: parts[1], b: parts[2] };
+  };
+  const parseNumberVar = (name, fallback) => {
+    const raw = cssVars.getPropertyValue(name).trim();
+    if (!raw) return fallback;
+    const value = Number.parseFloat(raw);
+    return Number.isFinite(value) ? value : fallback;
+  };
+  const strokeColor = cssVars.getPropertyValue("--hex-stroke").trim() || "rgba(216, 198, 180, 0.45)";
+  const borderRgb = parseRgbTripletVar("--hex-border-rgb", { r: 196, g: 206, b: 213 });
   const centerX = drawW / 2;
   const centerY = drawH / 2;
   const maxDist = Math.hypot(centerX, centerY) || 1;
-  const darkestTargetHexes = isSubmergedDark ? 12 : (isDeepFreezeDark ? 10 : ((isMoltenDark || isOvergrownDark || isDreamscapeLunarDark || isNightmareCorruptedDark) ? 9 : 4));
+  const darkestTargetHexes = isDarkTheme
+    ? parseNumberVar("--hex-dark-target-hexes", 9)
+    : 4;
   const darkestTargetDist = Math.max(layout.dx * darkestTargetHexes, layout.radius * darkestTargetHexes);
-  const lightRgb = isMolten
-    ? { r: 255, g: 238, b: 220 } // matches molten drawer background tone
-    : isOvergrown
-      ? { r: 237, g: 242, b: 201 } // overgrown light center tone
-    : isDeepFreeze
-      ? { r: 233, g: 246, b: 248 } // pale frozen center tone
-    : isSubmerged
-      ? { r: 226, g: 251, b: 255 } // bright aquatic center tone
-    : isDreamscape
-      ? { r: 236, g: 229, b: 252 }
-    : isDreamscapeLunar
-      ? { r: 244, g: 235, b: 253 }
-    : isNightmare
-      ? { r: 246, g: 228, b: 244 }
-    : isMoltenDark
-      ? { r: 46, g: 34, b: 27 } // matches Boss Selection panel background in molten dark (#2e221b)
-      : isOvergrownDark
-        ? { r: 95, g: 123, b: 98 } // matches Boss Selection panel background tone in overgrown dark
-        : isSubmergedDark
-          ? { r: 25, g: 64, b: 88 } // submerged dark panel surface
-          : isDeepFreezeDark
-            ? { r: 38, g: 68, b: 76 } // deep-freeze dark panel surface
-          : isDreamscapeLunarDark
-            ? { r: 80, g: 67, b: 124 }
-          : isNightmareCorruptedDark
-            ? { r: 70, g: 26, b: 56 }
-      : { r: 255, g: 248, b: 240 }; // matches tile drawer background tone
+  const lightRgb = parseRgbTripletVar("--hex-center-rgb", { r: 255, g: 248, b: 240 });
   const darkEndpoint = isDarkTheme
     ? {
         r: Math.round(lightRgb.r * 0.62),
@@ -2188,6 +2115,20 @@ function pushBossBackToPile(src, tileSetId = state.selectedTileSetId) {
   state.bossPileOrderByTileSet[tileSetId] = filtered;
 }
 
+function getAvailableBossSources(tileSetId = state.selectedTileSetId) {
+  const placedBossSources = new Set(state.bossTokens.map((token) => token.src));
+  return ensureBossPileOrder(tileSetId).filter((src) => !placedBossSources.has(src));
+}
+
+function removeBossToken(token, { returnToPile = true } = {}) {
+  if (!token) return;
+  if (returnToPile) {
+    pushBossBackToPile(token.src, state.selectedTileSetId);
+  }
+  state.bossTokens = state.bossTokens.filter((entry) => entry.id !== token.id);
+  token.dom?.remove();
+}
+
 function renderBossPile() {
   if (!bossPile) return;
   bossPile.innerHTML = "";
@@ -2422,6 +2363,58 @@ function getBossReferenceMagnetBoardPosition(boardX, boardY) {
 
   if (!best) return null;
   return { x: best.x, y: best.y };
+}
+
+function getBossReferenceTopMagnetBoardPosition() {
+  const reference = state.referenceMarker;
+  if (!reference) return null;
+  const topOffset = TILE_SIZE + BOSS_REFERENCE_MAGNET_TOP_GAP;
+  return {
+    x: reference.x,
+    y: reference.y - topOffset,
+  };
+}
+
+function getBossTokenAtReferenceTopMagnet() {
+  const top = getBossReferenceTopMagnetBoardPosition();
+  if (!top) return null;
+  const tolerance = 2;
+  return state.bossTokens.find(
+    (token) => Math.abs(token.x - top.x) <= tolerance && Math.abs(token.y - top.y) <= tolerance,
+  ) || null;
+}
+
+function spawnRandomBossAtReferenceTopMagnet() {
+  if (!state.referenceMarker) {
+    setStatus("Reference card is not available yet.", true);
+    return;
+  }
+  const existingTopToken = getBossTokenAtReferenceTopMagnet();
+  const removedSource = existingTopToken?.src || null;
+  if (existingTopToken) {
+    removeBossToken(existingTopToken, { returnToPile: true });
+  }
+
+  let availableSources = getAvailableBossSources(state.selectedTileSetId);
+  if (!availableSources.length) {
+    setStatus("No boss cards available to place.", true);
+    return;
+  }
+
+  if (removedSource && availableSources.length > 1) {
+    const withoutRemoved = availableSources.filter((src) => src !== removedSource);
+    if (withoutRemoved.length) availableSources = withoutRemoved;
+  }
+
+  const randomSource = availableSources[Math.floor(Math.random() * availableSources.length)];
+  const topMagnetPosition = getBossReferenceTopMagnetBoardPosition();
+  if (!topMagnetPosition) {
+    setStatus("Could not resolve top reference magnet position.", true);
+    return;
+  }
+  createBossToken(randomSource, topMagnetPosition.x, topMagnetPosition.y, TILE_SIZE);
+  renderBossPile();
+  setStatus(existingTopToken ? "Boss card exchanged at the top reference magnet." : "Random boss placed at the top reference magnet.");
 }
 
 function getBoardDropPositionFromPointer(clientX, clientY, boardRect, zoom = getBoardZoom()) {

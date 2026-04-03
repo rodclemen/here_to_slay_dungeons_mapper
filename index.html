@@ -49,14 +49,14 @@
                   <option value="overgrown">Overgrown - Light</option>
                   <option value="submerged">Submerged - Light</option>
                   <option value="deep_freeze">Deep Freeze - Light</option>
-                  <option value="dreamscape_lunar">Dreamscape - Light</option>
+                  <option value="dreamscape">Dreamscape - Light</option>
                   <option value="nightmare">Nightmare - Light</option>
                   <option value="molten_dark">Molten - Dark</option>
                   <option value="overgrown_dark">Overgrown - Dark</option>
                   <option value="submerged_dark">Submerged - Dark</option>
                   <option value="deep_freeze_dark">Deep Freeze - Dark</option>
-                  <option value="dreamscape_lunar_dark">Dreamscape - Dark</option>
-                  <option value="nightmare_corrupted_dark">Nightmare - Dark</option>
+                  <option value="dreamscape_dark">Dreamscape - Dark</option>
+                  <option value="nightmare_dark">Nightmare - Dark</option>
                 </select>
               </div>
               <button id="toggle-wall-edit-btn" type="button">Wall Editor</button>
@@ -128,46 +128,51 @@
         <aside id="left-drawer" class="drawer drawer-left">
           <div class="drawer-toolbar">
             <h2>Tile Drawer</h2>
-            <button
-              id="toggle-left-drawer-btn"
-              class="drawer-toggle-btn icon-toggle-btn"
-              type="button"
-              aria-controls="left-drawer-content"
-              aria-expanded="true"
-              aria-label="Toggle tile drawer"
-              title="Toggle tile drawer"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="lucide lucide-panel-left"
-                aria-hidden="true"
+            <div class="drawer-toolbar-actions">
+              <button
+                id="toggle-left-drawer-btn"
+                class="drawer-toggle-btn icon-toggle-btn"
+                type="button"
+                aria-controls="left-drawer-content"
+                aria-expanded="true"
+                aria-label="Toggle tile drawer"
+                title="Toggle tile drawer"
               >
-                <rect width="18" height="18" x="3" y="3" rx="2"></rect>
-                <path d="M9 3v18"></path>
-              </svg>
-            </button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-panel-left"
+                  aria-hidden="true"
+                >
+                  <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                  <path d="M9 3v18"></path>
+                </svg>
+              </button>
+            </div>
           </div>
           <div id="left-drawer-content" class="drawer-content">
             <section class="panel-section selected-tiles-section">
               <div class="tray-head">
                 <h2>Selected Tiles</h2>
-                <div id="placed-progress" class="placed-progress" aria-live="polite">Placed 0 / 6 tiles</div>
+                <div class="tray-head-actions">
+                  <span class="icon-image-static icon-dice" aria-hidden="true"></span>
+                  <button id="reroll-btn" class="icon-image-btn" type="button" aria-label="Reroll Tiles" title="Reroll Tiles">
+                    <img src="./icons/reroll.png" alt="" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
               <p class="section-helper">Step 2: Six tiles are active each round.<br />Drag them on the board</p>
-              <div class="tray-actions">
-                <button id="reroll-btn" class="icon-image-btn" type="button" aria-label="Reroll Tiles" title="Reroll Tiles">
-                  <img src="./icons/reroll.png" alt="" aria-hidden="true" />
-                </button>
+              <div class="tray-wrap">
+                <div id="placed-progress" class="placed-progress" aria-live="polite">Placed 0 / 6 tiles</div>
+                <div id="tray" class="tray"></div>
               </div>
-              <div id="tray" class="tray"></div>
             </section>
 
             <section class="panel-section reserve-section">
@@ -195,19 +200,19 @@
               aria-label="Toggle info drawer"
               title="Toggle info drawer"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="lucide lucide-panel-right"
-                aria-hidden="true"
-              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-panel-right"
+                  aria-hidden="true"
+                >
                 <rect width="18" height="18" x="3" y="3" rx="2"></rect>
                 <path d="M15 3v18"></path>
               </svg>
@@ -215,7 +220,12 @@
           </div>
           <div id="right-drawer-content" class="drawer-content">
             <section class="panel-section boss-section">
-              <h3>Boss Selection</h3>
+              <h3 class="section-title-with-icon">
+                Boss Selection
+                <button id="boss-random-btn" class="icon-image-btn icon-dice-btn" type="button" aria-label="Random Boss" title="Random Boss">
+                  <img src="./icons/dice.png" alt="" aria-hidden="true" />
+                </button>
+              </h3>
               <p class="section-helper">Step 4: click boss cards to cycle options, then drag one to board.</p>
               <div id="boss-pile" class="boss-pile" aria-label="Boss Selection"></div>
             </section>
