@@ -8,11 +8,13 @@ const SNAP_SEARCH_RADIUS = 28;
 const SNAP_VISUAL_GAP = 0;
 const SNAP_POINT_GAP = 0;
 const MIN_CONTACT_POINTS = 4;
+const END_TILE_MAX_CONNECTED_FACES = 3;
 const INVALID_RETURN_DELAY_MS = 10_000;
 const INVALID_DROP_PUSH_PX = 140;
 const ENTRANCE_BLOCKED_FACE_INDICES = new Set([11, 12]);
 const BLOCKED_POINT_TOUCH_RADIUS = 4;
 const WALL_OVERRIDES_STORAGE_KEY = "hts_wall_overrides_v1";
+const END_TILE_OVERRIDES_STORAGE_KEY = "hts_end_tile_overrides_v1";
 const UI_THEME_STORAGE_KEY = "hts_ui_theme_v1";
 const APPEARANCE_MODE_STORAGE_KEY = "hts_appearance_mode_v1";
 const LAST_LIGHT_UI_THEME_STORAGE_KEY = "hts_last_light_ui_theme_v1";
@@ -125,6 +127,15 @@ const BOSS_REFERENCE_MAGNET_TOP_RADIUS = 56;
 const BOSS_REFERENCE_MAGNET_TOP_X_TOLERANCE = 24;
 const DRAG_EDGE_AUTO_PAN_ZONE = 64;
 const DRAG_EDGE_AUTO_PAN_MAX_SPEED = 4.5;
+const AUTO_BUILD_MAX_ATTEMPTS = 600;
+const AUTO_BUILD_TOP_BUCKET_SIZE = 8;
+const AUTO_BUILD_TOP_BUCKET_SCORE_DELTA = 22;
+const AUTO_BUILD_LINE_EXTENSION_PENALTY = 28;
+const AUTO_BUILD_LOCAL_DENSITY_PENALTY = 16;
+const AUTO_BUILD_CANDIDATE_SOFT_LIMIT = 180;
+const AUTO_BUILD_CANDIDATE_HARD_LIMIT = 280;
+const AUTO_BUILD_NOVELTY_RETRY_LIMIT = 120;
+const AUTO_BUILD_HISTORY_LIMIT = 36;
 
 const board = document.getElementById("board");
 const tray = document.getElementById("tray");
@@ -161,6 +172,7 @@ const feedbackTilesCheckEl = document.getElementById("feedback-tiles-check");
 const feedbackBossCheckEl = document.getElementById("feedback-boss-check");
 const bossRandomBtn = document.getElementById("boss-random-btn");
 const modeIndicatorsEl = document.getElementById("mode-indicators");
+const autoBuildBtn = document.getElementById("auto-build-btn");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
@@ -195,6 +207,7 @@ const state = {
   showWallFaces: false,
   wallEditMode: false,
   wallOverrides: loadWallOverrides(),
+  endTileOverrides: loadEndTileOverrides(),
   wallEditorTileRefs: new Map(),
   wallEditorActiveTileSetId: null,
   wallEditorActiveTileId: null,
@@ -216,6 +229,7 @@ const state = {
   boardZoom: 1,
   leftDrawerCollapsed: false,
   rightDrawerCollapsed: false,
+  autoBuildHistoryBySet: {},
   readinessByTileSet: {},
   legacyMigrationStats: {
     themeIdLayoutMigrations: 0,
@@ -290,6 +304,7 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
       sideLength: faceGeometry.avgSideLength,
       apothem: faceGeometry.avgOffset,
       wallFaceSet: new Set(getStoredWallFaces(tileSetId, def.tileId)),
+      allowAsEndTile: getStoredAllowAsEndTile(tileSetId, def.tileId),
     });
   }
 }
@@ -621,6 +636,9 @@ async function applyTileSet(tileSetId, showStatus = true) {
 }
 
 function bindGlobalControls() {
+  if (autoBuildBtn) {
+    autoBuildBtn.addEventListener("click", () => autoBuildSelectedTiles());
+  }
   rerollBtn.addEventListener("click", () => rerollTrayTiles());
   if (resetTilesBtn) {
     resetTilesBtn.addEventListener("click", () => resetTiles());
@@ -1498,7 +1516,7 @@ function translateBoardContent(dx, dy) {
 }
 
 function updateBoardZoomIndicator() {
-  let badge = board.querySelector(".board-zoom-indicator");
+  let badge = workspace.querySelector(".board-zoom-indicator");
   if (!badge) {
     badge = document.createElement("button");
     badge.type = "button";
@@ -1506,23 +1524,13 @@ function updateBoardZoomIndicator() {
     badge.addEventListener("click", () => {
       resetBoardView();
     });
-    const zoomText = document.createElement("span");
-    zoomText.className = "zoom-text";
-    zoomText.textContent = "Zoom";
-    const zoomValue = document.createElement("span");
-    zoomValue.className = "zoom-value";
-    const zoomUnit = document.createElement("span");
-    zoomUnit.className = "zoom-unit";
-    zoomUnit.textContent = "%";
-    badge.appendChild(zoomText);
-    badge.appendChild(zoomValue);
-    badge.appendChild(zoomUnit);
-    board.appendChild(badge);
+    workspace.appendChild(badge);
   }
-  const valueEl = badge.querySelector(".zoom-value");
   const percent = Math.round(getBoardZoom() * 100);
-  if (valueEl) valueEl.textContent = String(percent);
+  badge.textContent = `Zoom ${percent}%`;
   badge.setAttribute("aria-label", `Reset zoom (${percent} percent)`);
+  // Force a paint flush so rapid zoom updates don't leave stale/missing glyphs.
+  void badge.offsetWidth;
 }
 
 function setWallEditMode(enabled) {
@@ -1748,6 +1756,414 @@ function rerollTrayTiles() {
   setStatus("Tray tiles rerolled. Grid placements kept.");
 }
 
+function autoBuildSelectedTiles() {
+  if (state.wallEditMode) {
+    setStatus("Auto build is unavailable in wall edit mode.", true);
+    return;
+  }
+
+  const entrance = state.tiles.get(ENTRANCE_TILE_ID);
+  if (!entrance) {
+    setStatus("Entrance tile is unavailable.", true);
+    return;
+  }
+  if (!entrance.placed) {
+    placeStartTileAtCenter();
+  }
+
+  const activeRegularTiles = Array.from(state.tiles.values()).filter(
+    (tile) => !isEntranceTile(tile) && tile.active,
+  );
+  if (!activeRegularTiles.length) {
+    setStatus("No selected tiles available for auto build.", true);
+    return;
+  }
+
+  const originalTileState = new Map(
+    activeRegularTiles.map((tile) => [
+      tile.tileId,
+      {
+        x: tile.x,
+        y: tile.y,
+        rotation: tile.rotation,
+        placed: tile.placed,
+      },
+    ]),
+  );
+  const autoBuildHistoryKey = getAutoBuildHistoryKey(activeRegularTiles);
+  const recentShapeHistory = getAutoBuildHistoryForKey(autoBuildHistoryKey);
+
+  const restoreOriginalState = () => {
+    for (const tile of activeRegularTiles) {
+      const snapshot = originalTileState.get(tile.tileId);
+      if (!snapshot) continue;
+      tile.rotation = snapshot.rotation;
+      tile.placed = snapshot.placed;
+      positionTile(tile, snapshot.x, snapshot.y);
+      updateTileParent(tile, snapshot.placed ? board : tile.traySlot);
+      updateTileTransform(tile);
+      setPlacementFeedback(tile, null);
+    }
+    selectTile(null);
+    updatePlacedProgress();
+  };
+
+  const sideDirCache = new Map();
+  const placementEvalCache = new Map();
+
+  const getWallFaceSignature = (tile) => {
+    if (!tile?.wallFaceSet || !tile.wallFaceSet.size) return "";
+    return [...tile.wallFaceSet].sort((a, b) => a - b).join(",");
+  };
+
+  const getSideDirectionsCached = (tile) => {
+    const key = `${tile.tileId}|${tile.rotation}|${getWallFaceSignature(tile)}`;
+    const cached = sideDirCache.get(key);
+    if (cached) return cached;
+    const dirs = getSideDirections(tile);
+    sideDirCache.set(key, dirs);
+    return dirs;
+  };
+
+  const roundForCache = (value) => Math.round(value * 10) / 10;
+  const buildPlacedSignature = (tiles) => tiles
+    .map((t) => `${t.tileId}@${t.rotation}:${roundForCache(t.x)},${roundForCache(t.y)}`)
+    .sort()
+    .join("|");
+
+  const evaluatePlacementAtCached = (
+    tile,
+    placedTiles,
+    x,
+    y,
+    options,
+    placedSignature,
+  ) => {
+    const enforceEnd = options?.enforceEndTileRule ? 1 : 0;
+    const key = `${placedSignature}|${tile.tileId}|${tile.rotation}|${roundForCache(x)},${roundForCache(y)}|e:${enforceEnd}`;
+    const cached = placementEvalCache.get(key);
+    if (cached) return cached;
+    const result = evaluatePlacementAt(tile, placedTiles, x, y, options);
+    placementEvalCache.set(key, result);
+    return result;
+  };
+
+  const getRotationOptions = () => shuffle(
+    Array.from({ length: 360 / ROTATION_STEP }, (_, idx) => idx * ROTATION_STEP),
+  );
+
+  const getPlacementCandidates = (tile, placedTiles, placedSignature) => {
+    const candidates = [];
+    const seen = new Set();
+    const anchors = shuffle([...placedTiles]);
+    const registerCandidate = (x, y) => {
+      if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) return;
+      const snapped = snapTileCenterToHex(tile, x, y);
+      const candidateX = clamp(snapped.x, 0, board.clientWidth);
+      const candidateY = clamp(snapped.y, 0, board.clientHeight);
+      const key = `${candidateX.toFixed(2)}:${candidateY.toFixed(2)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const placement = evaluatePlacementAtCached(
+        tile,
+        placedTiles,
+        candidateX,
+        candidateY,
+        { enforceEndTileRule: true },
+        placedSignature,
+      );
+      if (!placement.valid || placement.overlaps) return;
+      candidates.push({
+        x: candidateX,
+        y: candidateY,
+        count: placement.count,
+      });
+    };
+
+    // Primary pass: derive candidate targets from face pairing, then let computeBestSnap
+    // search nearby valid placements using existing app snap/contact logic.
+    const tileDirs = getSideDirectionsCached(tile);
+    const tileDirOrder = shuffle(Array.from({ length: tileDirs.length }, (_, idx) => idx));
+    primaryCandidateLoop:
+    for (const anchorTile of anchors) {
+      const anchorDirs = getSideDirectionsCached(anchorTile);
+      const anchorDirOrder = shuffle(Array.from({ length: anchorDirs.length }, (_, idx) => idx));
+      for (const tileDirIdx of tileDirOrder) {
+        if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) break primaryCandidateLoop;
+        const aDir = tileDirs[tileDirIdx];
+        for (const anchorDirIdx of anchorDirOrder) {
+          if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) break primaryCandidateLoop;
+          const bDir = anchorDirs[anchorDirIdx];
+          const dot = aDir.nx * bDir.nx + aDir.ny * bDir.ny;
+          if (dot > OPPOSITE_NORMAL_THRESHOLD) continue;
+          const rawX = anchorTile.x + bDir.nx * bDir.offset - aDir.nx * aDir.offset;
+          const rawY = anchorTile.y + bDir.ny * bDir.offset - aDir.ny * aDir.offset;
+          const snapped = computeBestSnap(
+            tile,
+            placedTiles,
+            rawX,
+            rawY,
+            Math.max(SNAP_SEARCH_RADIUS * 8, 224),
+            true,
+            {
+              enforceEndTileRule: true,
+              evalFn: (cx, cy) => evaluatePlacementAtCached(
+                tile,
+                placedTiles,
+                cx,
+                cy,
+                { enforceEndTileRule: true },
+                placedSignature,
+              ),
+            },
+          );
+          if (snapped) registerCandidate(snapped.x, snapped.y);
+          registerCandidate(rawX, rawY);
+        }
+      }
+    }
+
+    // Fallback pass: sample nearby hex rings around already placed tiles.
+    const layout = getBoardHexLayout();
+    if (candidates.length < AUTO_BUILD_CANDIDATE_SOFT_LIMIT) {
+      const ringDirs = [
+        { x: layout.dx, y: layout.dy / 2 },
+        { x: layout.dx, y: -layout.dy / 2 },
+        { x: 0, y: -layout.dy },
+        { x: -layout.dx, y: -layout.dy / 2 },
+        { x: -layout.dx, y: layout.dy / 2 },
+        { x: 0, y: layout.dy },
+      ];
+      const maxRingDepth = 7;
+      ringCandidateLoop:
+      for (const anchorTile of anchors) {
+        for (let depth = 1; depth <= maxRingDepth; depth += 1) {
+          if (candidates.length >= AUTO_BUILD_CANDIDATE_SOFT_LIMIT) break ringCandidateLoop;
+          for (let dirIdx = 0; dirIdx < ringDirs.length; dirIdx += 1) {
+            const dir = ringDirs[dirIdx];
+            const next = ringDirs[(dirIdx + 1) % ringDirs.length];
+            registerCandidate(anchorTile.x + dir.x * depth, anchorTile.y + dir.y * depth);
+            for (let t = 1; t < depth; t += 1) {
+              registerCandidate(
+                anchorTile.x + dir.x * (depth - t) + next.x * t,
+                anchorTile.y + dir.y * (depth - t) + next.y * t,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // Last-resort fallback: broad randomized probing near board center.
+    if (!candidates.length) {
+      const cx = board.clientWidth / 2;
+      const cy = board.clientHeight / 2;
+      for (let i = 0; i < 120; i += 1) {
+        const rx = cx + (Math.random() - 0.5) * board.clientWidth * 0.95;
+        const ry = cy + (Math.random() - 0.5) * board.clientHeight * 0.95;
+        registerCandidate(rx, ry);
+      }
+    }
+
+    const randomized = shuffle(candidates).slice(0, AUTO_BUILD_CANDIDATE_SOFT_LIMIT);
+    if (!randomized.length) return randomized;
+
+    let centroidX = 0;
+    let centroidY = 0;
+    let minPlacedX = Number.POSITIVE_INFINITY;
+    let maxPlacedX = Number.NEGATIVE_INFINITY;
+    let minPlacedY = Number.POSITIVE_INFINITY;
+    let maxPlacedY = Number.NEGATIVE_INFINITY;
+    for (const placed of placedTiles) {
+      centroidX += placed.x;
+      centroidY += placed.y;
+      if (placed.x < minPlacedX) minPlacedX = placed.x;
+      if (placed.x > maxPlacedX) maxPlacedX = placed.x;
+      if (placed.y < minPlacedY) minPlacedY = placed.y;
+      if (placed.y > maxPlacedY) maxPlacedY = placed.y;
+    }
+    centroidX /= placedTiles.length;
+    centroidY /= placedTiles.length;
+
+    let avgPlacedRadius = 0;
+    for (const placed of placedTiles) {
+      avgPlacedRadius += Math.hypot(placed.x - centroidX, placed.y - centroidY);
+    }
+    avgPlacedRadius = placedTiles.length ? (avgPlacedRadius / placedTiles.length) : 0;
+    const targetRadius = Math.max(layout.dx * 1.35, avgPlacedRadius + layout.dx * 0.7);
+    const targetMinRadius = Math.max(layout.dx * 0.95, targetRadius * 0.6);
+    const targetMaxRadius = targetRadius * 1.5;
+
+    const getRecentHeading = () => {
+      if (placedTiles.length < 3) return null;
+      const prev = placedTiles[placedTiles.length - 1];
+      const prevPrev = placedTiles[placedTiles.length - 2];
+      if (!prev || !prevPrev) return null;
+      const vx = prev.x - prevPrev.x;
+      const vy = prev.y - prevPrev.y;
+      const len = Math.hypot(vx, vy);
+      if (len < 1e-6) return null;
+      return { x: vx / len, y: vy / len };
+    };
+    const recentHeading = getRecentHeading();
+    const localDensityRadius = layout.dx * 1.6;
+
+    for (const candidate of randomized) {
+      const clearance = getCandidateClearanceMetrics(tile, placedTiles, candidate.x, candidate.y);
+      const distFromClusterCenter = Math.hypot(candidate.x - centroidX, candidate.y - centroidY);
+      const nextMinX = Math.min(minPlacedX, candidate.x);
+      const nextMaxX = Math.max(maxPlacedX, candidate.x);
+      const nextMinY = Math.min(minPlacedY, candidate.y);
+      const nextMaxY = Math.max(maxPlacedY, candidate.y);
+      const width = Math.max(1, nextMaxX - nextMinX);
+      const height = Math.max(1, nextMaxY - nextMinY);
+      const roundness = Math.min(width, height) / Math.max(width, height);
+      const radialPenalty = Math.abs(distFromClusterCenter - targetRadius);
+      const nearCenterPenalty = Math.max(0, targetMinRadius - distFromClusterCenter);
+      const farOutPenalty = Math.max(0, distFromClusterCenter - targetMaxRadius);
+      let lineExtensionPenalty = 0;
+      if (recentHeading && placedTiles.length >= 2) {
+        const lastPlaced = placedTiles[placedTiles.length - 1];
+        const dx = candidate.x - lastPlaced.x;
+        const dy = candidate.y - lastPlaced.y;
+        const dLen = Math.hypot(dx, dy);
+        if (dLen > 1e-6) {
+          const dirX = dx / dLen;
+          const dirY = dy / dLen;
+          const dot = dirX * recentHeading.x + dirY * recentHeading.y;
+          if (dot > 0.86) {
+            lineExtensionPenalty = (dot - 0.86) / (1 - 0.86) * AUTO_BUILD_LINE_EXTENSION_PENALTY;
+          }
+        }
+      }
+      let localNeighborCount = 0;
+      for (const placed of placedTiles) {
+        const d = Math.hypot(candidate.x - placed.x, candidate.y - placed.y);
+        if (d <= localDensityRadius) localNeighborCount += 1;
+      }
+      const localDensityPenalty = Math.max(0, localNeighborCount - 2) * AUTO_BUILD_LOCAL_DENSITY_PENALTY;
+
+      candidate.layoutScore =
+        roundness * 150
+        + candidate.count * 22
+        + clearance.minFaceDist * 0.55
+        + clearance.minCenterDist * 0.5
+        + clearance.avgCenterDist * 0.22
+        - radialPenalty * 0.35
+        - nearCenterPenalty * 1.15
+        - farOutPenalty * 0.7
+        - lineExtensionPenalty
+        - localDensityPenalty;
+    }
+
+    randomized.sort(
+      (a, b) => (b.layoutScore - a.layoutScore) || (b.count - a.count),
+    );
+    return randomized;
+  };
+
+  const tryBuildLayout = () => {
+    for (const tile of activeRegularTiles) {
+      clearInvalidReturnTimer(tile);
+      tile.placed = false;
+    }
+
+    const tileOrder = shuffle([...activeRegularTiles]);
+    const placedTiles = [entrance];
+
+    const placeAtIndex = (index) => {
+      if (index >= tileOrder.length) return true;
+      const tile = tileOrder[index];
+      const prevX = tile.x;
+      const prevY = tile.y;
+      const prevRotation = tile.rotation;
+      const prevPlaced = tile.placed;
+      const placedSignature = buildPlacedSignature(placedTiles);
+
+      for (const rotation of getRotationOptions()) {
+        tile.rotation = normalizeAngle(rotation);
+        const candidates = getPlacementCandidates(tile, placedTiles, placedSignature);
+        if (!candidates.length) continue;
+
+        const bestScore = candidates[0].layoutScore;
+        const scoreFloor = bestScore - AUTO_BUILD_TOP_BUCKET_SCORE_DELTA;
+        const topBucket = [];
+        const remainder = [];
+        for (let i = 0; i < candidates.length; i += 1) {
+          const candidate = candidates[i];
+          if (i < AUTO_BUILD_TOP_BUCKET_SIZE || candidate.layoutScore >= scoreFloor) {
+            topBucket.push(candidate);
+          } else {
+            remainder.push(candidate);
+          }
+        }
+        const orderedCandidates = [...shuffle(topBucket), ...remainder];
+
+        for (const candidate of orderedCandidates) {
+          positionTile(tile, candidate.x, candidate.y);
+          tile.placed = true;
+          placedTiles.push(tile);
+          if (placeAtIndex(index + 1)) return true;
+          placedTiles.pop();
+          tile.placed = false;
+        }
+      }
+
+      tile.rotation = prevRotation;
+      tile.placed = prevPlaced;
+      positionTile(tile, prevX, prevY);
+      return false;
+    };
+
+    return placeAtIndex(0);
+  };
+
+  let built = false;
+  let chosenSignature = "";
+  let noveltyRetryCount = 0;
+  for (let attempt = 0; attempt < AUTO_BUILD_MAX_ATTEMPTS; attempt += 1) {
+    if (tryBuildLayout()) {
+      const signature = getAutoBuildLayoutSignature(activeRegularTiles, entrance);
+      const isRecentShape = recentShapeHistory.includes(signature);
+      if (
+        isRecentShape
+        && noveltyRetryCount < AUTO_BUILD_NOVELTY_RETRY_LIMIT
+        && attempt < AUTO_BUILD_MAX_ATTEMPTS - 1
+      ) {
+        noveltyRetryCount += 1;
+        continue;
+      }
+      built = true;
+      chosenSignature = signature;
+      break;
+    }
+  }
+
+  if (!built) {
+    restoreOriginalState();
+    setStatus("Auto build could not find a valid full layout. Try rerolling tiles and run again.", true);
+    return;
+  }
+
+  for (const tile of activeRegularTiles) {
+    clearInvalidReturnTimer(tile);
+    updateTileParent(tile, board);
+    updateTileTransform(tile);
+    setPlacementFeedback(tile, null);
+  }
+
+  selectTile(null);
+  updatePlacedProgress();
+  if (chosenSignature) {
+    pushAutoBuildHistory(autoBuildHistoryKey, chosenSignature);
+  }
+  if (noveltyRetryCount > 0) {
+    setStatus(`Auto build complete: selected tiles placed with valid contact rules (${noveltyRetryCount} extra attempts for shape variety).`);
+  } else {
+    setStatus("Auto build complete: selected tiles placed with valid contact rules.");
+  }
+}
+
 function resetTiles() {
   if (state.wallEditMode) {
     startWallEditSession();
@@ -1819,6 +2235,8 @@ function renderBoardHexGrid() {
 
   svg.style.width = `${drawW}px`;
   svg.style.height = `${drawH}px`;
+  svg.style.transformOrigin = "0 0";
+  svg.style.transform = "none";
   svg.setAttribute("viewBox", `0 0 ${drawW} ${drawH}`);
   svg.replaceChildren();
 
@@ -1839,9 +2257,9 @@ function renderBoardHexGrid() {
   };
   const strokeColor = cssVars.getPropertyValue("--hex-stroke").trim() || "rgba(216, 198, 180, 0.45)";
   const borderRgb = parseRgbTripletVar("--hex-border-rgb", { r: 196, g: 206, b: 213 });
-  const centerX = drawW / 2;
-  const centerY = drawH / 2;
-  const maxDist = Math.hypot(centerX, centerY) || 1;
+  const centerScreenX = w / 2;
+  const centerScreenY = h / 2;
+  const maxDistScreen = Math.hypot(centerScreenX, centerScreenY) || 1;
   const darkestTargetHexes = isDarkTheme
     ? parseNumberVar("--hex-dark-target-hexes", 9)
     : 4;
@@ -1879,10 +2297,12 @@ function renderBoardHexGrid() {
       const y = yBase + panY;
       if (x < -layout.radius || x > drawW + layout.radius) continue;
       if (y < -layout.hexHeight || y > drawH + layout.hexHeight) continue;
-      const dist = Math.hypot(x - centerX, y - centerY);
+      const screenX = x * zoom;
+      const screenY = y * zoom;
+      const distScreen = Math.hypot(screenX - centerScreenX, screenY - centerScreenY);
       const t = isDarkTheme
-        ? clamp(dist / Math.max(1, darkestTargetDist), 0, 1)
-        : clamp(dist / maxDist, 0, 1);
+        ? clamp(distScreen / Math.max(1, darkestTargetDist * zoom), 0, 1)
+        : clamp(distScreen / maxDistScreen, 0, 1);
       // Keep full-hex "pixel" coloring while darkening cells toward edges.
       const mixExponent = isDarkTheme ? 0.8 : 1.25;
       const mix = isDarkTheme
@@ -2003,6 +2423,39 @@ function createTraySlotGuideElement() {
   return svg;
 }
 
+function createTraySlotElement() {
+  const slot = document.createElement("div");
+  slot.className = "tray-slot";
+  slot.appendChild(createTraySlotGuideElement());
+  return slot;
+}
+
+function getLiveTraySlotForTile(tile) {
+  if (tile?.traySlot && tile.traySlot.isConnected && tile.traySlot.parentElement === tray) {
+    return tile.traySlot;
+  }
+
+  const slots = Array.from(tray.querySelectorAll(".tray-slot"));
+  const emptySlot = slots.find((slot) => !slot.querySelector(".tile"));
+  if (emptySlot) {
+    tile.traySlot = emptySlot;
+    return emptySlot;
+  }
+
+  const newSlot = createTraySlotElement();
+  tray.appendChild(newSlot);
+  tile.traySlot = newSlot;
+  return newSlot;
+}
+
+function placeTileInTray(tile) {
+  const slot = getLiveTraySlotForTile(tile);
+  tile.placed = false;
+  updateTileParent(tile, slot);
+  positionTileAtTrayCenter(tile);
+  updateTileTransform(tile);
+}
+
 function renderActiveTiles() {
   for (const tile of state.tiles.values()) {
     if (!tile.active) continue;
@@ -2014,9 +2467,7 @@ function renderActiveTiles() {
       updateTileParent(tile, board);
       tile.placed = true;
     } else {
-      const slot = document.createElement("div");
-      slot.className = "tray-slot";
-      slot.appendChild(createTraySlotGuideElement());
+      const slot = createTraySlotElement();
       slot.appendChild(tileEl);
       tray.appendChild(slot);
       tile.traySlot = slot;
@@ -2039,11 +2490,12 @@ function rerenderTrayAndReserve() {
 
   const trayTiles = [];
   for (const tile of state.tiles.values()) {
-    if (tile.required || tile.placed) continue;
+    if (tile.required) continue;
+    tile.traySlot = null;
+    if (tile.placed) continue;
     tile.dom = null;
     tile.bodyDom = null;
     tile.guideDom = null;
-    tile.traySlot = null;
 
     if (!tile.active) continue;
     trayTiles.push(tile);
@@ -2051,9 +2503,7 @@ function rerenderTrayAndReserve() {
 
   const traySlotCount = 6;
   for (let i = 0; i < traySlotCount; i += 1) {
-    const slot = document.createElement("div");
-    slot.className = "tray-slot";
-    slot.appendChild(createTraySlotGuideElement());
+    const slot = createTraySlotElement();
     tray.appendChild(slot);
 
     const tile = trayTiles[i];
@@ -2947,6 +3397,7 @@ function beginBoardPan(event) {
 function createTileElement(tile) {
   const tileEl = document.createElement("div");
   tileEl.className = "tile";
+  if (isEntranceTile(tile)) tileEl.classList.add("tile-entrance");
   tileEl.dataset.tileId = tile.tileId;
 
   const body = document.createElement("div");
@@ -2998,6 +3449,12 @@ function createTileElement(tile) {
 
   tileEl.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    if (state.reserveEditMode && isTraySwapTarget(tile)) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleSwapClick("tray", tile.tileId);
+      return;
+    }
     const faceHit = event.target.closest(".tile-guide-face-hit");
     if (state.wallEditMode && faceHit) {
       event.preventDefault();
@@ -3050,10 +3507,6 @@ function createTileElement(tile) {
   });
 
   tileEl.addEventListener("click", () => {
-    if (state.reserveEditMode && isTraySwapTarget(tile)) {
-      handleSwapClick("tray", tile.tileId);
-      return;
-    }
     if (state.pendingSwapSource) return;
     selectTile(tile.tileId);
   });
@@ -3353,6 +3806,11 @@ function createTileGuideOverlay(tile) {
 }
 
 function getGuideFacePoints(tile) {
+  if (shouldUseTemplateGuidePoints(tile)) {
+    const templatePoints = getTemplateGuidePointsForTile(tile);
+    if (templatePoints?.length) return templatePoints;
+  }
+
   const points = tile.faceGeometry.points.map((p) => ({ ...p }));
   if (isEntranceTile(tile)) {
     const templateTile =
@@ -3443,6 +3901,27 @@ function getGuideFacePoints(tile) {
   }
 
   return applyNormalTileGuideAdjustments(points);
+}
+
+function shouldUseTemplateGuidePoints(tile) {
+  if (!tile || isEntranceTile(tile)) return false;
+  if (tile.tileSetId !== "overgrown") return false;
+  return ["tile_04", "tile_05", "tile_06", "tile_07", "tile_08", "tile_09"].includes(tile.tileId);
+}
+
+function getTemplateGuidePointsForTile(tile) {
+  const templateTileId = "tile_01";
+  const sameSetTile = state.tiles.get(templateTileId);
+  if (sameSetTile?.tileSetId === tile.tileSetId && sameSetTile.faceGeometry?.points?.length) {
+    return applyNormalTileGuideAdjustments(sameSetTile.faceGeometry.points.map((p) => ({ ...p })));
+  }
+
+  const editorRef = state.wallEditorTileRefs.get(`${tile.tileSetId}:${templateTileId}`);
+  if (editorRef?.tile?.faceGeometry?.points?.length) {
+    return applyNormalTileGuideAdjustments(editorRef.tile.faceGeometry.points.map((p) => ({ ...p })));
+  }
+
+  return null;
 }
 
 function applyNormalTileGuideAdjustments(points) {
@@ -3602,11 +4081,32 @@ function loadWallOverrides() {
   }
 }
 
+function loadEndTileOverrides() {
+  try {
+    const raw = localStorage.getItem(END_TILE_OVERRIDES_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return sanitizeEndTileOverrides(parsed);
+  } catch (error) {
+    console.warn("Could not load end-tile overrides from storage.", error);
+    return {};
+  }
+}
+
 function saveWallOverrides() {
   try {
     localStorage.setItem(WALL_OVERRIDES_STORAGE_KEY, JSON.stringify(state.wallOverrides));
   } catch (error) {
     console.warn("Could not save wall overrides to storage.", error);
+  }
+}
+
+function saveEndTileOverrides() {
+  try {
+    localStorage.setItem(END_TILE_OVERRIDES_STORAGE_KEY, JSON.stringify(state.endTileOverrides));
+  } catch (error) {
+    console.warn("Could not save end-tile overrides to storage.", error);
   }
 }
 
@@ -3617,12 +4117,20 @@ function getStoredWallFaces(tileSetId, tileId) {
   return arr.filter((n) => Number.isInteger(n) && n >= 0).sort((a, b) => a - b);
 }
 
+function getStoredAllowAsEndTile(tileSetId, tileId) {
+  const tileSetOverrides = state.endTileOverrides?.[tileSetId];
+  const value = tileSetOverrides?.[tileId];
+  if (typeof value === "boolean") return value;
+  return true;
+}
+
 function exportWallOverridesBackup() {
   try {
     const payload = {
       version: 1,
       exportedAt: new Date().toISOString(),
       wallOverrides: state.wallOverrides,
+      endTileOverrides: state.endTileOverrides,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -3647,8 +4155,12 @@ async function importWallOverridesBackup(file) {
     const parsed = JSON.parse(text);
     const raw = parsed?.wallOverrides ?? parsed;
     const sanitized = sanitizeWallOverrides(migrateLegacyWallOverrides(raw));
+    const endTileRaw = parsed?.endTileOverrides ?? {};
+    const endTileSanitized = sanitizeEndTileOverrides(endTileRaw);
     state.wallOverrides = sanitized;
+    state.endTileOverrides = endTileSanitized;
     saveWallOverrides();
+    saveEndTileOverrides();
     syncSelectedTileSetWallsFromOverrides();
     if (state.wallEditMode) {
       await renderWallEditorPage();
@@ -3686,6 +4198,24 @@ function sanitizeWallOverrides(input) {
   return clean;
 }
 
+function sanitizeEndTileOverrides(input) {
+  if (!input || typeof input !== "object") return {};
+  const clean = {};
+  for (const tileSet of TILE_SET_REGISTRY) {
+    const tileSetValue = input[tileSet.id];
+    if (!tileSetValue || typeof tileSetValue !== "object") continue;
+    const tileSetOut = {};
+    const defs = buildTileDefs(tileSet.id);
+    for (const def of defs) {
+      const value = tileSetValue[def.tileId];
+      if (typeof value !== "boolean") continue;
+      tileSetOut[def.tileId] = value;
+    }
+    if (Object.keys(tileSetOut).length) clean[tileSet.id] = tileSetOut;
+  }
+  return clean;
+}
+
 function persistTileWallFaces(tileSetId, tileId, faceSet) {
   if (!state.wallOverrides[tileSetId]) state.wallOverrides[tileSetId] = {};
   const sorted = Array.from(faceSet).sort((a, b) => a - b);
@@ -3698,6 +4228,17 @@ function persistTileWallFaces(tileSetId, tileId, faceSet) {
       activeTile.wallFaceSet = new Set(sorted);
       refreshTileWallGuide(activeTile);
     }
+  }
+}
+
+function persistAllowAsEndTile(tileSetId, tileId, allowed) {
+  if (!state.endTileOverrides[tileSetId]) state.endTileOverrides[tileSetId] = {};
+  state.endTileOverrides[tileSetId][tileId] = Boolean(allowed);
+  saveEndTileOverrides();
+
+  if (tileSetId === state.selectedTileSetId) {
+    const activeTile = state.tiles.get(tileId);
+    if (activeTile) activeTile.allowAsEndTile = Boolean(allowed);
   }
 }
 
@@ -3722,7 +4263,7 @@ async function renderWallEditorPage() {
   wallEditorPage.innerHTML = "";
   const intro = document.createElement("div");
   intro.className = "wall-editor-intro";
-  intro.textContent = "Wall Editor: click face segments to toggle wall ON/OFF. Saved per tile set + tile.";
+  intro.textContent = "Wall Editor: click face segments to toggle wall ON/OFF. Use End Tile toggle to allow/disallow endpoint placement. Saved per tile set + tile.";
   wallEditorPage.appendChild(intro);
 
   const trays = document.createElement("div");
@@ -3761,6 +4302,7 @@ async function buildWallEditorTileSetPanel(tileSet) {
         img,
         faceGeometry,
         wallFaceSet: new Set(getStoredWallFaces(tileSet.id, def.tileId)),
+        allowAsEndTile: getStoredAllowAsEndTile(tileSet.id, def.tileId),
       };
       const tileEl = createWallEditorTileElement(tileSet.id, tile);
       tray.appendChild(tileEl);
@@ -3806,6 +4348,33 @@ function createWallEditorTileElement(tileSetId, tile) {
   tile.guideDom = guideOverlay;
   tileEl.appendChild(body);
 
+  const endToggle = document.createElement("button");
+  endToggle.type = "button";
+  endToggle.className = "wall-end-tile-toggle";
+  const syncEndToggle = () => {
+    const allowed = Boolean(tile.allowAsEndTile);
+    endToggle.classList.toggle("is-on", allowed);
+    endToggle.setAttribute("aria-pressed", String(allowed));
+    endToggle.textContent = allowed ? "End Tile: ON" : "End Tile: OFF";
+  };
+  endToggle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  endToggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    assignActive();
+    tile.allowAsEndTile = !tile.allowAsEndTile;
+    persistAllowAsEndTile(tileSetId, tile.tileId, tile.allowAsEndTile);
+    syncEndToggle();
+    setStatus(
+      `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} end-tile allowance: ${tile.allowAsEndTile ? "ON" : "OFF"}.`,
+    );
+  });
+  syncEndToggle();
+  tileEl.appendChild(endToggle);
+
   const assignActive = () => setActiveWallEditorTile(tileSetId, tile.tileId);
   tileEl.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
@@ -3845,6 +4414,7 @@ function setActiveWallEditorTile(tileSetId, tileId) {
 function syncSelectedTileSetWallsFromOverrides() {
   for (const tile of state.tiles.values()) {
     tile.wallFaceSet = new Set(getStoredWallFaces(state.selectedTileSetId, tile.tileId));
+    tile.allowAsEndTile = getStoredAllowAsEndTile(state.selectedTileSetId, tile.tileId);
     refreshTileWallGuide(tile);
   }
 }
@@ -4005,10 +4575,13 @@ function beginDrag(tile, event) {
 
     if (!tile.drag.moved) {
       setPlacementFeedback(tile, null);
-      if (!tile.drag.startedFromBoard) {
-        tile.placed = false;
-        positionTileAtTrayCenter(tile);
-        updateTileParent(tile, tile.traySlot);
+    if (!tile.drag.startedFromBoard) {
+        placeTileInTray(tile);
+      } else {
+        // Click-without-drag on a board tile should restore it to board space.
+        tile.placed = tile.drag.previousPlaced;
+        updateTileParent(tile, board);
+        positionTile(tile, tile.drag.previousX, tile.drag.previousY);
         updateTileTransform(tile);
       }
       tile.drag = null;
@@ -4020,10 +4593,7 @@ function beginDrag(tile, event) {
       const isInsideBoard = isPointOverBoardSurface(upEvent.clientX, upEvent.clientY, boardRect);
 
       if (!isInsideBoard && (droppedInsideLeftDrawer || !tile.drag.startedFromBoard)) {
-        tile.placed = false;
-        positionTileAtTrayCenter(tile);
-        updateTileParent(tile, tile.traySlot);
-        updateTileTransform(tile);
+        placeTileInTray(tile);
         setPlacementFeedback(tile, null);
         updatePlacedProgress();
         tile.drag = null;
@@ -4093,7 +4663,7 @@ function finishDrop(tile) {
   let result = findBestContact(tile, placedTiles);
   if (!result.valid) {
     if (!state.ignoreContactRule) {
-      handleInvalidDrop(tile, placedTiles);
+      handleInvalidDrop(tile, placedTiles, `Invalid placement: ${getInvalidContactReason(result)} Returning to tray in 10s.`);
       return;
     }
   }
@@ -4169,17 +4739,15 @@ function rotateTile(tile, delta) {
     const placedTiles = getPlacedTiles().filter((t) => t.tileId !== tile.tileId);
     const result = findBestContact(tile, placedTiles);
     if (!result.valid) {
-      setStatus(
-        `Rotation broke contact for ${getTileDisplayLabel(tile.tileId)}. Need at least ${MIN_CONTACT_POINTS} points.`,
-        true,
-      );
+      setStatus(`Rotation broke placement for ${getTileDisplayLabel(tile.tileId)}. ${getInvalidContactReason(result)}`, true);
     } else {
       setStatus(`${getTileDisplayLabel(tile.tileId)} rotated to ${tile.rotation}°. Contact points: ${result.count}.`);
     }
   }
 }
 
-function findBestContact(tile, otherTiles) {
+function findBestContact(tile, otherTiles, options = {}) {
+  const enforceEndTileRule = Boolean(options?.enforceEndTileRule);
   let best = { count: 0, other: null, match: null };
   const matchedTileFaceIdx = new Set();
 
@@ -4198,14 +4766,30 @@ function findBestContact(tile, otherTiles) {
   }
 
   const touchesBlockedAB = isTouchingMoltenEntranceBlockedPoints(tile);
-  const totalCount = matchedTileFaceIdx.size * 2;
+  const connectedFaceCount = matchedTileFaceIdx.size;
+  const totalCount = connectedFaceCount * 2;
+  const isEndTileCandidate = connectedFaceCount > 0 && connectedFaceCount <= END_TILE_MAX_CONNECTED_FACES;
+  const endTileDisallowed = enforceEndTileRule && isEndTileCandidate && !Boolean(tile.allowAsEndTile);
   return {
-    valid: totalCount >= MIN_CONTACT_POINTS && !touchesBlockedAB,
+    valid: totalCount >= MIN_CONTACT_POINTS && !touchesBlockedAB && !endTileDisallowed,
     count: totalCount,
     other: best.other,
     match: best.match,
     faceIndices: Array.from(matchedTileFaceIdx),
+    connectedFaceCount,
+    isEndTileCandidate,
+    endTileDisallowed,
+    hasWeakConnectedNeighbor: false,
+    hasLinkedFaceException: false,
+    touchesBlockedAB,
   };
+}
+
+function getInvalidContactReason(result) {
+  if (result?.endTileDisallowed) {
+    return "This tile is an end tile (3 connected faces) but is not marked as allowed for end placement in Wall Editor.";
+  }
+  return "Need at least 2 connected faces total (4 points).";
 }
 
 function countSideContacts(a, b) {
@@ -4361,9 +4945,13 @@ function computeBestSnap(
   targetY,
   maxDelta = SNAP_SEARCH_RADIUS,
   requireNoOverlap = true,
+  options = {},
 ) {
   let best = null;
   const aDirs = getSideDirections(tile);
+  const evalPlacement = typeof options?.evalFn === "function"
+    ? options.evalFn
+    : (cx, cy) => evaluatePlacementAt(tile, otherTiles, cx, cy, options);
 
   for (const other of otherTiles) {
     const bDirs = getSideDirections(other);
@@ -4388,7 +4976,7 @@ function computeBestSnap(
 
         if (delta > maxDelta) continue;
 
-        const evalResult = evaluatePlacementAt(tile, otherTiles, cx, cy);
+        const evalResult = evalPlacement(cx, cy);
         if (!evalResult.valid) continue;
         if (requireNoOverlap && evalResult.overlaps) continue;
 
@@ -4408,11 +4996,11 @@ function computeBestSnap(
   return best;
 }
 
-function evaluatePlacementAt(tile, otherTiles, x, y) {
+function evaluatePlacementAt(tile, otherTiles, x, y, options = {}) {
   const oldX = tile.x;
   const oldY = tile.y;
   positionTile(tile, x, y);
-  const contact = findBestContact(tile, otherTiles);
+  const contact = findBestContact(tile, otherTiles, options);
   const touchingFaceIndices = getTouchingFaceIndices(tile, otherTiles);
   const overlaps = hasAnyOverlap(tile, otherTiles);
   positionTile(tile, oldX, oldY);
@@ -4611,11 +5199,8 @@ function getPlacedTiles() {
 
 function revertToTray(tile, message, warn = false) {
   clearInvalidReturnTimer(tile);
-  tile.placed = false;
   tile.rotation = 0;
-  positionTileAtTrayCenter(tile);
-  updateTileParent(tile, tile.traySlot);
-  updateTileTransform(tile);
+  placeTileInTray(tile);
   selectTile(null);
   setPlacementFeedback(tile, null);
   setStatus(message, warn);
@@ -4637,7 +5222,7 @@ function handleInvalidDrop(tile, placedTiles, message = null, force = false) {
   selectTile(null);
   setPlacementFeedback(tile, false);
   setStatus(
-    message ?? `Invalid placement: this tile needs at least ${MIN_CONTACT_POINTS} point contacts. Returning to tray in 10s.`,
+    message ?? "Invalid placement: this tile needs at least 2 connected faces total (4 points). Returning to tray in 10s.",
     true,
   );
 
@@ -4645,9 +5230,7 @@ function handleInvalidDrop(tile, placedTiles, message = null, force = false) {
     tile.invalidReturnTimer = null;
     if (tile.placed) return;
     tile.rotation = 0;
-    positionTileAtTrayCenter(tile);
-    updateTileParent(tile, tile.traySlot);
-    updateTileTransform(tile);
+    placeTileInTray(tile);
     selectTile(null);
     setPlacementFeedback(tile, null);
     setStatus(`${getTileDisplayLabel(tile.tileId)} returned to tray after invalid placement.`, true);
@@ -4871,7 +5454,8 @@ function updateTileTransform(tile) {
     }
   }
   const translateX = `calc(-50% + ${trayNudgeX}px)`;
-  const translateY = `calc(-50% + ${trayNudgeY}px)`;
+  const entranceVisualOffsetY = isEntranceTile(tile) ? 1 : 0;
+  const translateY = `calc(-50% + ${trayNudgeY + entranceVisualOffsetY}px)`;
   tile.dom.style.left = `${tile.x}px`;
   tile.dom.style.top = `${tile.y}px`;
   tile.dom.style.transformOrigin = "50% 50%";
@@ -4940,6 +5524,68 @@ function getOpaqueBounds(image) {
     maxY,
     radius: Math.max(radius, TILE_SIZE * 0.3),
   };
+}
+
+function getAutoBuildHistoryKey(activeRegularTiles) {
+  const ids = (activeRegularTiles || [])
+    .map((tile) => tile.tileId)
+    .sort();
+  return `${state.selectedTileSetId}|${ids.join(",")}`;
+}
+
+function getAutoBuildHistoryForKey(key) {
+  const arr = state.autoBuildHistoryBySet?.[key];
+  return Array.isArray(arr) ? arr : [];
+}
+
+function pushAutoBuildHistory(key, signature) {
+  if (!key || !signature) return;
+  if (!state.autoBuildHistoryBySet[key]) state.autoBuildHistoryBySet[key] = [];
+  const list = state.autoBuildHistoryBySet[key];
+  const existingIdx = list.indexOf(signature);
+  if (existingIdx >= 0) list.splice(existingIdx, 1);
+  list.push(signature);
+  if (list.length > AUTO_BUILD_HISTORY_LIMIT) {
+    list.splice(0, list.length - AUTO_BUILD_HISTORY_LIMIT);
+  }
+}
+
+function getAutoBuildLayoutSignature(regularTiles, entranceTile) {
+  const tiles = Array.isArray(regularTiles) ? regularTiles : [];
+  if (!tiles.length) return "";
+
+  const round = (n) => Math.round(n * 10) / 10;
+  const allTiles = entranceTile ? [entranceTile, ...tiles] : [...tiles];
+  const pairwiseDistances = [];
+  for (let i = 0; i < tiles.length; i += 1) {
+    for (let j = i + 1; j < tiles.length; j += 1) {
+      pairwiseDistances.push(round(Math.hypot(tiles[i].x - tiles[j].x, tiles[i].y - tiles[j].y)));
+    }
+  }
+  pairwiseDistances.sort((a, b) => a - b);
+
+  const entranceDistances = entranceTile
+    ? tiles
+      .map((tile) => round(Math.hypot(tile.x - entranceTile.x, tile.y - entranceTile.y)))
+      .sort((a, b) => a - b)
+    : [];
+
+  const degreeByTile = [];
+  for (const tile of tiles) {
+    let degree = 0;
+    for (const other of allTiles) {
+      if (other === tile) continue;
+      if (countSideContacts(tile, other) > 0) degree += 1;
+    }
+    degreeByTile.push(degree);
+  }
+  degreeByTile.sort((a, b) => a - b);
+
+  return [
+    `pd:${pairwiseDistances.join(".")}`,
+    `ed:${entranceDistances.join(".")}`,
+    `deg:${degreeByTile.join(".")}`,
+  ].join("|");
 }
 
 function getAlphaMask(image) {
@@ -5200,26 +5846,37 @@ function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect
     setPlacementFeedback(tile, null);
     return;
   }
-  const faceIndices = result.valid ? result.faceIndices : result.touchingFaceIndices;
-  setPlacementFeedback(tile, result.valid, faceIndices);
+  const validFaceIndices = (result.faceIndices || []).filter((v) => Number.isInteger(v));
+  const validSet = new Set(validFaceIndices);
+  const invalidFaceIndices = (result.touchingFaceIndices || []).filter(
+    (v) => Number.isInteger(v) && !validSet.has(v),
+  );
+  if (result.valid) {
+    setPlacementFeedback(tile, true, validFaceIndices, invalidFaceIndices);
+    return;
+  }
+  setPlacementFeedback(tile, false, [], result.touchingFaceIndices || []);
 }
 
-function setPlacementFeedback(tile, isValid, faceIndices = []) {
+function setPlacementFeedback(tile, isValid, validFaceIndices = [], invalidFaceIndices = []) {
   if (!tile.dom) return;
   tile.dom.classList.remove("valid-placement", "invalid-placement");
   if (isValid === true) tile.dom.classList.add("valid-placement");
   if (isValid === false) tile.dom.classList.add("invalid-placement");
-  refreshPlacementGuideDom(tile.guideDom, isValid, faceIndices);
+  refreshPlacementGuideDom(tile.guideDom, isValid, validFaceIndices, invalidFaceIndices);
 }
 
-function refreshPlacementGuideDom(guideDom, isValid, faceIndices) {
+function refreshPlacementGuideDom(guideDom, isValid, validFaceIndices, invalidFaceIndices = []) {
   if (!guideDom) return;
   const lines = guideDom.querySelectorAll(".tile-guide-contact-seg");
-  const active = new Set((faceIndices || []).filter((v) => Number.isInteger(v)));
+  const valid = new Set((validFaceIndices || []).filter((v) => Number.isInteger(v)));
+  const invalid = new Set((invalidFaceIndices || []).filter((v) => Number.isInteger(v)));
   lines.forEach((line) => {
     const idx = Number.parseInt(line.dataset.faceIndex || "", 10);
-    line.classList.toggle("is-contact", Number.isInteger(idx) && active.has(idx));
+    const hasIdx = Number.isInteger(idx);
+    line.classList.toggle("is-contact-valid", hasIdx && valid.has(idx));
+    line.classList.toggle("is-contact-invalid", hasIdx && invalid.has(idx));
   });
-  guideDom.classList.toggle("contact-valid", isValid === true);
-  guideDom.classList.toggle("contact-invalid", isValid === false);
+  guideDom.classList.toggle("contact-valid", false);
+  guideDom.classList.toggle("contact-invalid", false);
 }

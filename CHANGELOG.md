@@ -1,6 +1,16 @@
 # Changelog
 
 ## 2026-04-03
+- Fixed zoom-indicator rendering and styling behavior: moved `Zoom xx%` out of the board render layer into the workspace overlay to prevent sub-100% disappearance during zoom; refined placement offset relative to the right drawer; removed box/background chrome and made text size/weight/opacity reliably controllable via dedicated zoom styles.
+- Fixed board tile return-to-tray invisibility after reroll: replaced stale tray-slot assumptions with live-slot resolution (`createTraySlotElement`, `getLiveTraySlotForTile`, `placeTileInTray`) so tray drops always attach to connected DOM slots.
+- Added endpoint tile eligibility controls in wall editor (`End Tile: ON/OFF`) with per-tile-set persistence, and scoped endpoint enforcement to auto-build only (manual placement/rotation remains unrestricted by endpoint eligibility as requested).
+- Updated placement validation rules to require at least 2 connected faces total (4 points) regardless of per-neighbor face split, and removed prior per-neighbor/linked-run constraint path.
+- Improved auto-build performance with cached placement evaluations, cached side-direction geometry, adaptive candidate caps, and cached snap evaluation callback integration; retained existing legality checks and recursive/backtracking structure.
+- Added auto-build layout variety filtering to reduce repeated mirrored/rotated-equivalent results by tracking recent shape signatures per tile-set + selected-tile combination and retrying within bounded novelty limits.
+- Fixed selected-tiles auto-build dice action regression caused by candidate-generation layout scope bug.
+- Corrected Overgrown guide-point outliers by template-aligning specified non-entrance tiles (`tile_04`–`tile_09` subset currently flagged) to shared adjusted guide geometry.
+- Improved reserve edit swap UX so swap source can be armed reliably from either side (tray tile or reserve tile) by handling tray swap selection on `pointerdown` before drag initiation.
+- Enhanced face-feedback mode to show valid and invalid touching faces simultaneously (green + red together) instead of forcing either/or highlighting.
 - Added `icons/dice.png` to version control so newly introduced dice icon UI (selected-tiles row + boss random button) resolves correctly from tracked project assets.
 - Removed legacy Dreamscape/Nightmare UI theme naming leftovers and aliases across CSS/JS/HTML, standardizing active theme IDs to the clean set (`dreamscape`, `dreamscape_dark`, `nightmare`, `nightmare_dark`) and simplifying paired light/dark resolution to the default `<name>` / `<name>_dark` behavior.
 - Refined drawer action/header UI placement: moved `Reroll Tiles` into the `Selected Tiles` row, matched icon sizing/opacity with drawer controls, adjusted alignment offsets, and positioned `Placed X / 6 tiles` as a tray-adjacent overlay without changing tray tile flow.
@@ -12,6 +22,7 @@
 - Removed legacy UI-theme migration handling tied to old saved theme state so theme preference code matches the current storage model and active theme set.
 - Session note: Spent more time untangling theme aliases than picking actual colors.
 - Session note: Replaced one boss with another so many times the dice now feels like a deployment strategy.
+- Session note: Promised myself “one quick tweak” and accidentally adopted six new edge cases.
 
 ## 2026-04-02
 - Updated board reset/start framing so horizontal centering is anchored to the Entrance Tile, fixing the persistent right-offset seen on initial load and `Zoom xx%` reset.
