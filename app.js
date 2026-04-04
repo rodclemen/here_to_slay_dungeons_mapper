@@ -1,12 +1,14 @@
 const SIDES = 16;
 const ROTATION_STEP = 60;
-const TILE_SIZE = 170;
+const BOARD_SCALE = 1.15;
+const TILE_SIZE = 170 * BOARD_SCALE;
 const CONTACT_DISTANCE_RATIO = 0.55;
 const OPPOSITE_NORMAL_THRESHOLD = -0.88;
 const FACE_TANGENT_ALIGNMENT = 0.85;
-const SNAP_SEARCH_RADIUS = 28;
+const SNAP_SEARCH_RADIUS = 28 * BOARD_SCALE;
 const SNAP_VISUAL_GAP = 0;
 const SNAP_POINT_GAP = 0;
+const SNAP_COORD_QUANTUM = 0.5;
 const MIN_CONTACT_POINTS = 4;
 const END_TILE_MAX_CONNECTED_FACES = 3;
 const INVALID_RETURN_DELAY_MS = 10_000;
@@ -112,19 +114,24 @@ const TILE_SET_REGISTRY = [
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
-    bossIds: [],
+    bossIds: ["dracos", "tundratuga"],
   },
 ];
 const DEFAULT_WALL_FACE_DATA = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
-const BOSS_REFERENCE_MAGNET_GAP = 8;
-const BOSS_REFERENCE_MAGNET_RADIUS = 72;
-const BOSS_REFERENCE_MAGNET_TOP_GAP = -62;
-const BOSS_REFERENCE_MAGNET_SIDE_RADIUS = 44;
-const BOSS_REFERENCE_MAGNET_SIDE_Y_TOLERANCE = 24;
-const BOSS_REFERENCE_MAGNET_TOP_RADIUS = 56;
-const BOSS_REFERENCE_MAGNET_TOP_X_TOLERANCE = 24;
+const START_TILE_DEFAULT_Y_OFFSET = 232;
+const BOSS_REFERENCE_MAGNET_GAP = 15 * BOARD_SCALE;
+const BOSS_REFERENCE_MAGNET_RADIUS = 72 * BOARD_SCALE;
+const BOSS_REFERENCE_MAGNET_TOP_GAP = -56 * BOARD_SCALE;
+const BOSS_REFERENCE_MAGNET_SIDE_RADIUS = 44 * BOARD_SCALE;
+const BOSS_REFERENCE_MAGNET_SIDE_Y_TOLERANCE = 24 * BOARD_SCALE;
+const BOSS_REFERENCE_MAGNET_TOP_RADIUS = 56 * BOARD_SCALE;
+const BOSS_REFERENCE_MAGNET_TOP_X_TOLERANCE = 24 * BOARD_SCALE;
+const BOSS_SHUFFLE_PREVIEW_MS = 0;
+const BOSS_PILE_CYCLE_ANIMATION_MS = 320;
+const DICE_SPIN_DURATION_MS = 460;
+const RESET_SPIN_DURATION_MS = 460;
 const DRAG_EDGE_AUTO_PAN_ZONE = 64;
 const DRAG_EDGE_AUTO_PAN_MAX_SPEED = 4.5;
 const AUTO_BUILD_MAX_ATTEMPTS = 600;
@@ -136,6 +143,12 @@ const AUTO_BUILD_CANDIDATE_SOFT_LIMIT = 180;
 const AUTO_BUILD_CANDIDATE_HARD_LIMIT = 280;
 const AUTO_BUILD_NOVELTY_RETRY_LIMIT = 120;
 const AUTO_BUILD_HISTORY_LIMIT = 36;
+const HEX_FRONT_LIGHT_BONUS_HEXES = 2.5;
+const HEX_BACK_LIGHT_REDUCTION_HEXES = 1.1;
+const HEX_BACK_DARKEN_BIAS = 0.14;
+const DEFAULT_BOARD_ZOOM = 1;
+const BOARD_ITEM_SCALE = 1;
+document.documentElement.style.setProperty("--tile-size", `${TILE_SIZE}px`);
 
 const board = document.getElementById("board");
 const tray = document.getElementById("tray");
@@ -174,6 +187,7 @@ const bossRandomBtn = document.getElementById("boss-random-btn");
 const modeIndicatorsEl = document.getElementById("mode-indicators");
 const autoBuildBtn = document.getElementById("auto-build-btn");
 const rerollBtn = document.getElementById("reroll-btn");
+const resetAllBtn = document.getElementById("reset-all-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
 const toggleWallEditBtn = document.getElementById("toggle-wall-edit-btn");
@@ -192,6 +206,7 @@ dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
 let boardHexRenderRaf = 0;
 let leftDrawerClosingTimer = null;
+const diceSpinTimers = new WeakMap();
 
 const state = {
   tiles: new Map(),
@@ -226,11 +241,13 @@ const state = {
   buildViewSnapshot: null,
   referenceTileSrc: "",
   referenceMarker: null,
-  boardZoom: 1,
+  boardZoom: DEFAULT_BOARD_ZOOM,
   leftDrawerCollapsed: false,
   rightDrawerCollapsed: false,
   autoBuildHistoryBySet: {},
   readinessByTileSet: {},
+  entranceFadeAnchor: null,
+  bossPileCycleInProgress: false,
   legacyMigrationStats: {
     themeIdLayoutMigrations: 0,
     tileIdMigrations: 0,
@@ -395,6 +412,16 @@ function buildTileDefs(tileSetId) {
 
 function isEntranceTile(tile) {
   return Boolean(tile && tile.tileId === ENTRANCE_TILE_ID);
+}
+
+function isMoltenRegularTile(tile) {
+  if (!tile || isEntranceTile(tile)) return false;
+  if (tile.tileSetId !== "molten") return false;
+  return /^tile_\d{2}$/.test(tile.tileId);
+}
+
+function isMoltenEntranceTile(tile) {
+  return Boolean(tile && tile.tileSetId === "molten" && isEntranceTile(tile));
 }
 
 function getTileDisplayLabel(tileId) {
@@ -615,6 +642,13 @@ async function applyTileSet(tileSetId, showStatus = true) {
     state.referenceTileSrc = getReferenceTileSrc(nextTileSet.id);
     await loadTiles(nextTileSet.id);
     startRound();
+    const linkedLightThemeId = sanitizeLightUiThemeId(nextTileSet.id);
+    const linkedDarkThemeId = sanitizeDarkUiThemeId(`${linkedLightThemeId}_dark`);
+    state.lastLightUiThemeId = linkedLightThemeId;
+    state.lastDarkUiThemeId = linkedDarkThemeId;
+    saveLastLightUiThemeId(linkedLightThemeId);
+    saveLastDarkUiThemeId(linkedDarkThemeId);
+    applyAppearanceMode(state.selectedAppearanceMode, { showStatus: false, save: true });
     if (showStatus) setStatus(`Tile Set: ${nextTileSet.label}.`);
   } catch (error) {
     console.error(error);
@@ -637,9 +671,22 @@ async function applyTileSet(tileSetId, showStatus = true) {
 
 function bindGlobalControls() {
   if (autoBuildBtn) {
-    autoBuildBtn.addEventListener("click", () => autoBuildSelectedTiles());
+    autoBuildBtn.addEventListener("click", () => {
+      triggerDiceSpin(autoBuildBtn);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          autoBuildSelectedTiles();
+        });
+      });
+    });
   }
   rerollBtn.addEventListener("click", () => rerollTrayTiles());
+  if (resetAllBtn) {
+    resetAllBtn.addEventListener("click", () => {
+      triggerResetSpin(resetAllBtn);
+      resetTilesAndBossCards();
+    });
+  }
   if (resetTilesBtn) {
     resetTilesBtn.addEventListener("click", () => resetTiles());
   }
@@ -888,6 +935,7 @@ function bindGlobalControls() {
   }
   if (bossRandomBtn) {
     bossRandomBtn.addEventListener("click", () => {
+      triggerDiceSpin(bossRandomBtn);
       spawnRandomBossAtReferenceTopMagnet();
     });
   }
@@ -899,14 +947,40 @@ function bindGlobalControls() {
         || event.target.tagName === "SELECT"
         || event.target.isContentEditable);
     if (
-      !isTypingTarget
-      && !event.metaKey
-      && !event.ctrlKey
-      && !event.altKey
-      && event.key.toLowerCase() === "f"
+      isTypingTarget
+      || event.metaKey
+      || event.ctrlKey
+      || event.altKey
     ) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+
+    if (key === "d") {
       event.preventDefault();
       toggleBothDrawers();
+      return;
+    }
+
+    if (key === "r") {
+      event.preventDefault();
+      if (autoBuildBtn) triggerDiceSpin(autoBuildBtn);
+      autoBuildSelectedTiles();
+      return;
+    }
+
+    if (key === "x") {
+      event.preventDefault();
+      if (resetAllBtn) triggerResetSpin(resetAllBtn);
+      resetTilesAndBossCards();
+      return;
+    }
+
+    if (key === "b") {
+      event.preventDefault();
+      if (bossRandomBtn) triggerDiceSpin(bossRandomBtn);
+      spawnRandomBossAtReferenceTopMagnet();
       return;
     }
 
@@ -916,11 +990,11 @@ function bindGlobalControls() {
     const tile = state.tiles.get(activeTileId);
     if (!tile) return;
 
-    if (event.key.toLowerCase() === "r") {
+    if (key === "e") {
       rotateTile(tile, ROTATION_STEP);
     }
 
-    if (event.key.toLowerCase() === "f") {
+    if (key === "w") {
       rotateTile(tile, -ROTATION_STEP);
     }
   });
@@ -970,6 +1044,40 @@ function bindGlobalControls() {
     applyAppearanceMode("system", { showStatus: false, save: false });
   });
 
+}
+
+function triggerDiceSpin(buttonEl) {
+  if (!buttonEl || !buttonEl.classList?.contains("icon-dice-btn")) return;
+  const existingTimer = diceSpinTimers.get(buttonEl);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    diceSpinTimers.delete(buttonEl);
+  }
+  buttonEl.classList.remove("is-spinning");
+  void buttonEl.offsetWidth;
+  buttonEl.classList.add("is-spinning");
+  const timer = window.setTimeout(() => {
+    buttonEl.classList.remove("is-spinning");
+    diceSpinTimers.delete(buttonEl);
+  }, DICE_SPIN_DURATION_MS);
+  diceSpinTimers.set(buttonEl, timer);
+}
+
+function triggerResetSpin(buttonEl) {
+  if (!buttonEl || !buttonEl.classList?.contains("icon-reset-btn")) return;
+  const existingTimer = diceSpinTimers.get(buttonEl);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    diceSpinTimers.delete(buttonEl);
+  }
+  buttonEl.classList.remove("is-spinning");
+  void buttonEl.offsetWidth;
+  buttonEl.classList.add("is-spinning");
+  const timer = window.setTimeout(() => {
+    buttonEl.classList.remove("is-spinning");
+    diceSpinTimers.delete(buttonEl);
+  }, RESET_SPIN_DURATION_MS);
+  diceSpinTimers.set(buttonEl, timer);
 }
 
 function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardScreenPosition = false } = {}) {
@@ -1463,7 +1571,7 @@ function applyBoardZoom(zoom) {
 }
 
 function resetBoardView() {
-  applyBoardZoom(1);
+  applyBoardZoom(DEFAULT_BOARD_ZOOM);
   const dx = -state.boardPanX;
   const dy = -state.boardPanY;
   translateBoardContent(dx, dy);
@@ -1511,7 +1619,19 @@ function translateBoardContent(dx, dy) {
     positionBossToken(token, token.x + dx, token.y + dy);
     updateBossTokenTransform(token);
   }
+  if (state.entranceFadeAnchor) {
+    state.entranceFadeAnchor = {
+      x: state.entranceFadeAnchor.x + dx,
+      y: state.entranceFadeAnchor.y + dy,
+    };
+  }
 
+  scheduleBoardHexGridRender();
+}
+
+function resetBoardPan() {
+  state.boardPanX = 0;
+  state.boardPanY = 0;
   scheduleBoardHexGridRender();
 }
 
@@ -1626,7 +1746,10 @@ function restoreBuildViewLayout(snapshot) {
     updateTileTransform(tile);
   }
   const start = state.tiles.get(ENTRANCE_TILE_ID);
-  if (start?.placed) placeReferenceAboveStart(start);
+  if (start?.placed) {
+    setEntranceFadeAnchorFromTile(start);
+    placeReferenceAboveStart(start);
+  }
 
   selectTile(null);
   return true;
@@ -1761,6 +1884,27 @@ function autoBuildSelectedTiles() {
     setStatus("Auto build is unavailable in wall edit mode.", true);
     return;
   }
+
+  const allRegularTiles = Array.from(state.tiles.values()).filter((tile) => !isEntranceTile(tile));
+  if (allRegularTiles.length < 6) {
+    setStatus("Not enough tiles available for auto build.", true);
+    return;
+  }
+
+  const selectedAutoBuildIds = new Set(
+    shuffle(allRegularTiles.map((tile) => tile.tileId)).slice(0, 6),
+  );
+  for (const tile of allRegularTiles) {
+    clearInvalidReturnTimer(tile);
+    tile.active = selectedAutoBuildIds.has(tile.tileId);
+    tile.placed = false;
+    tile.rotation = 0;
+  }
+  resetReserveOrderForCurrentInactive();
+  clearBoard();
+  renderActiveTiles();
+  placeStartTileAtCenter();
+  updatePlacedProgress();
 
   const entrance = state.tiles.get(ENTRANCE_TILE_ID);
   if (!entrance) {
@@ -2151,6 +2295,7 @@ function autoBuildSelectedTiles() {
     updateTileTransform(tile);
     setPlacementFeedback(tile, null);
   }
+  const movedReferenceSide = ensureReferenceCardVisibleAfterAutoBuild(activeRegularTiles, entrance);
 
   selectTile(null);
   updatePlacedProgress();
@@ -2158,10 +2303,15 @@ function autoBuildSelectedTiles() {
     pushAutoBuildHistory(autoBuildHistoryKey, chosenSignature);
   }
   if (noveltyRetryCount > 0) {
-    setStatus(`Auto build complete: selected tiles placed with valid contact rules (${noveltyRetryCount} extra attempts for shape variety).`);
+    setStatus(`Auto build complete: selected tiles placed with valid contact rules (${noveltyRetryCount} extra attempts for shape variety)${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
   } else {
-    setStatus("Auto build complete: selected tiles placed with valid contact rules.");
+    setStatus(`Auto build complete: selected tiles placed with valid contact rules${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
   }
+  spawnRandomBossAtReferenceTopMagnet({
+    showStatus: false,
+    silentNoReference: true,
+    silentNoBoss: true,
+  });
 }
 
 function resetTiles() {
@@ -2171,20 +2321,36 @@ function resetTiles() {
     return;
   }
 
+  const entrance = state.tiles.get(ENTRANCE_TILE_ID);
+  if (entrance) {
+    entrance.rotation = 0;
+    entrance.placed = false;
+  }
+  resetBoardPan();
   clearBoard();
   renderActiveTiles();
+  renderBossPile();
   placeStartTileAtCenter();
   setStatus("Tiles reset to tray.");
   updatePlacedProgress();
+}
+
+function resetTilesAndBossCards() {
+  const tileSetId = state.selectedTileSetId;
+  resetTiles();
+  state.bossPileOrderByTileSet[tileSetId] = getBossTileSources(tileSetId);
+  renderBossPile();
+  setStatus("Tiles and boss cards reset.");
 }
 
 function clearBoard() {
   for (const tile of state.tiles.values()) {
     clearInvalidReturnTimer(tile);
   }
-  board.innerHTML = "";
+  board.querySelector(".board-content")?.remove();
   state.referenceMarker = null;
   state.bossTokens = [];
+  state.entranceFadeAnchor = null;
   updateBoardZoomIndicator();
   getBoardContentLayer();
   mountBoardHexGrid();
@@ -2223,6 +2389,18 @@ function renderBoardHexGrid() {
   const svg = getBoardContentLayer().querySelector(".board-hex-grid");
   if (!svg) return;
 
+  const entranceTileForScale = state.tiles.get(ENTRANCE_TILE_ID);
+  if (
+    entranceTileForScale?.placed
+    && entranceTileForScale.dom
+    && isOnBoardLayer(entranceTileForScale.dom.parentElement)
+  ) {
+    updateTileTransform(entranceTileForScale);
+  }
+  if (state.referenceMarker?.dom) {
+    state.referenceMarker.dom.style.transform = `translate(-50%, -50%) scale(${BOARD_ITEM_SCALE})`;
+  }
+
   const w = Math.floor(board.clientWidth);
   const h = Math.floor(board.clientHeight);
   if (w <= 0 || h <= 0) return;
@@ -2257,9 +2435,28 @@ function renderBoardHexGrid() {
   };
   const strokeColor = cssVars.getPropertyValue("--hex-stroke").trim() || "rgba(216, 198, 180, 0.45)";
   const borderRgb = parseRgbTripletVar("--hex-border-rgb", { r: 196, g: 206, b: 213 });
-  const centerScreenX = w / 2;
-  const centerScreenY = h / 2;
-  const maxDistScreen = Math.hypot(centerScreenX, centerScreenY) || 1;
+  const fadeAnchor = state.entranceFadeAnchor;
+  const hasEntranceAnchor = Boolean(
+    fadeAnchor
+      && Number.isFinite(fadeAnchor.x)
+      && Number.isFinite(fadeAnchor.y),
+  );
+  const entranceTile = state.tiles.get(ENTRANCE_TILE_ID);
+  const entranceRotationRad = hasEntranceAnchor && entranceTile
+    ? (normalizeAngle(entranceTile.rotation || 0) * Math.PI) / 180
+    : 0;
+  // Default opening direction points down the board; rotate it with entrance rotation.
+  const openingDirX = -Math.sin(entranceRotationRad);
+  const openingDirY = Math.cos(entranceRotationRad);
+  const fadeAnchorScreenX = hasEntranceAnchor ? fadeAnchor.x * zoom : w / 2;
+  const fadeAnchorScreenY = hasEntranceAnchor ? fadeAnchor.y * zoom : h / 2;
+  const maxDistScreen = Math.max(
+    Math.hypot(fadeAnchorScreenX, fadeAnchorScreenY),
+    Math.hypot(w - fadeAnchorScreenX, fadeAnchorScreenY),
+    Math.hypot(fadeAnchorScreenX, h - fadeAnchorScreenY),
+    Math.hypot(w - fadeAnchorScreenX, h - fadeAnchorScreenY),
+    1,
+  );
   const darkestTargetHexes = isDarkTheme
     ? parseNumberVar("--hex-dark-target-hexes", 9)
     : 4;
@@ -2299,15 +2496,27 @@ function renderBoardHexGrid() {
       if (y < -layout.hexHeight || y > drawH + layout.hexHeight) continue;
       const screenX = x * zoom;
       const screenY = y * zoom;
-      const distScreen = Math.hypot(screenX - centerScreenX, screenY - centerScreenY);
+      const vx = screenX - fadeAnchorScreenX;
+      const vy = screenY - fadeAnchorScreenY;
+      const distScreen = Math.hypot(vx, vy);
+      // Cave-opening light direction: default "front" points downward from entrance.
+      const dirDotOpening = distScreen > 1e-6
+        ? clamp((vx * openingDirX + vy * openingDirY) / distScreen, -1, 1)
+        : 1;
+      const frontness = Math.max(0, dirDotOpening);
+      const backness = Math.max(0, -dirDotOpening);
+      const directionalRangeAdjust =
+        layout.dx * zoom * (HEX_FRONT_LIGHT_BONUS_HEXES * frontness - HEX_BACK_LIGHT_REDUCTION_HEXES * backness);
+      const localTargetDist = isDarkTheme
+        ? Math.max(1, darkestTargetDist * zoom + directionalRangeAdjust)
+        : Math.max(1, maxDistScreen + directionalRangeAdjust);
       const t = isDarkTheme
-        ? clamp(distScreen / Math.max(1, darkestTargetDist * zoom), 0, 1)
-        : clamp(distScreen / maxDistScreen, 0, 1);
+        ? clamp(distScreen / localTargetDist, 0, 1)
+        : clamp(distScreen / localTargetDist, 0, 1);
       // Keep full-hex "pixel" coloring while darkening cells toward edges.
       const mixExponent = isDarkTheme ? 0.8 : 1.25;
-      const mix = isDarkTheme
-        ? Math.pow(t, mixExponent)
-        : Math.pow(t, mixExponent);
+      const directionalDarkBias = backness * HEX_BACK_DARKEN_BIAS;
+      const mix = clamp(Math.pow(t, mixExponent) + directionalDarkBias, 0, 1);
       const r = Math.round(lightRgb.r + (darkEndpoint.r - lightRgb.r) * mix);
       const g = Math.round(lightRgb.g + (darkEndpoint.g - lightRgb.g) * mix);
       const b = Math.round(lightRgb.b + (darkEndpoint.b - lightRgb.b) * mix);
@@ -2331,7 +2540,7 @@ function getBoardHexLayout(width = Math.floor(board.clientWidth), height = Math.
   let radius = fallbackRadius;
   const maxRadiusByWidth = Math.max(10, (w - padding * 2) / 9.5);
   const maxRadiusByHeight = Math.max(10, (h - padding * 2) / 6.5);
-  radius = Math.max(12, Math.min(radius, 34, maxRadiusByWidth, maxRadiusByHeight));
+  radius = Math.max(12, Math.min(radius, 34, maxRadiusByWidth, maxRadiusByHeight)) * BOARD_SCALE * BOARD_ITEM_SCALE;
   const hexHeight = Math.sqrt(3) * radius;
   const dx = 1.5 * radius;
   const dy = hexHeight;
@@ -2381,7 +2590,10 @@ function snapBoardPointToHex(x, y) {
       if (d2 < best.d2) best = { x: cx, y: cy, d2 };
     }
   }
-  return { x: best.x, y: best.y };
+  return {
+    x: quantizeSnapCoord(best.x),
+    y: quantizeSnapCoord(best.y),
+  };
 }
 
 function hexPath(cx, cy, radius) {
@@ -2570,6 +2782,25 @@ function getAvailableBossSources(tileSetId = state.selectedTileSetId) {
   return ensureBossPileOrder(tileSetId).filter((src) => !placedBossSources.has(src));
 }
 
+function triggerBossRandomizeAnimation(tileSetId = state.selectedTileSetId) {
+  if (!bossPile) return;
+  const order = ensureBossPileOrder(tileSetId);
+  if (order.length <= 1) return;
+  const shuffled = [...order];
+  if (shuffled.length === 2) {
+    [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+  } else {
+    const next = shuffle(shuffled);
+    const unchanged = next.every((src, idx) => src === shuffled[idx]);
+    if (unchanged) {
+      next.push(next.shift());
+    }
+    for (let i = 0; i < next.length; i += 1) shuffled[i] = next[i];
+  }
+  state.bossPileOrderByTileSet[tileSetId] = shuffled;
+  renderBossPile();
+}
+
 function removeBossToken(token, { returnToPile = true } = {}) {
   if (!token) return;
   if (returnToPile) {
@@ -2602,11 +2833,20 @@ function renderBossPile() {
     const card = document.createElement("div");
     card.className = "boss-card";
     const offset = offsets[i] || offsets[offsets.length - 1];
+    const cycleTargetOffset = offsets[0] || offset;
     card.style.setProperty("--dx", `${offset.dx}px`);
     card.style.setProperty("--dy", `${offset.dy}px`);
     card.style.setProperty("--rot", `${offset.rot}deg`);
     card.style.setProperty("--z", String(offset.z));
     card.style.setProperty("--scale", String(offset.scale));
+    const isTopStackCard = Number(offset.z) >= 2;
+    card.style.setProperty("--boss-shadow-y", isTopStackCard ? "4px" : "2px");
+    card.style.setProperty("--boss-shadow-blur", isTopStackCard ? "7px" : "5px");
+    card.style.setProperty("--boss-shadow-alpha", isTopStackCard ? "0.24" : "0.17");
+    card.style.setProperty("--cycle-target-dx", `${cycleTargetOffset.dx}px`);
+    card.style.setProperty("--cycle-target-dy", `${cycleTargetOffset.dy}px`);
+    card.style.setProperty("--cycle-target-rot", `${cycleTargetOffset.rot}deg`);
+    card.style.setProperty("--cycle-target-scale", String(cycleTargetOffset.scale));
 
     const img = document.createElement("img");
     img.src = ordered[i];
@@ -2634,8 +2874,34 @@ function renderBossPile() {
       }
       if (!state.bossEditMode) return;
       if (ordered.length < 2) return;
-      rotateBossPileTop(state.selectedTileSetId);
-      renderBossPile();
+      if (state.bossPileCycleInProgress) return;
+      state.bossPileCycleInProgress = true;
+      bossPile?.classList.add("is-cycling");
+      const topDx = card.style.getPropertyValue("--dx").trim();
+      const topDy = card.style.getPropertyValue("--dy").trim();
+      const topRot = card.style.getPropertyValue("--rot").trim();
+      const topScale = card.style.getPropertyValue("--scale").trim();
+      const counterpart = card.parentElement?.querySelector(".boss-card:not(.boss-card-cycling-out)");
+      if (counterpart && counterpart !== card) {
+        if (topDx) counterpart.style.setProperty("--cycle-in-target-dx", topDx);
+        if (topDy) counterpart.style.setProperty("--cycle-in-target-dy", topDy);
+        if (topRot) counterpart.style.setProperty("--cycle-in-target-rot", topRot);
+        if (topScale) counterpart.style.setProperty("--cycle-in-target-scale", topScale);
+        counterpart.classList.add("boss-card-cycling-in");
+      }
+      card.classList.add("boss-card-cycling-out");
+      const midSwapDelay = Math.round(BOSS_PILE_CYCLE_ANIMATION_MS * 0.36);
+      window.setTimeout(() => {
+        if (!state.bossPileCycleInProgress) return;
+        bossPile?.classList.add("is-cycle-mid");
+      }, midSwapDelay);
+      window.setTimeout(() => {
+        rotateBossPileTop(state.selectedTileSetId);
+        renderBossPile();
+        bossPile?.classList.remove("is-cycle-mid");
+        bossPile?.classList.remove("is-cycling");
+        state.bossPileCycleInProgress = false;
+      }, BOSS_PILE_CYCLE_ANIMATION_MS);
     });
 
     card.appendChild(img);
@@ -2834,37 +3100,61 @@ function getBossTokenAtReferenceTopMagnet() {
   ) || null;
 }
 
-function spawnRandomBossAtReferenceTopMagnet() {
+async function spawnRandomBossAtReferenceTopMagnet(options = {}) {
+  const {
+    showStatus = true,
+    silentNoReference = false,
+    silentNoBoss = false,
+    shufflePreviewMs = BOSS_SHUFFLE_PREVIEW_MS,
+  } = options || {};
   if (!state.referenceMarker) {
-    setStatus("Reference card is not available yet.", true);
+    if (!silentNoReference && showStatus) {
+      setStatus("Reference card is not available yet.", true);
+    }
     return;
   }
   const existingTopToken = getBossTokenAtReferenceTopMagnet();
-  const removedSource = existingTopToken?.src || null;
   if (existingTopToken) {
     removeBossToken(existingTopToken, { returnToPile: true });
   }
 
   let availableSources = getAvailableBossSources(state.selectedTileSetId);
   if (!availableSources.length) {
-    setStatus("No boss cards available to place.", true);
+    if (!silentNoBoss && showStatus) {
+      setStatus("No boss cards available to place.", true);
+    }
     return;
   }
-
-  if (removedSource && availableSources.length > 1) {
-    const withoutRemoved = availableSources.filter((src) => src !== removedSource);
-    if (withoutRemoved.length) availableSources = withoutRemoved;
+  triggerBossRandomizeAnimation(state.selectedTileSetId);
+  if (shufflePreviewMs > 0) {
+    await new Promise((resolve) => window.setTimeout(resolve, shufflePreviewMs));
+  }
+  availableSources = getAvailableBossSources(state.selectedTileSetId);
+  if (!availableSources.length) {
+    if (!silentNoBoss && showStatus) {
+      setStatus("No boss cards available to place.", true);
+    }
+    return;
   }
 
   const randomSource = availableSources[Math.floor(Math.random() * availableSources.length)];
   const topMagnetPosition = getBossReferenceTopMagnetBoardPosition();
   if (!topMagnetPosition) {
-    setStatus("Could not resolve top reference magnet position.", true);
+    if (showStatus) {
+      setStatus("Could not resolve top reference magnet position.", true);
+    }
     return;
   }
-  createBossToken(randomSource, topMagnetPosition.x, topMagnetPosition.y, TILE_SIZE);
+  createBossToken(
+    randomSource,
+    topMagnetPosition.x,
+    topMagnetPosition.y,
+    TILE_SIZE,
+  );
   renderBossPile();
-  setStatus(existingTopToken ? "Boss card exchanged at the top reference magnet." : "Random boss placed at the top reference magnet.");
+  if (showStatus) {
+    setStatus(existingTopToken ? "Boss card exchanged at the top reference magnet." : "Random boss placed at the top reference magnet.");
+  }
 }
 
 function getBoardDropPositionFromPointer(clientX, clientY, boardRect, zoom = getBoardZoom()) {
@@ -3021,6 +3311,7 @@ function createBossToken(src, x, y, size = 130) {
   state.bossTokens.push(token);
   getBoardContentLayer().appendChild(dom);
   updateBossTokenTransform(token);
+  return token;
 }
 
 function positionBossToken(token, x, y) {
@@ -3032,7 +3323,9 @@ function updateBossTokenTransform(token) {
   if (!token?.dom) return;
   token.dom.style.left = `${token.x}px`;
   token.dom.style.top = `${token.y}px`;
-  token.dom.style.transform = "translate3d(-50%, -50%, 0)";
+  const parent = token.dom.parentElement;
+  const scale = (isOnBoardLayer(parent) || parent === dragLayer) ? BOARD_ITEM_SCALE : 1;
+  token.dom.style.transform = `translate3d(-50%, -50%, 0) scale(${scale})`;
 }
 
 function beginBossTokenDrag(token, event) {
@@ -3175,6 +3468,7 @@ function renderReservePile() {
     const img = document.createElement("img");
     img.src = tile.imageSrc;
     img.alt = `${getTileDisplayLabel(tile.tileId)} (inactive)`;
+    if (isMoltenRegularTile(tile)) img.classList.add("molten-regular-img");
     img.draggable = false;
     card.appendChild(img);
     card.appendChild(createReserveGuideOverlay(tile));
@@ -3241,15 +3535,25 @@ function placeStartTileAtCenter() {
   const start = state.tiles.get(ENTRANCE_TILE_ID);
   const rect = board.getBoundingClientRect();
   const desiredX = rect.width / 2;
-  const desiredY = TILE_SIZE / 2 + 92;
-  const center = getTopGridCenterNear(desiredX, desiredY, 3);
-  const snapped = snapTileCenterToHex(start, center.x, center.y);
+  const desiredY = TILE_SIZE / 2 + START_TILE_DEFAULT_Y_OFFSET;
+  const snapped = snapTileCenterToHex(start, desiredX, desiredY);
   positionTile(start, snapped.x, snapped.y);
   updateTileParent(start, board);
   start.placed = true;
+  setEntranceFadeAnchorFromTile(start);
   updateTileTransform(start);
   placeReferenceAboveStart(start);
   centerBoardViewOnEntranceX();
+  // Ensure the hex gradient re-anchors to entrance after programmatic placement flows.
+  scheduleBoardHexGridRender();
+}
+
+function setEntranceFadeAnchorFromTile(tile) {
+  if (!tile || !isEntranceTile(tile) || !tile.placed) {
+    state.entranceFadeAnchor = null;
+    return;
+  }
+  state.entranceFadeAnchor = { x: tile.x, y: tile.y };
 }
 
 function centerBoardViewOnEntranceX() {
@@ -3286,10 +3590,120 @@ function placeReferenceAboveStart(startTile) {
   const y = startTile.y - REFERENCE_OFFSET_Y;
   marker.style.left = `${x}px`;
   marker.style.top = `${y}px`;
-  marker.style.transform = "translate(-50%, -50%)";
+  marker.style.transform = `translate(-50%, -50%) scale(${BOARD_ITEM_SCALE})`;
   getBoardContentLayer().appendChild(marker);
 
   state.referenceMarker = { dom: marker, x, y };
+}
+
+function ensureReferenceCardVisibleAfterAutoBuild(placedRegularTiles, entranceTile) {
+  const reference = state.referenceMarker;
+  if (!reference?.dom || !entranceTile) return false;
+  if (!Array.isArray(placedRegularTiles) || !placedRegularTiles.length) return false;
+
+  const previousTopMagnet = getBossReferenceTopMagnetBoardPosition();
+  const getAttachedTopBossToken = () => {
+    if (!previousTopMagnet) return null;
+    const tolerance = 2;
+    return state.bossTokens.find(
+      (token) =>
+        Math.abs(token.x - previousTopMagnet.x) <= tolerance
+        && Math.abs(token.y - previousTopMagnet.y) <= tolerance,
+    ) || null;
+  };
+  const attachedTopBossToken = getAttachedTopBossToken();
+  const moveAttachedTopBossToken = () => {
+    if (!attachedTopBossToken) return;
+    const nextTop = getBossReferenceTopMagnetBoardPosition();
+    if (!nextTop) return;
+    positionBossToken(attachedTopBossToken, nextTop.x, nextTop.y);
+    updateBossTokenTransform(attachedTopBossToken);
+  };
+
+  const defaultX = entranceTile.x;
+  const defaultY = entranceTile.y - REFERENCE_OFFSET_Y;
+  const defaultClear = !isReferenceCardOverlappedByTiles(defaultX, defaultY, placedRegularTiles);
+  if (defaultClear) {
+    if (Math.abs(reference.x - defaultX) > 0.5 || Math.abs(reference.y - defaultY) > 0.5) {
+      reference.x = defaultX;
+      reference.y = defaultY;
+      reference.dom.style.left = `${defaultX}px`;
+      reference.dom.style.top = `${defaultY}px`;
+      moveAttachedTopBossToken();
+    }
+    return false;
+  }
+  if (!isReferenceCardOverlappedByTiles(reference.x, reference.y, placedRegularTiles)) return false;
+
+  let leftSideTiles = 0;
+  let rightSideTiles = 0;
+  for (const tile of placedRegularTiles) {
+    if (!tile) continue;
+    if (tile.x < entranceTile.x) leftSideTiles += 1;
+    else rightSideTiles += 1;
+  }
+
+  const preferRight = leftSideTiles > rightSideTiles;
+  const primarySign = preferRight ? 1 : -1;
+  const secondarySign = -primarySign;
+  const baseY = reference.y;
+  const sideOffsetNear = TILE_SIZE * 1.7;
+  const sideOffsetFar = TILE_SIZE * 2.35;
+  const candidates = [
+    { x: entranceTile.x + primarySign * sideOffsetNear, y: baseY },
+    { x: entranceTile.x + primarySign * sideOffsetFar, y: baseY },
+    { x: entranceTile.x + secondarySign * sideOffsetNear, y: baseY },
+    { x: entranceTile.x + secondarySign * sideOffsetFar, y: baseY },
+  ];
+
+  let best = null;
+  for (const candidate of candidates) {
+    const snapped = snapBoardPointToHex(
+      clamp(candidate.x, TILE_SIZE * 0.7, board.clientWidth - TILE_SIZE * 0.7),
+      clamp(candidate.y, TILE_SIZE * 0.7, board.clientHeight - TILE_SIZE * 0.7),
+    );
+    const overlapCount = countReferenceCardOverlaps(snapped.x, snapped.y, placedRegularTiles);
+    const distanceFromEntrance = Math.hypot(snapped.x - entranceTile.x, snapped.y - entranceTile.y);
+    const score = overlapCount * 100000 + distanceFromEntrance;
+    if (!best || score < best.score) {
+      best = { x: snapped.x, y: snapped.y, overlapCount, score };
+    }
+  }
+  if (!best) return false;
+  if (best.overlapCount > 0) return false;
+
+  reference.x = best.x;
+  reference.y = best.y;
+  reference.dom.style.left = `${best.x}px`;
+  reference.dom.style.top = `${best.y}px`;
+  moveAttachedTopBossToken();
+  return true;
+}
+
+function isReferenceCardOverlappedByTiles(refX, refY, tiles) {
+  return countReferenceCardOverlaps(refX, refY, tiles) > 0;
+}
+
+function countReferenceCardOverlaps(refX, refY, tiles) {
+  let count = 0;
+  const half = TILE_SIZE * 0.5;
+  const refLeft = refX - half;
+  const refRight = refX + half;
+  const refTop = refY - half;
+  const refBottom = refY + half;
+  for (const tile of tiles || []) {
+    if (!tile) continue;
+    const tileLeft = tile.x - half;
+    const tileRight = tile.x + half;
+    const tileTop = tile.y - half;
+    const tileBottom = tile.y + half;
+    const intersects = tileLeft < refRight
+      && tileRight > refLeft
+      && tileTop < refBottom
+      && tileBottom > refTop;
+    if (intersects) count += 1;
+  }
+  return count;
 }
 
 function getTopGridCenterNear(preferredX, preferredY, rowsDown = 0) {
@@ -3345,6 +3759,9 @@ function beginBoardPan(event) {
 
   const startPanX = state.boardPanX;
   const startPanY = state.boardPanY;
+  const anchorStart = state.entranceFadeAnchor
+    ? { x: state.entranceFadeAnchor.x, y: state.entranceFadeAnchor.y }
+    : null;
   board.classList.add("panning");
 
   const handleMove = (moveEvent) => {
@@ -3374,6 +3791,12 @@ function beginBoardPan(event) {
     for (const entry of boardBossTokens) {
       positionBossToken(entry.token, entry.x + dx, entry.y + dy);
       updateBossTokenTransform(entry.token);
+    }
+    if (anchorStart) {
+      state.entranceFadeAnchor = {
+        x: anchorStart.x + dx,
+        y: anchorStart.y + dy,
+      };
     }
     scheduleBoardHexGridRender();
   };
@@ -3406,6 +3829,8 @@ function createTileElement(tile) {
   const img = document.createElement("img");
   img.src = tile.imageSrc;
   img.alt = getTileDisplayLabel(tile.tileId);
+  if (isMoltenRegularTile(tile)) img.classList.add("molten-regular-img");
+  if (isMoltenEntranceTile(tile)) img.classList.add("molten-entrance-img");
   img.draggable = false;
   img.addEventListener("dragstart", (event) => event.preventDefault());
   body.appendChild(img);
@@ -4339,6 +4764,8 @@ function createWallEditorTileElement(tileSetId, tile) {
   const img = document.createElement("img");
   img.src = tile.imageSrc;
   img.alt = `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)}`;
+  if (isMoltenRegularTile(tile)) img.classList.add("molten-regular-img");
+  if (isMoltenEntranceTile(tile)) img.classList.add("molten-entrance-img");
   img.draggable = false;
   img.addEventListener("dragstart", (event) => event.preventDefault());
   body.appendChild(img);
@@ -4637,6 +5064,8 @@ function finishDrop(tile) {
 
   if (isEntranceTile(tile)) {
     tile.placed = true;
+    setEntranceFadeAnchorFromTile(tile);
+    scheduleBoardHexGridRender();
     setPlacementFeedback(tile, null);
     setStatus("Entrance tile placed. Now add the other 6 tiles.");
     updatePlacedProgress();
@@ -4685,9 +5114,15 @@ function snapTileCenterToHex(tile, tileCenterX, tileCenterY) {
   const snappedGuide = snapBoardPointToHex(desiredGuideX, desiredGuideY);
   const entranceYOffset = isEntranceTile(tile) ? 9 : 0;
   return {
-    x: snappedGuide.x - anchor.x,
-    y: snappedGuide.y - anchor.y + entranceYOffset,
+    x: quantizeSnapCoord(snappedGuide.x - anchor.x),
+    y: quantizeSnapCoord(snappedGuide.y - anchor.y + entranceYOffset),
   };
+}
+
+function quantizeSnapCoord(value, quantum = SNAP_COORD_QUANTUM) {
+  if (!Number.isFinite(value)) return value;
+  const q = Number.isFinite(quantum) && quantum > 0 ? quantum : 1;
+  return Number((Math.round(value / q) * q).toFixed(4));
 }
 
 function getTileSnapAnchorForRotation(tile, rotationDeg) {
@@ -4732,8 +5167,16 @@ function rotateTile(tile, delta) {
     }
   }
 
-  tile.rotation = normalizeAngle(tile.rotation + delta);
+  if (isEntranceTile(tile)) {
+    const direction = delta < 0 ? -1 : 1;
+    tile.rotation = normalizeAngle(tile.rotation + direction * 90);
+  } else {
+    tile.rotation = normalizeAngle(tile.rotation + delta);
+  }
   updateTileTransform(tile);
+  if (isEntranceTile(tile)) {
+    scheduleBoardHexGridRender();
+  }
 
   if (tile.placed && !isEntranceTile(tile)) {
     const placedTiles = getPlacedTiles().filter((t) => t.tileId !== tile.tileId);
@@ -5437,10 +5880,15 @@ function isOnBoardLayer(parent) {
 
 function updateTileTransform(tile) {
   if (!tile.dom) return;
-  const scale = tile.dom.parentElement === dragLayer ? getBoardZoom() : 1;
+  const parent = tile.dom.parentElement;
+  const dragZoom = parent === dragLayer ? getBoardZoom() : 1;
+  const boardItemScale =
+    (isOnBoardLayer(parent) || (parent === dragLayer && tile.drag?.startedFromBoard))
+      ? BOARD_ITEM_SCALE
+      : 1;
+  const scale = dragZoom * boardItemScale;
   let trayNudgeX = 0;
   let trayNudgeY = 0;
-  const parent = tile.dom.parentElement;
   if (parent?.classList?.contains("tray-slot") && parent.parentElement === tray) {
     const slotIndex = Array.prototype.indexOf.call(parent.parentElement.children, parent);
     if (slotIndex >= 0) {

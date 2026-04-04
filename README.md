@@ -56,9 +56,13 @@ Browser prototype for testing tile placement rules, snap behavior, and tile-face
 
 - Drag tile with mouse/pointer.
 - Rotate hovered (or selected) tile:
-  - `R` = +60deg
-  - `F` = -60deg
+  - `W` = -60deg (counter-clockwise)
+  - `E` = +60deg (clockwise)
 - Rotate buttons (`⟲` / `⟳`) also rotate ±60deg.
+- `R`: runs random placement (Auto Build).
+- `X`: resets tiles and boss cards.
+- `D`: toggles both drawers.
+- `B`: runs random boss action.
 - `Reroll Tiles`: rerolls only tray tiles (grid placements stay as-is).
 - `Reset Tiles`: returns active dungeon tiles to tray positions while preserving tile-set selection.
 - `Wall Editor`: enters wall-edit mode.

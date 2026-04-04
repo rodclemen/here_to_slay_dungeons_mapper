@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About & Manual | Here to Slay DUNGEONS Mapper</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="about-page">
+    <main class="about-layout">
+      <header class="about-topbar">
+        <h1>Here to Slay DUNGEONS Mapper - About & Manual</h1>
+        <a class="about-back-link" href="./index.html" aria-label="Back to Mapper">Back To Mapper</a>
+      </header>
+
+      <div class="about-content">
+        <section class="about-section">
+          <h2>What This Website Is</h2>
+          <p>
+            This website is a play-helper for building Here to Slay DUNGEONS layouts quickly on a digital board.
+            It handles tile selection, drag-and-drop placement, snapping to the board grid, tile rotation, and boss-card handling in one place.
+          </p>
+          <p>
+            The core goal is speed: choose a tile set, get your active dungeon tiles, place them with visual feedback, and finalize with a boss.
+            It is not a replacement for your full game setup, but it is meant to remove setup friction and reduce rule-checking overhead while building your map.
+          </p>
+          <p>
+            The board is interactive and designed for iteration. You can pan the board, zoom in for precise placement, reroll selected tiles, and reset when needed.
+            The interface keeps tiles and boss options organized in drawers so you can focus on layout decisions instead of file juggling.
+          </p>
+        </section>
+
+        <section class="about-section">
+          <h2>Manual</h2>
+          <p>
+            This manual is intentionally detailed and long-form. It is meant to be scrolled and used as reference while you work.
+            If you are brand new, start with the Quick Start flow below, then read each feature section.
+          </p>
+
+          <h3>Quick Start Flow</h3>
+          <ol>
+            <li>Choose a Tile Set from the top bar.</li>
+            <li>Use the six selected tiles in the Tile Drawer as your active build tiles.</li>
+            <li>Drag tiles onto the board and rotate as needed.</li>
+            <li>Use placement feedback and status text to confirm valid placement behavior.</li>
+            <li>Select a boss from the Boss Selection area and drag it to the board.</li>
+          </ol>
+
+          <h3>Feature: Tile Set Selector</h3>
+          <p>
+            The Tile Set selector changes which dungeon assets are loaded for the current round.
+            When you switch sets, the app updates entrance tile art, regular tile art, reference card art, and boss art for that set.
+            If a set is not fully ready, it can appear as unavailable in the selector.
+          </p>
+          <p>
+            Practical use: pick your intended environment first (for example Molten or Overgrown), then continue setup from there.
+            Switching tile sets mid-planning is possible, but it resets flow and should usually be done before serious placement work starts.
+          </p>
+
+          <h3>Feature: Selected Tiles (Tile Drawer)</h3>
+          <p>
+            The left drawer contains the six active dungeon tiles for the current round.
+            These are the tiles you can place on the board to form the run layout.
+            Drag from the drawer to begin placing, or return tiles to the drawer by dropping them back into the drawer area.
+          </p>
+          <p>
+            Tiles in this area remain easy to compare at a glance. The drawer is built for quick pick-and-place loops:
+            pick a tile, test a location, rotate, drop, evaluate feedback, and keep moving.
+          </p>
+
+          <h3>Feature: Reroll Tiles</h3>
+          <p>
+            The Reroll Tiles control in Selected Tiles replaces only tray selection for regular dungeon tiles.
+            It is useful when the current active six do not produce the shape variety you want.
+            Existing board context and interface state continue so you can iterate quickly.
+          </p>
+          <p>
+            Use reroll early when you recognize a dead-end tile combination.
+            It is faster than manually forcing a difficult arrangement that does not fit your intended dungeon pathing.
+          </p>
+
+          <h3>Feature: Reserve Tiles</h3>
+          <p>
+            Tiles not currently active stay in Reserve Tiles.
+            Reserve exists so all set tiles remain visible in-session without cluttering the main build surface.
+            Think of it as parking space for non-active options.
+          </p>
+          <p>
+            Reserve is mainly informational during normal flow and helps you understand what is excluded from the current active six.
+            If you are optimizing for different route shapes, reserve visibility helps you decide whether to reroll.
+          </p>
+
+          <h3>Feature: Board Interaction (Drag, Drop, Pan, Zoom)</h3>
+          <p>
+            The board is the main workspace where tiles and boss tokens are placed.
+            Drag tiles onto the grid and release to place.
+            While dragging in board space, snapping and magnet behavior keep placement aligned to the lattice.
+          </p>
+          <p>
+            Pan is available by dragging empty board space.
+            Zoom is available with mouse wheel over the board.
+            These two controls matter when your map grows beyond the initial center framing.
+          </p>
+          <p>
+            Use zoom-in for tight adjacency checks, then zoom-out to validate overall shape and traversal flow.
+            Alternating between local precision and global overview is the fastest way to avoid late layout corrections.
+          </p>
+
+          <h3>Feature: Rotation Controls</h3>
+          <p>
+            Tiles can be rotated in 60-degree increments.
+            Rotation can be triggered from keyboard and on-tile rotation controls.
+            Rotation is essential for matching faces and improving local fit.
+          </p>
+          <p>
+            Recommended workflow: move tile near target, rotate until contact geometry looks plausible, then drop and validate.
+            This minimizes failed placements and reduces repeated long-distance dragging.
+          </p>
+
+          <h3>Feature: Placement Feedback & Status</h3>
+          <p>
+            The right drawer provides feedback indicators and status text while you build.
+            It helps confirm whether your current board state is progressing toward a valid complete setup.
+            Use this area as your immediate readout for success/failure context after every drop.
+          </p>
+          <p>
+            If a placement is not valid, feedback communicates that immediately so you can adjust without guesswork.
+            The status area is also useful for understanding state changes after key actions like reset and random placement.
+          </p>
+
+          <h3>Feature: Boss Selection</h3>
+          <p>
+            Boss Selection in the right drawer lets you cycle boss cards and place one as a board token.
+            This keeps encounter choice integrated with map planning instead of being a disconnected later step.
+          </p>
+          <p>
+            The random boss action is useful when you want unbiased boss selection.
+            Boss token placement uses board-relative behavior so it can stay coherent while navigating the workspace.
+          </p>
+
+          <h3>Feature: Auto Build Dungeon</h3>
+          <p>
+            Auto Build generates a complete board arrangement from active selected tiles using the app's placement logic.
+            It is best used when you want a fast starting point or when manually exploring many alternatives would take too long.
+          </p>
+          <p>
+            Treat auto-build output as a candidate layout, not a final mandate.
+            You can still move, rotate, and fine-tune placements afterward to match preferred flow or visual balance.
+          </p>
+
+          <h3>Feature: Reset Tiles And Boss Cards</h3>
+          <p>
+            Reset returns the session to a clean board state for the current tile set.
+            It is the fastest way to restart if the current layout direction no longer makes sense.
+            Reset is also useful after testing several auto-build runs and wanting a clear baseline.
+          </p>
+
+          <h3>Feature: Save Layout / Load Layout</h3>
+          <p>
+            Save Layout exports your current arrangement to file.
+            Load Layout restores a saved arrangement.
+            This is intended for continuity across sessions and for comparing multiple layout ideas without losing progress.
+          </p>
+          <p>
+            Recommended practice: save after major milestones (first stable build, post-rotation pass, final boss placement).
+            Keeping snapshots makes experimentation safer because rollback is trivial.
+          </p>
+
+          <h3>Feature: Drawer Controls</h3>
+          <p>
+            Both side drawers can be collapsed and expanded.
+            This gives more visual space when focusing on board geometry and less on controls.
+            Collapsing drawers is especially useful on smaller screens or during fine drag operations.
+          </p>
+        </section>
+
+        <section class="about-section">
+          <h2>Shortcuts</h2>
+          <p>Keyboard and pointer controls currently available:</p>
+          <ul>
+            <li><strong>W</strong>: Rotate hovered/selected tile counter-clockwise (-60 degrees).</li>
+            <li><strong>E</strong>: Rotate hovered/selected tile clockwise (+60 degrees).</li>
+            <li><strong>R</strong>: Run random placement (Auto Build Dungeon).</li>
+            <li><strong>X</strong>: Reset tiles and boss cards.</li>
+            <li><strong>D</strong>: Toggle both drawers collapsed/expanded.</li>
+            <li><strong>B</strong>: Random boss selection/placement action.</li>
+            <li><strong>Escape</strong>: Close open top-menu dropdowns.</li>
+            <li><strong>Mouse wheel over board</strong>: Zoom board in/out.</li>
+            <li><strong>Drag empty board space</strong>: Pan board.</li>
+            <li><strong>Drag tile or boss token</strong>: Move item in workspace.</li>
+          </ul>
+          <p>
+            Shortcut behavior is context-sensitive to avoid accidental triggers while typing in inputs.
+            If a shortcut does not fire, click back on the board area first and try again.
+          </p>
+        </section>
+
+        <section class="about-section">
+          <h2>Practical Build Tips</h2>
+          <p>
+            Start by placing only two or three tiles around the entrance and evaluate directional flow before committing to full expansion.
+            Early structure decisions create most downstream constraints, so this initial pass is high leverage.
+          </p>
+          <p>
+            Keep one cycle of "place, rotate, zoom-check, step back" as your default rhythm.
+            Rapid alternating between detail and overview catches misalignment early and reduces major rebuilds.
+          </p>
+          <p>
+            If you hit repeated invalid outcomes, reroll active tiles sooner rather than later.
+            Spending too long forcing an incompatible tile set usually costs more time than a controlled reset-and-retry cycle.
+          </p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

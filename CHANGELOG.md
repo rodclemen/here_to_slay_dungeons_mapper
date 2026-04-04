@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-04-04
+- Increased board play-scale by 15% for grid placement flows: enlarged on-board and drag-context tile sizing (including Entrance, regular tiles, reference card, and boss token sizing) while preserving drawer/tray card sizing so only board/drag contexts are visually larger.
+- Scaled snap and magnet tuning with the new board size (snap radius plus reference/boss magnet offsets and tolerances) to keep drag snapping and boss magnet behavior aligned with the larger grid.
+- Fixed auto-build/random-placement gradient anchoring regression by forcing a hex-grid re-render after programmatic Entrance placement, so cave-light gradient stays anchored to the Entrance tile instead of falling back to board center.
+- Added hover polish for board `Auto Build` and `Reset` icon buttons: icon glyphs now scale to 110% and shift to accent color on hover/focus-visible.
+- Added a dedicated long-form About/Manual page (`about.html`) with scrollable feature guide and shortcut reference, linked from the main top bar as `About & Manual`.
+- Remapped primary keyboard shortcuts: `W`/`E` rotate tile (CCW/CW), `R` runs random placement (Auto Build), `X` resets tiles+boss, `D` toggles both drawers, and `B` triggers random boss; removed old rotate-on-`R` and drawer toggle on `F`.
+- Updated user-facing docs to match runtime behavior: refreshed shortcut mappings and control descriptions in `about.html` and `README.md`.
+- Session note: Changed five shortcuts in one pass and only had to unlearn my own muscle memory twice.
+
 ## 2026-04-03
 - Fixed zoom-indicator rendering and styling behavior: moved `Zoom xx%` out of the board render layer into the workspace overlay to prevent sub-100% disappearance during zoom; refined placement offset relative to the right drawer; removed box/background chrome and made text size/weight/opacity reliably controllable via dedicated zoom styles.
 - Fixed board tile return-to-tray invisibility after reroll: replaced stale tray-slot assumptions with live-slot resolution (`createTraySlotElement`, `getLiveTraySlotForTile`, `placeTileInTray`) so tray drops always attach to connected DOM slots.

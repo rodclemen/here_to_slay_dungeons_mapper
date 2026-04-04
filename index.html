@@ -107,6 +107,7 @@
               <button id="reset-tiles-btn" class="quick-action-option" type="button" role="menuitem">Reset Tiles</button>
             </div>
           </div>
+          <a class="about-link-btn" href="./about.html" aria-label="Open About and Manual">About &amp; Manual</a>
           <label class="primary-control tile-set-inline-btn">
             <span>Tile Set:</span>
             <select id="tile-set-select" aria-label="Tile Set">
@@ -162,7 +163,6 @@
               <div class="tray-head">
                 <h2>Selected Tiles</h2>
                 <div class="tray-head-actions">
-                  <span class="icon-image-static icon-dice" aria-hidden="true"></span>
                   <button id="reroll-btn" class="icon-image-btn" type="button" aria-label="Reroll Tiles" title="Reroll Tiles">
                     <img src="./icons/reroll.png" alt="" aria-hidden="true" />
                   </button>
@@ -186,7 +186,14 @@
           </div>
         </aside>
 
-        <div id="board" class="board" aria-label="Placement board"></div>
+        <div id="board" class="board" aria-label="Placement board">
+          <button id="auto-build-btn" class="icon-image-btn icon-dice-btn board-auto-build-btn" type="button" aria-label="Auto Build Dungeon" title="Auto Build Dungeon">
+            <img src="./icons/dice.png" alt="" aria-hidden="true" />
+          </button>
+          <button id="reset-all-btn" class="icon-image-btn icon-reset-btn board-reset-btn" type="button" aria-label="Reset Tiles and Boss Cards" title="Reset Tiles and Boss Cards">
+            <img src="./icons/reset.png" alt="" aria-hidden="true" />
+          </button>
+        </div>
 
         <aside id="right-drawer" class="drawer drawer-right">
           <div class="drawer-toolbar">
