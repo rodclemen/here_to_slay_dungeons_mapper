@@ -7,6 +7,8 @@
 - Consolidated header menu close behavior into shared helpers, removing duplicated document-level click and Escape listeners for the Tile Set, Theme, Appearance, and Quick Actions menus.
 - Reduced left-drawer rerender cost: `rerenderTrayAndReserve()` no longer rebuilds the boss pile, tray/reserve DOM creation now batches through `DocumentFragment`, reserve-only highlight/checklist updates no longer force unnecessary reserve rebuilds, and tray slot lookup now reuses cached rendered slots instead of querying the DOM each time.
 - Reduced repeated board-grid work by caching theme-derived hex-grid color metrics per active UI theme and caching per-radius hex vertex templates used by `hexPath()`.
+- Cached board hex-layout metrics by board size so grid rendering, snapping, reference-card relocation, and open-hex search no longer recompute the same layout object repeatedly within a stable viewport.
+- Fixed tray-origin drag softness by moving normal tray-to-board drags onto the same explicit pixel-size path already used for board-origin drags, instead of relying on blurrier transform scaling.
 - Trimmed reserve-tile sizing in `styles.css` so reserve cards render smaller in normal, reserve-edit, and compact side-panel layouts.
 - Session note: Fixed three “tiny visual glitches” that each turned out to be a completely different geometry problem.
 

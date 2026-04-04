@@ -1,4 +1,5 @@
 const SIDES = 16;
+const SQRT_3 = Math.sqrt(3);
 const ROTATION_STEP = 60;
 const BOARD_SCALE = 1.15;
 const TILE_SIZE = 170 * BOARD_SCALE;
@@ -282,6 +283,7 @@ let leftDrawerClosingTimer = null;
 let compactModeTransitionTimer = null;
 let boardAutoCenterResizeTimer = null;
 let boardHexThemeCache = null;
+let boardHexLayoutCache = null;
 const boardHexPathCache = new Map();
 const diceSpinTimers = new WeakMap();
 
@@ -3108,6 +3110,9 @@ function renderBoardHexGrid() {
 function getBoardHexLayout(width = Math.floor(board.clientWidth), height = Math.floor(board.clientHeight)) {
   const w = Math.max(0, Math.floor(width));
   const h = Math.max(0, Math.floor(height));
+  if (boardHexLayoutCache?.w === w && boardHexLayoutCache?.h === h) {
+    return boardHexLayoutCache.layout;
+  }
   const padding = Math.max(16, Math.min(28, Math.floor(Math.min(w, h) * 0.045)));
   const targetCols = Math.max(6, Math.floor((w - padding * 2) / 64));
   const fallbackRadius = Math.max(14, Math.min(34, (w - padding * 2) / (targetCols * 1.5 + 0.5)));
@@ -3115,10 +3120,10 @@ function getBoardHexLayout(width = Math.floor(board.clientWidth), height = Math.
   const maxRadiusByWidth = Math.max(10, (w - padding * 2) / 9.5);
   const maxRadiusByHeight = Math.max(10, (h - padding * 2) / 6.5);
   radius = Math.max(12, Math.min(radius, 34, maxRadiusByWidth, maxRadiusByHeight)) * BOARD_SCALE * BOARD_ITEM_SCALE;
-  const hexHeight = Math.sqrt(3) * radius;
+  const hexHeight = SQRT_3 * radius;
   const dx = 1.5 * radius;
   const dy = hexHeight;
-  return {
+  const layout = {
     padding,
     radius,
     hexHeight,
@@ -3129,6 +3134,8 @@ function getBoardHexLayout(width = Math.floor(board.clientWidth), height = Math.
     minY: padding + hexHeight / 2,
     maxY: h - padding - hexHeight / 2,
   };
+  boardHexLayoutCache = { w, h, layout };
+  return layout;
 }
 
 function snapBoardPointToHex(x, y) {
@@ -3174,7 +3181,7 @@ function hexPath(cx, cy, radius) {
   const key = Number(radius.toFixed(4));
   let template = boardHexPathCache.get(key);
   if (!template) {
-    const halfH = (Math.sqrt(3) * radius) / 2;
+    const halfH = (SQRT_3 * radius) / 2;
     template = [
       [radius, 0],
       [radius / 2, halfH],
@@ -3197,8 +3204,8 @@ function createTraySlotGuideElement() {
   const size = 150;
   const center = size / 2;
   const radius = 28;
-  const halfH = (Math.sqrt(3) * radius) / 2;
-  const dy = Math.sqrt(3) * radius;
+  const halfH = (SQRT_3 * radius) / 2;
+  const dy = SQRT_3 * radius;
   const centers = [
     [center, center],
     [center + 1.5 * radius, center + halfH],
@@ -6936,9 +6943,11 @@ function updateTileTransform(tile) {
   const parent = tile.dom.parentElement;
   const zoom = getBoardZoom();
   const isBoardTile = isOnBoardLayer(parent);
-  const isBoardDrag = parent === dragLayer && tile.drag?.startedFromBoard;
+  const isDragLayerTile = parent === dragLayer;
+  const isBoardDrag = isDragLayerTile && tile.drag?.startedFromBoard;
   const isCompactTrayDrag = parent === dragLayer && tile.drag?.startedFromCompactTray;
-  const dragZoom = parent === dragLayer ? zoom : 1;
+  const isTrayDrag = isDragLayerTile && !tile.drag?.startedFromBoard && !tile.drag?.startedFromCompactTray;
+  const dragZoom = isDragLayerTile ? zoom : 1;
   const boardItemScale =
     (isBoardTile || isBoardDrag)
       ? BOARD_ITEM_SCALE
@@ -6969,8 +6978,8 @@ function updateTileTransform(tile) {
   const screenY = isBoardTile ? worldToBoardScreenY(tile.y, zoom) : tile.y;
   const baseWidth = isEntranceTile(tile) ? (TILE_SIZE - 3) : TILE_SIZE;
   const baseHeight = TILE_SIZE;
-  let explicitScreenWidth = (isBoardTile || isBoardDrag) ? (baseWidth * zoom * boardItemScale) : null;
-  let explicitScreenHeight = (isBoardTile || isBoardDrag) ? (baseHeight * zoom * boardItemScale) : null;
+  let explicitScreenWidth = (isBoardTile || isBoardDrag || isTrayDrag) ? (baseWidth * zoom * boardItemScale) : null;
+  let explicitScreenHeight = (isBoardTile || isBoardDrag || isTrayDrag) ? (baseHeight * zoom * boardItemScale) : null;
   if (isCompactTrayDrag) {
     const progress = clamp(tile.drag?.compactDragProgress ?? 0, 0, 1);
     const startWidth = tile.drag?.compactStartWidth ?? baseWidth;
@@ -6986,7 +6995,7 @@ function updateTileTransform(tile) {
   tile.dom.style.height = explicitScreenHeight ? `${explicitScreenHeight}px` : "";
   tile.dom.style.transformOrigin = "50% 50%";
   tile.dom.style.transform =
-    (!isBoardTile && !isBoardDrag && !isCompactTrayDrag && scale !== 1)
+    (!isBoardTile && !isBoardDrag && !isCompactTrayDrag && !isTrayDrag && scale !== 1)
       ? `translate(${translateX}, ${translateY}) scale(${scale})`
       : `translate(${translateX}, ${translateY})`;
   if (tile.bodyDom) {
