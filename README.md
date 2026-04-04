@@ -1,10 +1,10 @@
-![Here to Slay DUNGEONS Mapper Banner](./graphics/about_banner.png)
+![Here to Slay DUNGEONS Mapper Banner](./Graphics/about_banner.png)
 
 <div align="center">
 
 # Here to Slay DUNGEONS Mapper
 
-**A dungeon layout planner and randomizer for [Here to Slay: Dungeons](https://unstablegames.com/)**
+**A dungeon layout planner and randomizer for [Here to Slay: Dungeons](https://unstablegames.com/](https://gamefound.com/en/projects/unstable-games/here-to-slay-dungeons)**
 
 Plan your dungeon. Randomize the crawl. See every layout before you play.
 
