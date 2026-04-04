@@ -11,7 +11,13 @@
 - Updated user-facing docs to match runtime behavior: refreshed shortcut mappings and control descriptions in `about.html` and `README.md`.
 - Added `Auto Theme` toggle behavior with persisted state: users can switch between tile-set-driven automatic theming and manual theme controls, with manual theme UI hidden while auto mode is active.
 - Refined board action icon positioning behavior: decoupled from drawer width handling and re-anchored around board center with right-of-center offsets for more stable responsive placement.
+- Added a compact side-panel layout for viewports `<= 980px`: the boss panel now moves into the left drawer, the right drawer is hidden, the tray/reserve/boss stacks collapse into a single narrow column, and the board recenters itself after layout transitions so smaller screens stay usable.
+- Disabled reserve-edit interactions while compact mode is active and force-show non-required tiles during that layout, preventing swap/edit flows that no longer fit the reduced drawer footprint.
+- Tracked the missing runtime UI assets now referenced by the app (`logo.png`, `icons/reset.png`, `icons/d20.png`, and `icons/tileset.png`) and removed the obsolete `icons/hand.png` asset so the current controls/logo render from versioned files instead of local-only copies.
+- Added the full `tiles/deep_freeze/` art pack and initial `tiles/submerged/` art files to source control, moving those theme options closer to runtime readiness instead of leaving them as selector-only placeholders.
+- Added supporting source/reference assets for ongoing art work under `Graphics/avatars/`, `gfx/`, and `slay info/`, including avatar exports, PSD working files, and the current rules/reference PDFs so the project keeps the art pipeline materials alongside the shipped PNG assets.
 - Session note: Changed five shortcuts in one pass and only had to unlearn my own muscle memory twice.
+- Session note: Added “just a few assets” and accidentally gave Git a gym membership.
 
 ## 2026-04-03
 - Fixed zoom-indicator rendering and styling behavior: moved `Zoom xx%` out of the board render layer into the workspace overlay to prevent sub-100% disappearance during zoom; refined placement offset relative to the right drawer; removed box/background chrome and made text size/weight/opacity reliably controllable via dedicated zoom styles.

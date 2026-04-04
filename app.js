@@ -135,6 +135,7 @@ const DICE_SPIN_DURATION_MS = 460;
 const RESET_SPIN_DURATION_MS = 460;
 const DRAG_EDGE_AUTO_PAN_ZONE = 64;
 const DRAG_EDGE_AUTO_PAN_MAX_SPEED = 4.5;
+const COMPACT_SIDE_PANEL_MAX_WIDTH = 980;
 const AUTO_BUILD_MAX_ATTEMPTS = 600;
 const AUTO_BUILD_TOP_BUCKET_SIZE = 8;
 const AUTO_BUILD_TOP_BUCKET_SCORE_DELTA = 22;
@@ -177,6 +178,11 @@ const leftDrawer = document.getElementById("left-drawer");
 const rightDrawer = document.getElementById("right-drawer");
 const leftDrawerContent = document.getElementById("left-drawer-content");
 const rightDrawerContent = document.getElementById("right-drawer-content");
+const bossSectionPanel = document.getElementById("boss-section-panel");
+const bossSectionPanelMountMarker = document.createComment("boss-section-panel-mount");
+if (bossSectionPanel?.parentElement) {
+  bossSectionPanel.parentElement.insertBefore(bossSectionPanelMountMarker, bossSectionPanel);
+}
 const toggleLeftDrawerBtn = document.getElementById("toggle-left-drawer-btn");
 const toggleRightDrawerBtn = document.getElementById("toggle-right-drawer-btn");
 const statusEl = document.getElementById("status");
@@ -208,6 +214,7 @@ dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
 let boardHexRenderRaf = 0;
 let leftDrawerClosingTimer = null;
+let compactModeTransitionTimer = null;
 const diceSpinTimers = new WeakMap();
 
 const state = {
@@ -245,6 +252,8 @@ const state = {
   referenceTileSrc: "",
   referenceMarker: null,
   boardZoom: DEFAULT_BOARD_ZOOM,
+  compactSidePanelMode: false,
+  compactTileActiveSnapshot: null,
   leftDrawerCollapsed: false,
   rightDrawerCollapsed: false,
   autoBuildHistoryBySet: {},
@@ -287,6 +296,7 @@ async function init() {
   applyFeedbackMode(state.useFaceFeedback);
   setBossEditMode(true);
   applyDrawerCollapseState({ save: false, rerender: false });
+  updateCompactSidePanelMode();
   updateModeIndicators();
   applyBoardZoom(state.boardZoom);
 
@@ -908,6 +918,12 @@ function bindGlobalControls() {
     reserveEditCheckbox.checked = state.reserveEditMode;
     document.body.classList.toggle("reserve-edit-mode", state.reserveEditMode);
     reserveEditCheckbox.addEventListener("change", () => {
+      if (state.compactSidePanelMode) {
+        reserveEditCheckbox.checked = false;
+        state.reserveEditMode = false;
+        document.body.classList.remove("reserve-edit-mode");
+        return;
+      }
       state.reserveEditMode = reserveEditCheckbox.checked;
       document.body.classList.toggle("reserve-edit-mode", state.reserveEditMode);
       updateModeIndicators();
@@ -926,6 +942,7 @@ function bindGlobalControls() {
   }
   if (reserveEditCheckbox && reservePile) {
     reservePile.addEventListener("click", (event) => {
+      if (state.compactSidePanelMode) return;
       if (state.reserveEditMode) {
         if (!isClickInTopRightCloseHit(event, reservePile)) return;
       }
@@ -1045,6 +1062,7 @@ function bindGlobalControls() {
   window.addEventListener(
     "resize",
     () => {
+      updateCompactSidePanelMode();
       applyDrawerCollapseState({ save: false, rerender: false });
       recenterTrayAndReserveTiles();
       scheduleBoardHexGridRender();
@@ -1092,6 +1110,96 @@ function triggerResetSpin(buttonEl) {
     diceSpinTimers.delete(buttonEl);
   }, RESET_SPIN_DURATION_MS);
   diceSpinTimers.set(buttonEl, timer);
+}
+
+function shouldUseCompactSidePanelMode() {
+  return window.innerWidth <= COMPACT_SIDE_PANEL_MAX_WIDTH;
+}
+
+function updateCompactSidePanelMode() {
+  const shouldCompact = shouldUseCompactSidePanelMode();
+  if (state.compactSidePanelMode === shouldCompact) return;
+  setCompactSidePanelMode(shouldCompact);
+}
+
+function setCompactSidePanelMode(enabled) {
+  const useCompact = Boolean(enabled);
+  state.compactSidePanelMode = useCompact;
+  document.body.classList.toggle("compact-sidepanel-mode", useCompact);
+
+  if (useCompact) {
+    if (!state.compactTileActiveSnapshot) {
+      state.compactTileActiveSnapshot = new Map(
+        Array.from(state.tiles.values())
+          .filter((tile) => !tile.required)
+          .map((tile) => [tile.tileId, Boolean(tile.active)]),
+      );
+    }
+    if (state.reserveEditMode) {
+      state.reserveEditMode = false;
+      document.body.classList.remove("reserve-edit-mode");
+      clearPendingReserveSwap();
+    }
+    if (reserveEditCheckbox) reserveEditCheckbox.checked = false;
+    for (const tile of state.tiles.values()) {
+      if (tile.required) continue;
+      tile.active = true;
+    }
+    state.leftDrawerCollapsed = false;
+    state.rightDrawerCollapsed = true;
+    if (
+      bossSectionPanel
+      && leftDrawerContent
+      && bossSectionPanel.parentElement !== leftDrawerContent
+    ) {
+      leftDrawerContent.appendChild(bossSectionPanel);
+    }
+    rerenderTrayAndReserve();
+  } else if (
+    bossSectionPanel
+    && bossSectionPanelMountMarker.parentElement
+    && bossSectionPanel.parentElement !== bossSectionPanelMountMarker.parentElement
+  ) {
+    restoreRegularTileActivesAfterCompactMode();
+    state.leftDrawerCollapsed = false;
+    state.rightDrawerCollapsed = false;
+    bossSectionPanelMountMarker.parentElement.insertBefore(
+      bossSectionPanel,
+      bossSectionPanelMountMarker.nextSibling,
+    );
+    rerenderTrayAndReserve();
+  } else {
+    restoreRegularTileActivesAfterCompactMode();
+    state.leftDrawerCollapsed = false;
+    state.rightDrawerCollapsed = false;
+    rerenderTrayAndReserve();
+  }
+
+  if (compactModeTransitionTimer) {
+    clearTimeout(compactModeTransitionTimer);
+    compactModeTransitionTimer = null;
+  }
+  requestAnimationFrame(() => {
+    resetBoardView();
+    scheduleBoardHexGridRender();
+  });
+  if (!useCompact) {
+    // Run a second recenter after drawer/layout transition settles.
+    compactModeTransitionTimer = setTimeout(() => {
+      resetBoardView();
+      scheduleBoardHexGridRender();
+      compactModeTransitionTimer = null;
+    }, 260);
+  }
+}
+
+function restoreRegularTileActivesAfterCompactMode() {
+  const snapshot = state.compactTileActiveSnapshot;
+  for (const tile of state.tiles.values()) {
+    if (tile.required) continue;
+    tile.active = tile.placed || Boolean(snapshot?.get(tile.tileId));
+  }
+  state.compactTileActiveSnapshot = null;
 }
 
 function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardScreenPosition = false } = {}) {
@@ -1899,7 +2007,11 @@ function startRound() {
   const selectedIds = shuffle(candidateTiles).slice(0, 6);
 
   for (const tile of state.tiles.values()) {
-    tile.active = isEntranceTile(tile) || selectedIds.includes(tile.tileId);
+    if (state.compactSidePanelMode) {
+      tile.active = true;
+    } else {
+      tile.active = isEntranceTile(tile) || selectedIds.includes(tile.tileId);
+    }
     tile.placed = false;
     tile.rotation = 0;
   }
@@ -2399,6 +2511,7 @@ function resetTiles() {
     entrance.rotation = 0;
     entrance.placed = false;
   }
+  applyBoardZoom(DEFAULT_BOARD_ZOOM);
   resetBoardPan();
   clearBoard();
   renderActiveTiles();
@@ -2715,6 +2828,16 @@ function createTraySlotElement() {
   return slot;
 }
 
+function getRegularTileOrder(tileSetId = state.selectedTileSetId) {
+  return state.tileDefs
+    .filter((def) => !def.required && def.tileSetId === tileSetId)
+    .map((def) => def.tileId);
+}
+
+function getCompactTrayOrder(tileSetId = state.selectedTileSetId) {
+  return getRegularTileOrder(tileSetId);
+}
+
 function getLiveTraySlotForTile(tile) {
   if (tile?.traySlot && tile.traySlot.isConnected && tile.traySlot.parentElement === tray) {
     return tile.traySlot;
@@ -2767,11 +2890,53 @@ function renderActiveTiles() {
 }
 
 function rerenderTrayAndReserve() {
+  if (state.compactSidePanelMode) {
+    for (const tile of state.tiles.values()) {
+      if (tile.required) continue;
+      tile.active = true;
+    }
+    if (state.reserveEditMode) {
+      state.reserveEditMode = false;
+      document.body.classList.remove("reserve-edit-mode");
+      clearPendingReserveSwap();
+    }
+    if (reserveEditCheckbox) reserveEditCheckbox.checked = false;
+  }
   tray.innerHTML = "";
   reservePile.innerHTML = "";
   state.hoveredTileId = null;
   selectTile(null);
   clearPendingReserveSwap();
+
+  if (state.compactSidePanelMode) {
+    const compactOrder = getCompactTrayOrder(state.selectedTileSetId);
+    for (const tile of state.tiles.values()) {
+      if (tile.required) continue;
+      tile.traySlot = null;
+      if (tile.placed) continue;
+      tile.dom = null;
+      tile.bodyDom = null;
+      tile.guideDom = null;
+    }
+
+    for (const tileId of compactOrder) {
+      const slot = createTraySlotElement();
+      slot.dataset.compactTileId = tileId;
+      tray.appendChild(slot);
+      const tile = state.tiles.get(tileId);
+      if (!tile || tile.placed || !tile.active) continue;
+      const tileEl = createTileElement(tile);
+      tile.dom = tileEl;
+      slot.appendChild(tileEl);
+      tile.traySlot = slot;
+      positionTileAtTrayCenter(tile);
+      updateTileTransform(tile);
+    }
+
+    renderReservePile();
+    renderBossPile();
+    return;
+  }
 
   const trayTiles = [];
   for (const tile of state.tiles.values()) {
@@ -2787,12 +2952,12 @@ function rerenderTrayAndReserve() {
   }
 
   const traySlotCount = 6;
-  for (let i = 0; i < traySlotCount; i += 1) {
+  for (let i = 0; i < 6; i += 1) {
     const slot = createTraySlotElement();
     tray.appendChild(slot);
 
     const tile = trayTiles[i];
-    if (!tile) continue;
+    if (!tile || tile.placed || !tile.active) continue;
     const tileEl = createTileElement(tile);
     tile.dom = tileEl;
     slot.appendChild(tileEl);
@@ -5962,7 +6127,11 @@ function updateTileTransform(tile) {
   const scale = dragZoom * boardItemScale;
   let trayNudgeX = 0;
   let trayNudgeY = 0;
-  if (parent?.classList?.contains("tray-slot") && parent.parentElement === tray) {
+  if (
+    !state.compactSidePanelMode
+    && parent?.classList?.contains("tray-slot")
+    && parent.parentElement === tray
+  ) {
     const slotIndex = Array.prototype.indexOf.call(parent.parentElement.children, parent);
     if (slotIndex >= 0) {
       // Pull left/right tray tiles slightly inward without changing slot/card size.

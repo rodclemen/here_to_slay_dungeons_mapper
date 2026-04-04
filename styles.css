@@ -2735,6 +2735,137 @@ body.feedback-legacy .tile-guide-contact-seg {
   }
 }
 
+body.compact-sidepanel-mode .workspace {
+  display: block;
+  height: 100%;
+}
+
+body.compact-sidepanel-mode .drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 0;
+  padding: 8px 6px;
+  gap: 6px;
+}
+
+body.compact-sidepanel-mode .drawer-left {
+  width: 72px !important;
+  left: 0;
+}
+
+body.compact-sidepanel-mode .drawer-right {
+  display: none !important;
+}
+
+body.compact-sidepanel-mode .drawer-left .drawer-toolbar {
+  position: static;
+  padding: 0;
+  min-height: 0;
+}
+
+body.compact-sidepanel-mode .drawer-left .drawer-toolbar h2,
+body.compact-sidepanel-mode .drawer-left .section-helper,
+body.compact-sidepanel-mode .drawer-left .tray-head h2,
+body.compact-sidepanel-mode .drawer-left .reserve-section h2,
+body.compact-sidepanel-mode .drawer-left .boss-section .section-title-with-icon,
+body.compact-sidepanel-mode .drawer-left #placed-progress {
+  display: none !important;
+}
+
+body.compact-sidepanel-mode .drawer-left #left-drawer-content {
+  display: grid !important;
+  gap: 6px;
+}
+
+body.compact-sidepanel-mode .drawer-left .selected-tiles-section,
+body.compact-sidepanel-mode .drawer-left .reserve-section,
+body.compact-sidepanel-mode .drawer-left .boss-section {
+  width: auto;
+  margin: 0;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+}
+
+body.compact-sidepanel-mode .drawer-left .reserve-section {
+  display: none !important;
+}
+
+body.compact-sidepanel-mode .drawer-left .tray-head {
+  margin: 0;
+  justify-content: center;
+}
+
+body.compact-sidepanel-mode .drawer-left .tray-head-actions {
+  display: none;
+}
+
+body.compact-sidepanel-mode .drawer-left .tray {
+  grid-template-columns: 1fr;
+  justify-content: center;
+  justify-items: center;
+  gap: 6px;
+  margin-top: 0;
+}
+
+body.compact-sidepanel-mode .drawer-left .tray-slot {
+  --tile-size: 40px;
+  min-height: 46px;
+  min-width: 46px;
+  padding: 0;
+  margin: 0 auto;
+}
+
+body.compact-sidepanel-mode .drawer-left .tray-slot-guide {
+  display: none;
+}
+
+body.compact-sidepanel-mode .drawer-left .reserve-pile {
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  overflow: visible;
+}
+
+body.compact-sidepanel-mode .drawer-left .reserve-card,
+body.compact-sidepanel-mode .drawer-left .reserve-pile.edit-mode .reserve-card {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 40px;
+  height: 40px;
+  transform: none !important;
+  justify-self: center;
+}
+
+body.compact-sidepanel-mode .drawer-left .boss-pile {
+  height: auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
+body.compact-sidepanel-mode .drawer-left .boss-card,
+body.compact-sidepanel-mode.boss-edit-mode .drawer-left .boss-card {
+  width: 40px !important;
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none !important;
+  z-index: 1 !important;
+}
+
+body.compact-sidepanel-mode .drawer-left .tile-controls {
+  display: none !important;
+}
+
 body.about-page {
   min-height: 100vh;
   overflow-y: auto;
