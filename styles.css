@@ -171,6 +171,14 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   align-items: center;
 }
 
+.appearance-mode-menu[hidden] {
+  display: none !important;
+}
+
+.actions:has(.appearance-mode-menu[hidden]) .advanced-menu {
+  margin-left: auto;
+}
+
 .quick-actions-menu {
   position: relative;
   display: inline-flex;
@@ -573,6 +581,10 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   padding: 0 8px;
   min-height: 30px;
   position: relative;
+}
+
+.ui-theme-menu[hidden] {
+  display: none !important;
 }
 
 .advanced-menu-panel .ui-theme-inline-btn > span {
@@ -1033,7 +1045,7 @@ body:not(.right-drawer-collapsed) .board-zoom-indicator {
   position: absolute;
   top: 2px;
   left: 50%;
-  transform: translateX(calc(-50% + 407px));
+  transform: translateX(calc(-50% + 220px));
   z-index: 12060;
   width: 51px !important;
   height: 51px !important;
@@ -1054,7 +1066,7 @@ body:not(.right-drawer-collapsed) .board-zoom-indicator {
   position: absolute;
   top: 2px;
   left: 50%;
-  transform: translateX(calc(-50% + 455px));
+  transform: translateX(calc(-50% + 276px));
   z-index: 12060;
   width: 51px !important;
   height: 51px !important;

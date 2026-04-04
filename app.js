@@ -21,6 +21,7 @@ const UI_THEME_STORAGE_KEY = "hts_ui_theme_v1";
 const APPEARANCE_MODE_STORAGE_KEY = "hts_appearance_mode_v1";
 const LAST_LIGHT_UI_THEME_STORAGE_KEY = "hts_last_light_ui_theme_v1";
 const LAST_DARK_UI_THEME_STORAGE_KEY = "hts_last_dark_ui_theme_v1";
+const AUTO_THEME_BY_TILE_SET_STORAGE_KEY = "hts_auto_theme_by_tile_set_v1";
 const DRAWER_STATE_STORAGE_KEY = "hts_drawer_state_v1";
 const DEFAULT_TILE_SET_ID = "molten";
 const DEFAULT_UI_THEME_ID = "molten";
@@ -165,6 +166,7 @@ const appearanceModeDropdown = document.getElementById("appearance-mode-dropdown
 const quickActionsMenu = document.getElementById("quick-actions-menu");
 const quickActionsTrigger = document.getElementById("quick-actions-trigger");
 const quickActionsDropdown = document.getElementById("quick-actions-dropdown");
+const autoThemeToggleCheckbox = document.getElementById("auto-theme-toggle-checkbox");
 const uiThemeMenu = document.getElementById("ui-theme-menu");
 const uiThemeTrigger = document.getElementById("ui-theme-trigger");
 const uiThemeDropdown = document.getElementById("ui-theme-dropdown");
@@ -215,6 +217,7 @@ const state = {
   selectedTileSetId: DEFAULT_TILE_SET_ID,
   selectedAppearanceMode: loadAppearanceMode(),
   selectedUiThemeId: loadUiThemeId(),
+  autoThemeByTileSet: loadAutoThemeByTileSet(),
   lastLightUiThemeId: loadLastLightUiThemeId(),
   lastDarkUiThemeId: loadLastDarkUiThemeId(),
   tileDefs: [],
@@ -276,6 +279,11 @@ async function init() {
   if (tileSetSelect) tileSetSelect.value = state.selectedTileSetId;
   updateTileSetControlWidth();
   applyAppearanceMode(state.selectedAppearanceMode, { showStatus: false, save: false });
+  setAutoThemeByTileSet(state.autoThemeByTileSet, {
+    save: false,
+    showStatus: false,
+    applyNow: state.autoThemeByTileSet,
+  });
   applyFeedbackMode(state.useFaceFeedback);
   setBossEditMode(true);
   applyDrawerCollapseState({ save: false, rerender: false });
@@ -642,13 +650,9 @@ async function applyTileSet(tileSetId, showStatus = true) {
     state.referenceTileSrc = getReferenceTileSrc(nextTileSet.id);
     await loadTiles(nextTileSet.id);
     startRound();
-    const linkedLightThemeId = sanitizeLightUiThemeId(nextTileSet.id);
-    const linkedDarkThemeId = sanitizeDarkUiThemeId(`${linkedLightThemeId}_dark`);
-    state.lastLightUiThemeId = linkedLightThemeId;
-    state.lastDarkUiThemeId = linkedDarkThemeId;
-    saveLastLightUiThemeId(linkedLightThemeId);
-    saveLastDarkUiThemeId(linkedDarkThemeId);
-    applyAppearanceMode(state.selectedAppearanceMode, { showStatus: false, save: true });
+    if (state.autoThemeByTileSet) {
+      applyAutoThemeForTileSet(nextTileSet.id, { save: true, showStatus: false });
+    }
     if (showStatus) setStatus(`Tile Set: ${nextTileSet.label}.`);
   } catch (error) {
     console.error(error);
@@ -844,6 +848,16 @@ function bindGlobalControls() {
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") setQuickActionsMenuOpen(false);
+    });
+  }
+  if (autoThemeToggleCheckbox) {
+    autoThemeToggleCheckbox.checked = state.autoThemeByTileSet;
+    autoThemeToggleCheckbox.addEventListener("change", () => {
+      setAutoThemeByTileSet(autoThemeToggleCheckbox.checked, {
+        save: true,
+        showStatus: true,
+        applyNow: true,
+      });
     });
   }
   if (exportWallDataBtn) {
@@ -1252,12 +1266,42 @@ function loadAppearanceMode() {
   return DEFAULT_APPEARANCE_MODE;
 }
 
+function loadAutoThemeByTileSet() {
+  try {
+    const saved = localStorage.getItem(AUTO_THEME_BY_TILE_SET_STORAGE_KEY);
+    if (saved == null) return true;
+    if (saved === "true") return true;
+    if (saved === "false") return false;
+  } catch (error) {
+    console.warn("Could not load auto theme preference.", error);
+  }
+  return true;
+}
+
+function saveAutoThemeByTileSet(enabled) {
+  try {
+    localStorage.setItem(AUTO_THEME_BY_TILE_SET_STORAGE_KEY, String(Boolean(enabled)));
+  } catch (error) {
+    console.warn("Could not save auto theme preference.", error);
+  }
+}
+
 function saveAppearanceMode(mode) {
   try {
     localStorage.setItem(APPEARANCE_MODE_STORAGE_KEY, mode);
   } catch (error) {
     console.warn("Could not save appearance mode preference.", error);
   }
+}
+
+function syncThemeControlVisibility() {
+  const autoMode = Boolean(state.autoThemeByTileSet);
+  if (autoMode) {
+    setAppearanceModeMenuOpen(false);
+    setUiThemeMenuOpen(false);
+  }
+  if (appearanceModeMenu) appearanceModeMenu.hidden = autoMode;
+  if (uiThemeMenu) uiThemeMenu.hidden = autoMode;
 }
 
 function loadUiThemeId() {
@@ -1359,6 +1403,35 @@ function resolveUiThemeForAppearanceMode(mode) {
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? sanitizeDarkUiThemeId(state.lastDarkUiThemeId || state.selectedUiThemeId)
     : sanitizeLightUiThemeId(state.lastLightUiThemeId || state.selectedUiThemeId);
+}
+
+function applyAutoThemeForTileSet(tileSetId, { save = true, showStatus = false } = {}) {
+  const linkedLightThemeId = sanitizeLightUiThemeId(tileSetId);
+  const linkedDarkThemeId = sanitizeDarkUiThemeId(`${linkedLightThemeId}_dark`);
+  state.lastLightUiThemeId = linkedLightThemeId;
+  state.lastDarkUiThemeId = linkedDarkThemeId;
+  if (save) {
+    saveLastLightUiThemeId(linkedLightThemeId);
+    saveLastDarkUiThemeId(linkedDarkThemeId);
+  }
+  applyAppearanceMode(state.selectedAppearanceMode, { showStatus, save });
+}
+
+function setAutoThemeByTileSet(enabled, { save = true, showStatus = true, applyNow = true } = {}) {
+  state.autoThemeByTileSet = Boolean(enabled);
+  if (autoThemeToggleCheckbox) autoThemeToggleCheckbox.checked = state.autoThemeByTileSet;
+  syncThemeControlVisibility();
+  if (state.autoThemeByTileSet && applyNow) {
+    applyAutoThemeForTileSet(state.selectedTileSetId, { save, showStatus: false });
+  }
+  if (save) saveAutoThemeByTileSet(state.autoThemeByTileSet);
+  if (showStatus) {
+    setStatus(
+      state.autoThemeByTileSet
+        ? "Auto Theme: ON (theme follows tile set)."
+        : "Auto Theme: OFF (manual theme controls enabled).",
+    );
+  }
 }
 
 function syncUiThemeSelectAvailability(mode) {

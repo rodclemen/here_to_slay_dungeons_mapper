@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About & Manual — Here to Slay DUNGEONS Mapper</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    :root {
+      --about-bg: var(--bg, #f3ece3);
+      --about-panel: var(--panel, #fff9f2);
+      --about-panel-2: var(--surface-elevated, rgba(255,255,255,0.94));
+      --about-text: var(--ink, #2f2822);
+      --about-muted: var(--muted, #6f6156);
+      --about-border: var(--border, #d8c6b4);
+      --about-border-strong: var(--border-strong, #c8ad93);
+      --about-accent: var(--accent, #a46533);
+      --about-accent-strong: var(--accent-strong, #8a4f20);
+      --about-hover: var(--hover, #f9efe4);
+      --about-shadow: var(--shadow, 0 8px 18px rgba(20, 33, 42, 0.14));
+      --about-max: 1100px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body.about-page {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--about-text);
+      background:
+        radial-gradient(circle at 18% 15%, rgba(255,255,255,0.22) 0%, transparent 42%),
+        radial-gradient(circle at 85% 84%, rgba(255,255,255,0.08) 0%, transparent 38%),
+        var(--about-bg);
+    }
+
+    a {
+      color: var(--about-accent-strong);
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    .page {
+      width: min(var(--about-max), calc(100% - 28px));
+      margin: 0 auto;
+      padding: 18px 0 56px;
+    }
+
+    .top-linkbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      border: 1px solid var(--about-border);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--about-panel) 88%, white 12%);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 14px -12px rgba(48, 34, 22, 0.26);
+    }
+
+    .brand-chip,
+    .toc-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--about-border-strong);
+      border-radius: 999px;
+      background: var(--about-panel);
+      color: var(--about-text);
+      font-size: 0.86rem;
+      white-space: nowrap;
+    }
+
+    .brand-chip {
+      font-weight: 700;
+      color: var(--about-accent-strong);
+    }
+
+    .hero,
+    .section,
+    .donate {
+      border: 1px solid var(--about-border);
+      border-radius: 18px;
+      background: var(--about-panel-2);
+      box-shadow: var(--about-shadow);
+    }
+
+    .hero {
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    .hero-image-wrap {
+      border-bottom: 1px solid var(--about-border);
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--about-accent) 18%, transparent), rgba(255,255,255,0.04)),
+        linear-gradient(180deg, color-mix(in srgb, var(--about-panel) 86%, white 14%) 0%, var(--about-panel) 100%);
+      padding: 10px;
+    }
+
+    .hero-image {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+
+    .hero-copy {
+      padding: 22px 22px 24px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      color: var(--about-muted);
+      font-size: 0.77rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 12px;
+      line-height: 1.15;
+    }
+
+    h1 {
+      font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: var(--about-accent-strong);
+    }
+
+    h2 {
+      font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      color: var(--about-accent-strong);
+    }
+
+    h3 {
+      font-size: 1rem;
+      color: var(--about-text);
+    }
+
+    p { margin: 0 0 14px; }
+
+    .lead {
+      font-size: 1.03rem;
+      max-width: 78ch;
+    }
+
+    .muted { color: var(--about-muted); }
+
+    .section {
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    .section-grid,
+    .two-col,
+    .three-col,
+    .toc-grid,
+    .tiles-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .section-grid {
+      grid-template-columns: 1.12fr 0.88fr;
+      align-items: start;
+    }
+
+    .two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .toc-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .tiles-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card,
+    .toc-card,
+    .callout {
+      border: 1px solid var(--about-border);
+      border-radius: 14px;
+      background: var(--about-panel);
+      padding: 14px;
+    }
+
+    .toc-card strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--about-accent-strong);
+    }
+
+    .image-placeholder {
+      width: 100%;
+      border: 1px dashed var(--about-border-strong);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 18px;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--about-accent) 10%, transparent), rgba(255,255,255,0.22)),
+        color-mix(in srgb, var(--about-panel) 88%, white 12%);
+      color: color-mix(in srgb, var(--about-text) 78%, var(--about-muted) 22%);
+      font-size: 0.92rem;
+    }
+
+    .ratio-16x9 { aspect-ratio: 16 / 9; }
+    .ratio-4x3 { aspect-ratio: 4 / 3; }
+
+    ul {
+      margin: 0 0 14px 18px;
+      padding: 0;
+    }
+
+    li { margin-bottom: 8px; }
+
+    .callout {
+      margin-top: 14px;
+      border-left: 4px solid var(--about-accent);
+      background: color-mix(in srgb, var(--about-panel) 84%, white 16%);
+    }
+
+    .shortcut-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--about-border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--about-panel);
+    }
+
+    .shortcut-table th,
+    .shortcut-table td {
+      text-align: left;
+      vertical-align: top;
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--about-border);
+    }
+
+    .shortcut-table th {
+      background: color-mix(in srgb, var(--about-panel) 76%, white 24%);
+      color: var(--about-accent-strong);
+      font-size: 0.9rem;
+    }
+
+    .shortcut-table tr:last-child td { border-bottom: 0; }
+
+    .kbd {
+      display: inline-block;
+      min-width: 34px;
+      text-align: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--about-border-strong);
+      background: color-mix(in srgb, var(--about-panel) 76%, white 24%);
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: var(--about-accent-strong);
+    }
+
+    .donate {
+      padding: 20px;
+      margin-top: 18px;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--about-accent) 8%, transparent), rgba(255,255,255,0.22)),
+        var(--about-panel-2);
+    }
+
+    .donate-placeholder {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 16px;
+      margin-top: 10px;
+      border: 1px dashed var(--about-border-strong);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--about-panel) 80%, white 20%);
+      color: var(--about-accent-strong);
+      font-weight: 700;
+    }
+
+    @media (max-width: 900px) {
+      .section-grid,
+      .two-col,
+      .three-col,
+      .tiles-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .page {
+        width: min(var(--about-max), calc(100% - 18px));
+      }
+
+      .hero-copy,
+      .section,
+      .donate {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body class="about-page">
+  <main class="page">
+    <nav class="top-linkbar">
+      <span class="brand-chip">Here to Slay DUNGEONS Mapper</span>
+      <a class="toc-link" href="#what-it-is">What It Is</a>
+      <a class="toc-link" href="#getting-started">Getting Started</a>
+      <a class="toc-link" href="#build-dungeon">Build Your Dungeon</a>
+      <a class="toc-link" href="#boss-cards">Boss Cards</a>
+      <a class="toc-link" href="#controls">Controls</a>
+      <a class="toc-link" href="#support">Support</a>
+    </nav>
+
+    <section class="hero" id="what-it-is">
+      <div class="hero-image-wrap">
+        <img class="hero-image" src="./graphics/about_logo.png" alt="Here to Slay DUNGEONS Mapper hero graphic" />
+      </div>
+      <div class="hero-copy">
+        <div class="eyebrow">About & Manual</div>
+        <h1>Here to Slay DUNGEONS Mapper</h1>
+        <p class="lead">This website is a dungeon layout builder for <em>Here to Slay: Dungeons</em>. It lets you place tiles on a hex board, test valid layouts, auto-generate complete dungeons, manage bosses, and save or load setups without needing to wrestle with the physical tiles every time.</p>
+        <p class="muted">This page explains the full normal-user workflow, the important features, and the controls and shortcuts built into the mapper.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Quick Overview</h2>
+      <div class="toc-grid">
+        <div class="toc-card"><strong>Choose a tile set</strong><span class="muted">Start by picking Molten, Overgrown, Deep Freeze, Dreamscape, Nightmare, or Submerged.</span></div>
+        <div class="toc-card"><strong>Place the six active tiles</strong><span class="muted">Drag them from the tray to the board and build your dungeon legally.</span></div>
+        <div class="toc-card"><strong>Use Auto Build if you want speed</strong><span class="muted">The mapper can generate a valid dungeon layout for you.</span></div>
+        <div class="toc-card"><strong>Add a boss and save the result</strong><span class="muted">Choose a boss, place it near the reference card, and save the layout if needed.</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="getting-started">
+      <h2>Getting Started</h2>
+      <div class="section-grid">
+        <div>
+          <p>When you open the mapper, the board sits in the middle, the tile tray is on the left, and the boss and feedback area is on the right. The entrance tile is placed automatically. The tool then selects six active dungeon tiles and keeps the remaining three in reserve.</p>
+          <p>Your first job is simple: build a legal dungeon around the entrance tile. You can do that manually by dragging tiles from the tray, or you can let the Auto Build button do the heavy lifting.</p>
+          <ul>
+            <li>Choose a tile set from the top bar.</li>
+            <li>Review the six selected tiles in the left drawer.</li>
+            <li>Drag tiles onto the board and rotate them as needed.</li>
+            <li>Watch the feedback panel for placement success or warnings.</li>
+            <li>Add a boss once the dungeon is ready.</li>
+          </ul>
+        </div>
+        <div class="image-placeholder ratio-16x9">Placeholder Screenshot — Full UI with both drawers open and the board visible (16:9)</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Understanding the Layout</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>Top Bar</h3>
+          <p>The top bar contains the tile set selector, appearance mode control, advanced tools menu, quick actions menu, and the About &amp; Manual link.</p>
+        </div>
+        <div class="card">
+          <h3>Left Drawer</h3>
+          <p>This is the Tile Drawer. It contains the six selected tiles for the current build and the reserve pile for inactive tiles.</p>
+        </div>
+        <div class="card">
+          <h3>Board</h3>
+          <p>The board is the main workspace. It includes the hex grid, entrance tile, reference card, placed dungeon tiles, boss tokens, auto-build button, reset button, and zoom badge.</p>
+        </div>
+        <div class="card">
+          <h3>Right Drawer</h3>
+          <p>This drawer contains the Boss Selection pile and the Placement Feedback area, including checklist progress and status messages.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <p><strong>Tip:</strong> If you want more room to work, collapse one or both drawers. The mapper is much easier to read on smaller screens when you keep the side panels under control.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>The Board and Core Anchors</h2>
+      <p>The board uses a visible hex-grid system, so tiles snap into position cleanly. The entrance tile is placed first and acts as the anchor point for the dungeon. A reference card sits above it and becomes the snap area for boss placement.</p>
+      <div class="two-col">
+        <div class="card">
+          <h3>Entrance Tile</h3>
+          <p>The entrance tile is always placed first and cannot be sent back to the tray. Once other tiles connect to it, its rotation becomes much more restricted.</p>
+        </div>
+        <div class="card">
+          <h3>Reference Card</h3>
+          <p>The reference card gives the boss tokens a clear home and keeps the layout organized around the entrance area.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="build-dungeon">
+      <h2>Building Your Dungeon</h2>
+      <h3>Placing Tiles</h3>
+      <p>Drag a tile from the tray to the board. As it moves over the play area, the mapper snaps it to the nearest hex position and checks whether the current spot is valid. If the tile meets the placement rules, it stays. If it fails, the feedback panel tells you why.</p>
+      <h3>Rotating Tiles</h3>
+      <p>Hovering over a tile reveals the rotate controls. You can rotate tiles in either direction to line up faces and improve legal contact. Already placed tiles can also be rotated, but they will be re-validated immediately.</p>
+      <h3>Legal Placement</h3>
+      <p>The mapper enforces the dungeon placement rules in normal use. A tile needs enough valid contact with the current layout, overlaps are rejected, and blocked faces on the entrance tile are respected.</p>
+      <h3>What Happens When Something Fails</h3>
+      <p>Invalid placements are clearly marked and explained. Depending on the situation, a bad tile may be pushed toward an open hex or sent back to the tray after a short delay.</p>
+    </section>
+
+    <section class="section">
+      <h2>Placement Feedback</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>Classic Feedback</h3>
+          <p>The default mode gives you straightforward green/red placement feedback at the tile level.</p>
+        </div>
+        <div class="card">
+          <h3>Face-by-Face Feedback</h3>
+          <p>You can enable face-based placement feedback in Advanced Tools to see more detailed connection information.</p>
+        </div>
+        <div class="card">
+          <h3>Status Messages</h3>
+          <p>The right drawer explains why a tile is valid, invalid, returning to the tray, or causing some other change in state.</p>
+        </div>
+        <div class="card">
+          <h3>Checklist</h3>
+          <p>The feedback checklist tracks whether all six tiles are placed and whether a boss has been selected.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Auto Build</h2>
+      <div class="section-grid">
+        <div>
+          <p>If you want a complete dungeon quickly, use the Auto Build button on the board. The mapper selects and places the six active tiles in a valid arrangement around the entrance tile, then also places a random boss.</p>
+          <p>Auto Build is useful when you want a fast starting point, a random layout to play from, or just a break from dragging and rotating everything manually.</p>
+          <p>If the auto-builder cannot find a legal result, the status panel will tell you and suggest trying again or rerolling the tile selection.</p>
+        </div>
+        <div class="image-placeholder ratio-16x9">Placeholder GIF — Animated dungeon being built by Auto Build (16:9)</div>
+      </div>
+      <div class="callout">
+        <p><strong>Best use:</strong> Auto Build is great for fast setup, but manual placement is still better if you want very specific dungeon shapes.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Tile Management</h2>
+      <h3>Reroll Tiles</h3>
+      <p>The reroll button in the Selected Tiles section gives you a fresh set of tray tiles while leaving already placed tiles alone.</p>
+      <h3>Reserve Tiles</h3>
+      <p>The reserve pile contains the inactive tiles. Click it to open Reserve Edit Mode, where the reserve tiles fan out so you can swap them with tray tiles.</p>
+      <h3>Swapping</h3>
+      <p>Select a reserve tile, then select a tray tile to swap them. This gives you more control without wiping the whole layout.</p>
+    </section>
+
+    <section class="section" id="boss-cards">
+      <h2>Boss Cards</h2>
+      <div class="section-grid">
+        <div>
+          <p>The Boss Selection pile is in the right drawer. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
+          <p>Once placed, boss tokens snap to magnet positions around the reference card. They can be moved later, and dragging a placed boss back to the pile or info drawer returns it cleanly.</p>
+        </div>
+        <div class="card">
+          <h3>Boss Placement</h3>
+          <p>Click to cycle bosses, drag to place them, or let the random-boss button choose one for you. Once on the board, bosses stay aligned to the reference area instead of floating around like lost side quests.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Saving, Loading, and Resetting</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>Save Layout</h3>
+          <p>Save the current state as a JSON file so you can reload the layout later.</p>
+        </div>
+        <div class="card">
+          <h3>Load Layout</h3>
+          <p>Load a previously saved JSON layout. The mapper restores the board state and switches tile set if needed.</p>
+        </div>
+        <div class="card">
+          <h3>Reset Tiles</h3>
+          <p>Use Quick Actions to return tiles to the tray without changing the current tile set.</p>
+        </div>
+        <div class="card">
+          <h3>Board Reset</h3>
+          <p>The reset button on the board clears tiles and bosses and puts the whole setup back at its starting state.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Appearance, Themes, and Layout Controls</h2>
+      <div class="section-grid">
+        <div>
+          <p>The appearance mode control lets you switch between Light, Dark, and System mode. The mapper remembers light and dark preferences separately, so changing modes does not scramble your style choices.</p>
+          <p>The theme selector in Advanced Tools lets you choose a specific UI theme. Each dungeon set has light and dark theme variants, but you can pick another one if you prefer.</p>
+          <p>Both side drawers can also be collapsed independently. That makes the board much easier to work with when you want maximum layout space.</p>
+        </div>
+        <div class="card">
+          <h3>Theme-aware page styling</h3>
+          <p>This page is set up to use the same core CSS variables as the main app, so the About page can follow the chosen color theme instead of feeling like it belongs to a completely different website.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="controls">
+      <h2>Keyboard Shortcuts</h2>
+      <table class="shortcut-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>What It Does</th>
+            <th>When It Works</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="kbd">R</span></td>
+            <td>Rotate the hovered or selected tile clockwise.</td>
+            <td>When a tile is hovered or selected and you are not typing into an input.</td>
+          </tr>
+          <tr>
+            <td><span class="kbd">F</span></td>
+            <td>Rotate the hovered or selected tile counter-clockwise.</td>
+            <td>When a tile is hovered or selected and you are not typing into an input.</td>
+          </tr>
+          <tr>
+            <td><span class="kbd">F</span></td>
+            <td>Collapse or expand both drawers.</td>
+            <td>Only when no tile is currently hovered or selected.</td>
+          </tr>
+          <tr>
+            <td><span class="kbd">Esc</span></td>
+            <td>Close open dropdowns and small menus.</td>
+            <td>For appearance mode, theme menus, quick actions, and similar popups.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <p><strong>Important:</strong> The <span class="kbd">F</span> key does double duty. If a tile is active, it rotates. If no tile is active, it toggles the drawer layout.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Mouse and Pointer Controls</h2>
+      <div class="three-col">
+        <div class="card">
+          <h3>Drag Tiles</h3>
+          <p>Drag tiles from the tray to the board, or drag placed tiles back toward the drawer to return them.</p>
+        </div>
+        <div class="card">
+          <h3>Pan the Board</h3>
+          <p>Click and drag empty board space to move the current view.</p>
+        </div>
+        <div class="card">
+          <h3>Zoom</h3>
+          <p>Use the mouse wheel over the board to zoom in and out. Click the zoom badge to reset the view.</p>
+        </div>
+        <div class="card">
+          <h3>Drag Bosses</h3>
+          <p>Drag the top boss card to the board, or reposition a boss token that is already placed.</p>
+        </div>
+        <div class="card">
+          <h3>Use Reserve Edit Mode</h3>
+          <p>Click the reserve pile to fan it out, then click reserve and tray tiles to swap them.</p>
+        </div>
+        <div class="card">
+          <h3>Hover Controls</h3>
+          <p>Hovering a tile reveals rotation buttons and also makes that tile the shortcut target.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Available Tile Sets</h2>
+      <p>Each tile set has its own dungeon style and matching light/dark theme pair. The exact availability depends on which assets are currently complete in the mapper.</p>
+      <div class="tiles-grid">
+        <div class="card"><h3>Molten</h3><p>Volcanic heat, ember glow, scorched stone, and forge-like energy.</p></div>
+        <div class="card"><h3>Overgrown</h3><p>Creeping plant life, swampy greens, roots, moss, and living growth.</p></div>
+        <div class="card"><h3>Deep Freeze</h3><p>Cold teal, glacial surfaces, frozen air, and sharp icy mood.</p></div>
+        <div class="card"><h3>Submerged</h3><p>Aquatic blues, cyan glow, and an energized underwater feel.</p></div>
+        <div class="card"><h3>Dreamscape</h3><p>Soft lavender fantasy, moonlit magic, and astral glow.</p></div>
+        <div class="card"><h3>Nightmare</h3><p>Corrupted magenta, bruised plum, and a more hostile fantasy look.</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Helpful Tips</h2>
+      <ul>
+        <li>Use Auto Build when you want a fast starting point, then adjust the layout manually.</li>
+        <li>Collapse the drawers if you want more board space for dragging and zooming.</li>
+        <li>Use reserve swapping when the tray is close to what you want but not quite right.</li>
+        <li>Enable face-based placement feedback if you want more detailed connection guidance.</li>
+        <li>Save layouts you really like instead of trusting memory. Memory is confident and wrong far too often.</li>
+      </ul>
+    </section>
+
+    <section class="donate" id="support">
+      <h2>Support the Project</h2>
+      <p>If this tool makes building dungeon layouts easier, faster, or just a lot less annoying, a donation is a nice way to support future improvements. It is not required, but it is appreciated.</p>
+      <p class="muted">PayPal link placeholder — add your donation link here later.</p>
+      <div class="donate-placeholder">Donate Button Placeholder</div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const themeIds = [
+        'molten', 'molten_dark',
+        'overgrown', 'overgrown_dark',
+        'submerged', 'submerged_dark',
+        'deep_freeze', 'deep_freeze_dark',
+        'dreamscape', 'dreamscape_dark',
+        'nightmare', 'nightmare_dark'
+      ];
+
+      const body = document.body;
+      themeIds.forEach(id => body.classList.remove(`ui-theme-${id.replace(/_/g, '-')}`));
+
+      const possibleKeys = [
+        'selectedUiThemeId',
+        'uiThemeId',
+        'themeId',
+        'activeUiThemeId'
+      ];
+
+      let savedTheme = null;
+      for (const key of possibleKeys) {
+        const value = localStorage.getItem(key);
+        if (value && themeIds.includes(value)) {
+          savedTheme = value;
+          break;
+        }
+      }
+
+      if (savedTheme) {
+        body.classList.add(`ui-theme-${savedTheme.replace(/_/g, '-')}`);
+      }
+    })();
+  </script>
+</body>
+</html>

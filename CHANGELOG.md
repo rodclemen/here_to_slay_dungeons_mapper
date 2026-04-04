@@ -6,8 +6,11 @@
 - Fixed auto-build/random-placement gradient anchoring regression by forcing a hex-grid re-render after programmatic Entrance placement, so cave-light gradient stays anchored to the Entrance tile instead of falling back to board center.
 - Added hover polish for board `Auto Build` and `Reset` icon buttons: icon glyphs now scale to 110% and shift to accent color on hover/focus-visible.
 - Added a dedicated long-form About/Manual page (`about.html`) with scrollable feature guide and shortcut reference, linked from the main top bar as `About & Manual`.
+- Added a second guide page (`about_v2.html`) with the provided long-form layout/template and connected the hero block to `Graphics/about_banner.png`.
 - Remapped primary keyboard shortcuts: `W`/`E` rotate tile (CCW/CW), `R` runs random placement (Auto Build), `X` resets tiles+boss, `D` toggles both drawers, and `B` triggers random boss; removed old rotate-on-`R` and drawer toggle on `F`.
 - Updated user-facing docs to match runtime behavior: refreshed shortcut mappings and control descriptions in `about.html` and `README.md`.
+- Added `Auto Theme` toggle behavior with persisted state: users can switch between tile-set-driven automatic theming and manual theme controls, with manual theme UI hidden while auto mode is active.
+- Refined board action icon positioning behavior: decoupled from drawer width handling and re-anchored around board center with right-of-center offsets for more stable responsive placement.
 - Session note: Changed five shortcuts in one pass and only had to unlearn my own muscle memory twice.
 
 ## 2026-04-03
