@@ -284,6 +284,8 @@ let compactModeTransitionTimer = null;
 let boardAutoCenterResizeTimer = null;
 let boardHexThemeCache = null;
 let boardHexLayoutCache = null;
+let boardContentLayer = null;
+let boardHexSvg = null;
 const boardHexPathCache = new Map();
 const diceSpinTimers = new WeakMap();
 
@@ -1224,7 +1226,7 @@ function scheduleBoardAutoCenterOnViewportResize() {
       updateBoardAutoCenterViewportAnchor();
       return;
     }
-    resetBoardView();
+    recenterBoardView();
   }, BOARD_AUTO_CENTER_RESIZE_SETTLE_MS);
 }
 
@@ -1870,13 +1872,19 @@ function applyBoardZoom(zoom) {
   }
 }
 
-function resetBoardView() {
-  applyBoardZoom(DEFAULT_BOARD_ZOOM);
+function recenterBoardView({ resetZoom = false } = {}) {
+  if (resetZoom) {
+    applyBoardZoom(DEFAULT_BOARD_ZOOM);
+  }
   const dx = -state.boardPanX;
   const dy = -state.boardPanY;
   translateBoardContent(dx, dy);
   centerBoardViewOnEntranceX();
   updateBoardAutoCenterViewportAnchor();
+}
+
+function resetBoardView() {
+  recenterBoardView({ resetZoom: true });
 }
 
 function zoomBoardAtPoint(delta, anchorBoardX, anchorBoardY) {
@@ -2894,6 +2902,8 @@ function clearBoard(options = {}) {
     clearInvalidReturnTimer(tile);
   }
   board.querySelector(".board-content")?.remove();
+  boardContentLayer = null;
+  boardHexSvg = null;
   state.referenceMarker = null;
   state.bossTokens = [];
   if (!preserveEntranceFadeAnchor) {
@@ -2912,11 +2922,18 @@ function clearBoard(options = {}) {
 }
 
 function getBoardContentLayer() {
-  let layer = board.querySelector(".board-content");
-  if (layer) return layer;
-  layer = document.createElement("div");
+  if (boardContentLayer?.isConnected && boardContentLayer.parentElement === board) {
+    return boardContentLayer;
+  }
+  const existing = board.querySelector(".board-content");
+  if (existing) {
+    boardContentLayer = existing;
+    return existing;
+  }
+  const layer = document.createElement("div");
   layer.className = "board-content";
   board.appendChild(layer);
+  boardContentLayer = layer;
   return layer;
 }
 
@@ -2926,6 +2943,7 @@ function mountBoardHexGrid() {
   svg.classList.add("board-hex-grid");
   svg.setAttribute("aria-hidden", "true");
   layer.appendChild(svg);
+  boardHexSvg = svg;
   renderBoardHexGrid();
 }
 
@@ -2986,18 +3004,9 @@ function getBoardHexThemeMetrics() {
 }
 
 function renderBoardHexGrid() {
-  const svg = getBoardContentLayer().querySelector(".board-hex-grid");
+  const svg = boardHexSvg?.isConnected ? boardHexSvg : getBoardContentLayer().querySelector(".board-hex-grid");
   if (!svg) return;
-
-  const entranceTileForScale = state.tiles.get(ENTRANCE_TILE_ID);
-  if (
-    entranceTileForScale?.placed
-    && entranceTileForScale.dom
-    && isOnBoardLayer(entranceTileForScale.dom.parentElement)
-  ) {
-    updateTileTransform(entranceTileForScale);
-  }
-  updateReferenceMarkerTransform();
+  boardHexSvg = svg;
 
   const w = Math.floor(board.clientWidth);
   const h = Math.floor(board.clientHeight);
