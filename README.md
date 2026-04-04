@@ -68,7 +68,7 @@ Browser prototype for testing tile placement rules, snap behavior, and tile-face
 - `Wall Editor`: enters wall-edit mode.
 - In wall-edit mode, a dedicated editor page opens with six side-by-side trays (one per tile set), each showing that tile set's 9 regular tiles.
 - `Clear Tile Walls`: clears wall faces for the currently hovered/selected regular tile.
-- In wall-edit mode, click face segments to toggle wall ON/OFF (saved per `tile set + tile` in browser localStorage).
+- In wall-edit mode, click face segments to toggle wall ON/OFF for the current `tile set + tile`.
 - `Export Debug Walls`: downloads a JSON backup of wall-override debug mappings.
 - `Import Debug Walls`: restores wall-override debug mappings from a previously exported JSON file.
 - `Debug` dropdown:

@@ -106,15 +106,25 @@
               </svg>
             </button>
             <div id="quick-actions-dropdown" class="quick-actions-dropdown" role="menu" hidden>
-              <button id="load-dungeon-btn" class="quick-action-option" type="button" role="menuitem">Load Layout</button>
-              <button id="save-dungeon-btn" class="quick-action-option" type="button" role="menuitem">Save Layout</button>
+              <button id="export-pdf-btn" class="quick-action-option" type="button" role="menuitem">Export PDF</button>
               <button id="reset-tiles-btn" class="quick-action-option" type="button" role="menuitem">Reset Tiles</button>
             </div>
           </div>
-          <a class="about-link-btn" href="./about.html" aria-label="Open About and Manual">About &amp; Manual</a>
-          <label class="primary-control tile-set-inline-btn">
-            <span>Tile Set:</span>
-            <select id="tile-set-select" aria-label="Tile Set">
+          <a class="about-link-btn" href="./about.html" aria-label="Open Guide">Guide</a>
+          <div class="tile-set-menu" id="tile-set-menu">
+            <button
+              id="tile-set-trigger"
+              class="tile-set-trigger"
+              type="button"
+              aria-label="Tile Set"
+              title="Tile Set"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              Tile Set
+            </button>
+            <div id="tile-set-dropdown" class="tile-set-dropdown" role="menu" hidden></div>
+            <select id="tile-set-select" aria-label="Tile Set" hidden>
               <option value="molten">Molten</option>
               <option value="overgrown">Overgrown</option>
               <option value="dreamscape">Dreamscape</option>
@@ -122,12 +132,11 @@
               <option value="submerged">Submerged</option>
               <option value="deep_freeze">Deep Freeze</option>
             </select>
-          </label>
+          </div>
           <input id="import-wall-data-input" type="file" accept="application/json" hidden />
-          <input id="load-dungeon-input" type="file" accept="application/json,.json" hidden />
         </div>
       </header>
-      <img class="corner-logo" src="./logo.png" alt="" aria-hidden="true" />
+      <img class="corner-logo" src="./Graphics/logo.png" alt="" aria-hidden="true" />
 
       <section class="workspace">
         <aside id="left-drawer" class="drawer drawer-left">
@@ -165,7 +174,7 @@
           <div id="left-drawer-content" class="drawer-content">
             <section class="panel-section selected-tiles-section">
               <div class="tray-head">
-                <h2>Selected Tiles</h2>
+                <h2>Selected Tiles <span id="selected-tileset-name" class="selected-tileset-name"></span></h2>
                 <div class="tray-head-actions">
                   <button id="reroll-btn" class="icon-image-btn" type="button" aria-label="Reroll Tiles" title="Reroll Tiles">
                     <img src="./icons/reroll.png" alt="" aria-hidden="true" />
