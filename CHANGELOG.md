@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-04-05
+- Tightened placement-overlap behavior in `app.js`: removed the blunt center-distance overlap reject, moved overlap checks onto inset guide polygons instead of PNG alpha, added containment checks so stacked tiles are still rejected, and fixed drag feedback so overlapping placements no longer flash green before being returned.
+- Reduced false reference-card/boss drift after auto-build by replacing the old square-box proximity test with an inset reference-card collision shape checked against the same overlap geometry used for tiles, so the reference card only relocates when tiles meaningfully intrude into its area.
+- Fixed the subtle board-gradient flash during random placement/reset flows by preserving the previous Entrance fade anchor through board clears instead of briefly letting the grid re-anchor to board center.
+- Consolidated header menu close behavior into shared helpers, removing duplicated document-level click and Escape listeners for the Tile Set, Theme, Appearance, and Quick Actions menus.
+- Reduced left-drawer rerender cost: `rerenderTrayAndReserve()` no longer rebuilds the boss pile, tray/reserve DOM creation now batches through `DocumentFragment`, reserve-only highlight/checklist updates no longer force unnecessary reserve rebuilds, and tray slot lookup now reuses cached rendered slots instead of querying the DOM each time.
+- Reduced repeated board-grid work by caching theme-derived hex-grid color metrics per active UI theme and caching per-radius hex vertex templates used by `hexPath()`.
+- Trimmed reserve-tile sizing in `styles.css` so reserve cards render smaller in normal, reserve-edit, and compact side-panel layouts.
+- Session note: Fixed three “tiny visual glitches” that each turned out to be a completely different geometry problem.
+
 ## 2026-04-04
 - Increased board play-scale by 15% for grid placement flows: enlarged on-board and drag-context tile sizing (including Entrance, regular tiles, reference card, and boss token sizing) while preserving drawer/tray card sizing so only board/drag contexts are visually larger.
 - Scaled snap and magnet tuning with the new board size (snap radius plus reference/boss magnet offsets and tolerances) to keep drag snapping and boss magnet behavior aligned with the larger grid.

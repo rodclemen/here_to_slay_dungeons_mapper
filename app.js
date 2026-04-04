@@ -213,6 +213,8 @@ const BOARD_AUTO_CENTER_RESIZE_SETTLE_MS = 180;
 const BOARD_ITEM_SCALE = 1;
 const COMPACT_DRAG_GROW_DISTANCE_PX = 100;
 const COMPACT_DRAG_START_SIZE_BOOST = 1.12;
+const OVERLAP_POLYGON_INSET_PX = 3;
+const REFERENCE_CARD_COLLISION_INSET_PX = 10;
 document.documentElement.style.setProperty("--tile-size", `${TILE_SIZE}px`);
 
 const board = document.getElementById("board");
@@ -279,6 +281,8 @@ let boardHexRenderRaf = 0;
 let leftDrawerClosingTimer = null;
 let compactModeTransitionTimer = null;
 let boardAutoCenterResizeTimer = null;
+let boardHexThemeCache = null;
+const boardHexPathCache = new Map();
 const diceSpinTimers = new WeakMap();
 
 const state = {
@@ -306,6 +310,7 @@ const state = {
   pendingSwapSource: null,
   reserveEditMode: false,
   regularTileOrder: [],
+  renderedTraySlots: [],
   ignoreContactRule: false,
   useFaceFeedback: false,
   bossEditMode: true,
@@ -467,6 +472,22 @@ function setTileSetMenuOpen(open) {
   if (!shouldOpen) {
     tileSetTrigger.blur();
   }
+}
+
+function closeHeaderMenus({ except = null } = {}) {
+  if (except !== "tileSet") setTileSetMenuOpen(false);
+  if (except !== "uiTheme") setUiThemeMenuOpen(false);
+  if (except !== "appearanceMode") setAppearanceModeMenuOpen(false);
+  if (except !== "quickActions") setQuickActionsMenuOpen(false);
+}
+
+function isEventInsideHeaderMenu(target) {
+  return Boolean(
+    tileSetMenu?.contains(target)
+    || uiThemeMenu?.contains(target)
+    || appearanceModeMenu?.contains(target)
+    || quickActionsMenu?.contains(target),
+  );
 }
 
 function buildTileKey(tileSetId, tileId) {
@@ -846,9 +867,7 @@ function bindGlobalControls() {
   }
   if (tileSetTrigger && tileSetDropdown) {
     tileSetTrigger.addEventListener("click", () => {
-      setUiThemeMenuOpen(false);
-      setAppearanceModeMenuOpen(false);
-      setQuickActionsMenuOpen(false);
+      closeHeaderMenus({ except: "tileSet" });
       const shouldOpen = tileSetDropdown.hidden;
       setTileSetMenuOpen(shouldOpen);
     });
@@ -859,14 +878,6 @@ function bindGlobalControls() {
       if (!tileSetSelect) return;
       tileSetSelect.value = nextTileSetId;
       tileSetSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    document.addEventListener("click", (event) => {
-      if (!tileSetMenu?.contains(event.target)) {
-        setTileSetMenuOpen(false);
-      }
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") setTileSetMenuOpen(false);
     });
   }
   if (uiThemeSelect) {
@@ -887,8 +898,7 @@ function bindGlobalControls() {
   }
   if (uiThemeTrigger && uiThemeDropdown && uiThemeSelect) {
     uiThemeTrigger.addEventListener("click", () => {
-      setAppearanceModeMenuOpen(false);
-      setQuickActionsMenuOpen(false);
+      closeHeaderMenus({ except: "uiTheme" });
       const shouldOpen = uiThemeDropdown.hidden;
       setUiThemeMenuOpen(shouldOpen);
     });
@@ -900,19 +910,10 @@ function bindGlobalControls() {
       uiThemeSelect.dispatchEvent(new Event("change", { bubbles: true }));
       setUiThemeMenuOpen(false);
     });
-    document.addEventListener("click", (event) => {
-      if (!uiThemeMenu?.contains(event.target)) {
-        setUiThemeMenuOpen(false);
-      }
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") setUiThemeMenuOpen(false);
-    });
   }
   if (appearanceModeTrigger && appearanceModeDropdown) {
     appearanceModeTrigger.addEventListener("click", () => {
-      setUiThemeMenuOpen(false);
-      setQuickActionsMenuOpen(false);
+      closeHeaderMenus({ except: "appearanceMode" });
       const shouldOpen = appearanceModeDropdown.hidden;
       setAppearanceModeMenuOpen(shouldOpen);
     });
@@ -923,33 +924,16 @@ function bindGlobalControls() {
       applyAppearanceMode(nextMode);
       setAppearanceModeMenuOpen(false);
     });
-    document.addEventListener("click", (event) => {
-      if (!appearanceModeMenu?.contains(event.target)) {
-        setAppearanceModeMenuOpen(false);
-      }
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") setAppearanceModeMenuOpen(false);
-    });
   }
   if (quickActionsTrigger && quickActionsDropdown) {
     quickActionsTrigger.addEventListener("click", () => {
-      setUiThemeMenuOpen(false);
-      setAppearanceModeMenuOpen(false);
+      closeHeaderMenus({ except: "quickActions" });
       const shouldOpen = quickActionsDropdown.hidden;
       setQuickActionsMenuOpen(shouldOpen);
     });
     quickActionsDropdown.addEventListener("click", (event) => {
       if (!event.target.closest(".quick-action-option")) return;
       setQuickActionsMenuOpen(false);
-    });
-    document.addEventListener("click", (event) => {
-      if (!quickActionsMenu?.contains(event.target)) {
-        setQuickActionsMenuOpen(false);
-      }
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") setQuickActionsMenuOpen(false);
     });
   }
   if (autoThemeToggleCheckbox) {
@@ -1107,11 +1091,20 @@ function bindGlobalControls() {
   });
 
   document.addEventListener("click", (event) => {
+    if (!isEventInsideHeaderMenu(event.target)) {
+      closeHeaderMenus();
+    }
     if (event.target.closest(".advanced-menu")) return;
     const openMenus = document.querySelectorAll(".advanced-menu[open]");
     openMenus.forEach((menu) => {
       menu.open = false;
     });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeHeaderMenus();
+    }
   });
 
   board.addEventListener("pointerdown", (event) => {
@@ -2363,7 +2356,7 @@ function startRound() {
     startWallEditSession();
     return;
   }
-  clearBoard();
+  clearBoard({ preserveEntranceFadeAnchor: true });
 
   const slotOrder = shuffle(
     state.tileDefs.filter((tileDef) => !tileDef.required).map((tileDef) => tileDef.tileId),
@@ -2443,7 +2436,7 @@ function autoBuildSelectedTiles() {
     tile.rotation = 0;
   }
   syncRegularTileActivityFromSlotOrder(state.selectedTileSetId);
-  clearBoard();
+  clearBoard({ preserveEntranceFadeAnchor: true });
   renderActiveTiles();
   placeStartTileAtCenter();
   updatePlacedProgress();
@@ -2877,7 +2870,7 @@ function resetTiles() {
   syncRegularTileActivityFromSlotOrder(state.selectedTileSetId);
   applyBoardZoom(DEFAULT_BOARD_ZOOM);
   resetBoardPan();
-  clearBoard();
+  clearBoard({ preserveEntranceFadeAnchor: true });
   renderActiveTiles();
   renderBossPile();
   placeStartTileAtCenter();
@@ -2893,14 +2886,18 @@ function resetTilesAndBossCards() {
   setStatus("Tiles and boss cards reset.");
 }
 
-function clearBoard() {
+function clearBoard(options = {}) {
+  const preserveEntranceFadeAnchor = Boolean(options?.preserveEntranceFadeAnchor);
   for (const tile of state.tiles.values()) {
     clearInvalidReturnTimer(tile);
   }
   board.querySelector(".board-content")?.remove();
   state.referenceMarker = null;
   state.bossTokens = [];
-  state.entranceFadeAnchor = null;
+  if (!preserveEntranceFadeAnchor) {
+    state.entranceFadeAnchor = null;
+  }
+  state.renderedTraySlots = [];
   updateBoardZoomIndicator();
   getBoardContentLayer();
   mountBoardHexGrid();
@@ -2933,6 +2930,57 @@ function mountBoardHexGrid() {
 function scheduleBoardHexGridRender() {
   cancelAnimationFrame(boardHexRenderRaf);
   boardHexRenderRaf = requestAnimationFrame(renderBoardHexGrid);
+}
+
+function getBoardHexThemeMetrics() {
+  const cacheKey = state.selectedUiThemeId;
+  if (boardHexThemeCache?.key === cacheKey) {
+    return boardHexThemeCache.value;
+  }
+
+  const cssVars = getComputedStyle(document.body);
+  const isDarkTheme = isDarkUiTheme(state.selectedUiThemeId);
+  const parseRgbTripletVar = (name, fallback) => {
+    const raw = cssVars.getPropertyValue(name).trim();
+    if (!raw) return fallback;
+    const parts = raw.split(",").map((part) => Number.parseInt(part.trim(), 10));
+    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return fallback;
+    return { r: parts[0], g: parts[1], b: parts[2] };
+  };
+  const parseNumberVar = (name, fallback) => {
+    const raw = cssVars.getPropertyValue(name).trim();
+    if (!raw) return fallback;
+    const value = Number.parseFloat(raw);
+    return Number.isFinite(value) ? value : fallback;
+  };
+  const strokeColor = cssVars.getPropertyValue("--hex-stroke").trim() || "rgba(216, 198, 180, 0.45)";
+  const borderRgb = parseRgbTripletVar("--hex-border-rgb", { r: 196, g: 206, b: 213 });
+  const darkestTargetHexes = isDarkTheme
+    ? parseNumberVar("--hex-dark-target-hexes", 9)
+    : 4;
+  const lightRgb = parseRgbTripletVar("--hex-center-rgb", { r: 255, g: 248, b: 240 });
+  const darkEndpoint = isDarkTheme
+    ? {
+        r: Math.round(lightRgb.r * 0.62),
+        g: Math.round(lightRgb.g * 0.62),
+        b: Math.round(lightRgb.b * 0.62),
+      }
+    : {
+        r: Math.round(borderRgb.r + (lightRgb.r - borderRgb.r) * 0.4),
+        g: Math.round(borderRgb.g + (lightRgb.g - borderRgb.g) * 0.4),
+        b: Math.round(borderRgb.b + (lightRgb.b - borderRgb.b) * 0.4),
+      };
+
+  const value = {
+    isDarkTheme,
+    strokeColor,
+    borderRgb,
+    darkestTargetHexes,
+    lightRgb,
+    darkEndpoint,
+  };
+  boardHexThemeCache = { key: cacheKey, value };
+  return value;
 }
 
 function renderBoardHexGrid() {
@@ -2968,23 +3016,13 @@ function renderBoardHexGrid() {
   svg.setAttribute("viewBox", `0 0 ${drawW} ${drawH}`);
   svg.replaceChildren();
 
-  const cssVars = getComputedStyle(document.body);
-  const isDarkTheme = isDarkUiTheme(state.selectedUiThemeId);
-  const parseRgbTripletVar = (name, fallback) => {
-    const raw = cssVars.getPropertyValue(name).trim();
-    if (!raw) return fallback;
-    const parts = raw.split(",").map((part) => Number.parseInt(part.trim(), 10));
-    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return fallback;
-    return { r: parts[0], g: parts[1], b: parts[2] };
-  };
-  const parseNumberVar = (name, fallback) => {
-    const raw = cssVars.getPropertyValue(name).trim();
-    if (!raw) return fallback;
-    const value = Number.parseFloat(raw);
-    return Number.isFinite(value) ? value : fallback;
-  };
-  const strokeColor = cssVars.getPropertyValue("--hex-stroke").trim() || "rgba(216, 198, 180, 0.45)";
-  const borderRgb = parseRgbTripletVar("--hex-border-rgb", { r: 196, g: 206, b: 213 });
+  const {
+    isDarkTheme,
+    strokeColor,
+    darkestTargetHexes,
+    lightRgb,
+    darkEndpoint,
+  } = getBoardHexThemeMetrics();
   const fadeAnchor = state.entranceFadeAnchor;
   const hasEntranceAnchor = Boolean(
     fadeAnchor
@@ -3007,23 +3045,7 @@ function renderBoardHexGrid() {
     Math.hypot(w - fadeAnchorScreenX, h - fadeAnchorScreenY),
     1,
   );
-  const darkestTargetHexes = isDarkTheme
-    ? parseNumberVar("--hex-dark-target-hexes", 9)
-    : 4;
   const darkestTargetDist = Math.max(layout.dx * darkestTargetHexes, layout.radius * darkestTargetHexes);
-  const lightRgb = parseRgbTripletVar("--hex-center-rgb", { r: 255, g: 248, b: 240 });
-  const darkEndpoint = isDarkTheme
-    ? {
-        r: Math.round(lightRgb.r * 0.62),
-        g: Math.round(lightRgb.g * 0.62),
-        b: Math.round(lightRgb.b * 0.62),
-      }
-    : {
-        // Light-mode only: soften the edge tone by blending border color toward center color.
-        r: Math.round(borderRgb.r + (lightRgb.r - borderRgb.r) * 0.4),
-        g: Math.round(borderRgb.g + (lightRgb.g - borderRgb.g) * 0.4),
-        b: Math.round(borderRgb.b + (lightRgb.b - borderRgb.b) * 0.4),
-      };
 
   const group = document.createElementNS(BOARD_HEX_SVG_NS, "g");
   group.setAttribute("stroke", strokeColor);
@@ -3149,14 +3171,26 @@ function snapBoardPointToHex(x, y) {
 }
 
 function hexPath(cx, cy, radius) {
-  const halfH = (Math.sqrt(3) * radius) / 2;
-  const p1 = `${cx + radius} ${cy}`;
-  const p2 = `${cx + radius / 2} ${cy + halfH}`;
-  const p3 = `${cx - radius / 2} ${cy + halfH}`;
-  const p4 = `${cx - radius} ${cy}`;
-  const p5 = `${cx - radius / 2} ${cy - halfH}`;
-  const p6 = `${cx + radius / 2} ${cy - halfH}`;
-  return `M ${p1} L ${p2} L ${p3} L ${p4} L ${p5} L ${p6} Z`;
+  const key = Number(radius.toFixed(4));
+  let template = boardHexPathCache.get(key);
+  if (!template) {
+    const halfH = (Math.sqrt(3) * radius) / 2;
+    template = [
+      [radius, 0],
+      [radius / 2, halfH],
+      [-radius / 2, halfH],
+      [-radius, 0],
+      [-radius / 2, -halfH],
+      [radius / 2, -halfH],
+    ];
+    boardHexPathCache.set(key, template);
+  }
+  return `M ${cx + template[0][0]} ${cy + template[0][1]}`
+    + ` L ${cx + template[1][0]} ${cy + template[1][1]}`
+    + ` L ${cx + template[2][0]} ${cy + template[2][1]}`
+    + ` L ${cx + template[3][0]} ${cy + template[3][1]}`
+    + ` L ${cx + template[4][0]} ${cy + template[4][1]}`
+    + ` L ${cx + template[5][0]} ${cy + template[5][1]} Z`;
 }
 
 function createTraySlotGuideElement() {
@@ -3280,7 +3314,7 @@ function syncRegularTileActivityFromSlotOrder(tileSetId = state.selectedTileSetI
 }
 
 function getRenderedTraySlotByIndex(slotIndex) {
-  return Array.from(tray.querySelectorAll(".tray-slot"))[slotIndex] || null;
+  return state.renderedTraySlots?.[slotIndex] || null;
 }
 
 function clearRenderedTileRefs(tile) {
@@ -3318,6 +3352,9 @@ function getLiveTraySlotForTile(tile) {
   const newSlot = createTraySlotElement();
   tray.appendChild(newSlot);
   tile.traySlot = newSlot;
+  if (Number.isInteger(slotIndex) && slotIndex >= 0) {
+    state.renderedTraySlots[slotIndex] = newSlot;
+  }
   return newSlot;
 }
 
@@ -3341,7 +3378,12 @@ function placeTileInTray(tile) {
   slot.innerHTML = "";
   slot.appendChild(createTraySlotGuideElement());
   renderTileIntoTraySlot(tile, slot);
-  renderReservePile();
+  if (state.compactSidePanelMode || !isTraySlotIndex(slotIndex)) {
+    renderReservePile();
+  } else {
+    updateReserveSwapHighlights();
+    updatePlacedProgress();
+  }
 }
 
 function renderActiveTiles() {
@@ -3374,6 +3416,7 @@ function rerenderTrayAndReserve() {
   syncRegularTileActivityFromSlotOrder();
   tray.innerHTML = "";
   reservePile.innerHTML = "";
+  state.renderedTraySlots = [];
   state.hoveredTileId = null;
   selectTile(null);
   clearPendingReserveSwap();
@@ -3386,18 +3429,23 @@ function rerenderTrayAndReserve() {
   const visibleOrder = state.compactSidePanelMode
     ? getCompactTrayOrder(state.selectedTileSetId)
     : getRegularTileOrder(state.selectedTileSetId).slice(0, TRAY_SLOT_COUNT);
+  const trayFragment = document.createDocumentFragment();
   for (let i = 0; i < visibleOrder.length; i += 1) {
     const slot = createTraySlotElement();
     slot.dataset.slotIndex = String(i);
-    tray.appendChild(slot);
+    state.renderedTraySlots[i] = slot;
+    trayFragment.appendChild(slot);
+  }
+  tray.appendChild(trayFragment);
 
+  for (let i = 0; i < visibleOrder.length; i += 1) {
     const tile = state.tiles.get(visibleOrder[i]);
-    if (!tile || tile.placed) continue;
+    const slot = state.renderedTraySlots[i];
+    if (!slot || !tile || tile.placed) continue;
     renderTileIntoTraySlot(tile, slot);
   }
 
   renderReservePile();
-  renderBossPile();
 }
 
 function getBossTileSources(tileSetId = state.selectedTileSetId) {
@@ -4107,6 +4155,7 @@ function renderReservePile() {
   reservePile.innerHTML = "";
   reservePile.classList.toggle("edit-mode", state.reserveEditMode);
   const inactiveTiles = getInactiveTilesInReserveOrder();
+  const fragment = document.createDocumentFragment();
 
   const offsets = [
     { x: -16, y: 14, rot: -11, z: 1, scale: 0.93 },
@@ -4150,8 +4199,10 @@ function renderReservePile() {
     img.draggable = false;
     card.appendChild(img);
     card.appendChild(createReserveGuideOverlay(tile));
-    reservePile.appendChild(card);
+    fragment.appendChild(card);
   }
+
+  reservePile.appendChild(fragment);
 
   updateReserveSwapHighlights();
   updatePlacedProgress();
@@ -4357,24 +4408,26 @@ function isReferenceCardOverlappedByTiles(refX, refY, tiles) {
   return countReferenceCardOverlaps(refX, refY, tiles) > 0;
 }
 
+function getReferenceCardCollisionPolygon(refX, refY, insetPx = REFERENCE_CARD_COLLISION_INSET_PX) {
+  const half = Math.max(1, TILE_SIZE * 0.5 - insetPx);
+  return [
+    { x: refX - half, y: refY - half },
+    { x: refX + half, y: refY - half },
+    { x: refX + half, y: refY + half },
+    { x: refX - half, y: refY + half },
+  ];
+}
+
 function countReferenceCardOverlaps(refX, refY, tiles) {
   let count = 0;
-  const half = TILE_SIZE * 0.5;
-  const refLeft = refX - half;
-  const refRight = refX + half;
-  const refTop = refY - half;
-  const refBottom = refY + half;
+  const refPoly = getReferenceCardCollisionPolygon(refX, refY);
+  const refBounds = getPolygonBounds(refPoly);
   for (const tile of tiles || []) {
     if (!tile) continue;
-    const tileLeft = tile.x - half;
-    const tileRight = tile.x + half;
-    const tileTop = tile.y - half;
-    const tileBottom = tile.y + half;
-    const intersects = tileLeft < refRight
-      && tileRight > refLeft
-      && tileTop < refBottom
-      && tileBottom > refTop;
-    if (intersects) count += 1;
+    const tilePoly = getOverlapWorldPolygon(tile);
+    const tileBounds = getPolygonBounds(tilePoly);
+    if (!boundsOverlap(refBounds, tileBounds)) continue;
+    if (polygonsOverlap(refPoly, tilePoly)) count += 1;
   }
   return count;
 }
@@ -7172,11 +7225,39 @@ function dist(a, b) {
 }
 
 function hasAnyOverlap(tile, otherTiles) {
+  const tilePoly = getOverlapWorldPolygon(tile);
+  const tileBounds = getPolygonBounds(tilePoly);
   for (const other of otherTiles) {
-    if (Math.hypot(tile.x - other.x, tile.y - other.y) < TILE_SIZE * 0.42) return true;
-    if (tilesAlphaOverlap(tile, other)) return true;
+    const otherPoly = getOverlapWorldPolygon(other);
+    const otherBounds = getPolygonBounds(otherPoly);
+    if (!boundsOverlap(tileBounds, otherBounds)) continue;
+    if (pointInPolygonStrict({ x: tile.x, y: tile.y }, otherPoly)) return true;
+    if (pointInPolygonStrict({ x: other.x, y: other.y }, tilePoly)) return true;
+    if (polygonsOverlap(tilePoly, otherPoly)) return true;
   }
   return false;
+}
+
+function getPolygonBounds(poly) {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const point of poly || []) {
+    if (point.x < minX) minX = point.x;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.y > maxY) maxY = point.y;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+function boundsOverlap(a, b) {
+  if (!a || !b) return false;
+  return a.minX < b.maxX
+    && a.maxX > b.minX
+    && a.minY < b.maxY
+    && a.maxY > b.minY;
 }
 
 function tilesAlphaOverlap(a, b) {
@@ -7220,6 +7301,27 @@ function getWorldPolygon(tile) {
     x: tile.x + p.x * cos - p.y * sin,
     y: tile.y + p.x * sin + p.y * cos,
   }));
+}
+
+function getOverlapWorldPolygon(tile, insetPx = OVERLAP_POLYGON_INSET_PX) {
+  const poly = getWorldPolygon(tile);
+  if (!Number.isFinite(insetPx) || insetPx <= 0) return poly;
+  return poly.map((point) => {
+    const dx = point.x - tile.x;
+    const dy = point.y - tile.y;
+    const len = Math.hypot(dx, dy);
+    if (len <= insetPx || len < 1e-6) {
+      return {
+        x: tile.x + dx * 0.5,
+        y: tile.y + dy * 0.5,
+      };
+    }
+    const scale = (len - insetPx) / len;
+    return {
+      x: tile.x + dx * scale,
+      y: tile.y + dy * scale,
+    };
+  });
 }
 
 function polygonsOverlap(polyA, polyB) {
@@ -7324,7 +7426,7 @@ function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect
   const invalidFaceIndices = (result.touchingFaceIndices || []).filter(
     (v) => Number.isInteger(v) && !validSet.has(v),
   );
-  if (result.valid) {
+  if (result.valid && !result.overlaps) {
     setPlacementFeedback(tile, true, validFaceIndices, invalidFaceIndices);
     return;
   }

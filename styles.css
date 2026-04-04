@@ -2282,8 +2282,8 @@ body.reserve-edit-mode .reserve-pile::after {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 117px;
-  height: 117px;
+  width: 113px;
+  height: 113px;
   transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(var(--scale, 1));
   z-index: var(--z);
   border-radius: 8px;
@@ -2296,8 +2296,8 @@ body.reserve-edit-mode .reserve-pile::after {
   position: relative;
   left: auto;
   top: auto;
-  width: 108px;
-  height: 108px;
+  width: 104px;
+  height: 104px;
   transform: none;
   z-index: 1;
 }
@@ -2963,8 +2963,8 @@ body.compact-sidepanel-mode .drawer-left .reserve-pile.edit-mode .reserve-card {
   position: relative;
   left: auto;
   top: auto;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   transform: none !important;
   justify-self: center;
 }
