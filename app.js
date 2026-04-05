@@ -63,6 +63,7 @@ const LAST_LIGHT_UI_THEME_STORAGE_KEY = "hts_last_light_ui_theme_v1";
 const LAST_DARK_UI_THEME_STORAGE_KEY = "hts_last_dark_ui_theme_v1";
 const AUTO_THEME_BY_TILE_SET_STORAGE_KEY = "hts_auto_theme_by_tile_set_v1";
 const DRAWER_STATE_STORAGE_KEY = "hts_drawer_state_v1";
+const AUTO_BUILD_TUNING_STORAGE_KEY = "hts_auto_build_tuning_v1";
 const DEFAULT_TILE_SET_ID = "molten";
 const DEFAULT_UI_THEME_ID = "molten";
 const DEFAULT_APPEARANCE_MODE = "system";
@@ -179,7 +180,7 @@ const WALL_EDITOR_GROUPS = [
 const DEFAULT_WALL_FACE_DATA = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
-const START_TILE_DEFAULT_Y_OFFSET = 262;
+const START_TILE_DEFAULT_Y_OFFSET = 286;
 const BOSS_REFERENCE_MAGNET_GAP = 15 * BOARD_SCALE;
 const BOSS_REFERENCE_MAGNET_RADIUS = 72 * BOARD_SCALE;
 const BOSS_REFERENCE_MAGNET_TOP_GAP = -56 * BOARD_SCALE;
@@ -205,10 +206,98 @@ const AUTO_BUILD_CANDIDATE_SOFT_LIMIT = 180;
 const AUTO_BUILD_CANDIDATE_HARD_LIMIT = 280;
 const AUTO_BUILD_NOVELTY_RETRY_LIMIT = 120;
 const AUTO_BUILD_HISTORY_LIMIT = 36;
+const AUTO_BUILD_ENGINE_CLASSIC = "classic";
+const AUTO_BUILD_ENGINE_ARCHETYPE = "archetype";
+const AUTO_BUILD_ENGINE_OPTIONS = [
+  { value: AUTO_BUILD_ENGINE_CLASSIC, label: "Classic" },
+  { value: AUTO_BUILD_ENGINE_ARCHETYPE, label: "Archetype" },
+];
+const AUTO_BUILD_ARCHETYPE_RANDOM = "random";
+const AUTO_BUILD_ARCHETYPE_OPTIONS = [
+  { value: AUTO_BUILD_ARCHETYPE_RANDOM, label: "Random" },
+  { value: "balanced", label: "Balanced" },
+  { value: "compact", label: "Compact" },
+  { value: "branchy", label: "Branchy" },
+  { value: "corridor", label: "Corridor" },
+];
+const AUTO_BUILD_ARCHETYPE_LABELS = {
+  balanced: "Balanced",
+  compact: "Compact",
+  branchy: "Branchy",
+  corridor: "Corridor",
+};
+const AUTO_BUILD_ARCHETYPE_DEFAULTS = {
+  weights: {
+    balanced: 50,
+    compact: 25,
+    branchy: 18,
+    corridor: 7,
+  },
+  profiles: {
+    balanced: {
+      roundnessWeightMultiplier: 1,
+      contactWeightMultiplier: 1,
+      radialPenaltyWeightMultiplier: 1,
+      nearCenterPenaltyWeightMultiplier: 1,
+      farOutPenaltyWeightMultiplier: 1,
+      lineExtensionPenaltyMultiplier: 1,
+      localDensityPenaltyMultiplier: 1,
+      localDensityRadiusMultiplierMultiplier: 1,
+      targetRadiusBaseMultiplierMultiplier: 1,
+      targetRadiusAvgBonusMultiplierMultiplier: 1,
+      targetMinRadiusMultiplierMultiplier: 1,
+      targetMaxRadiusMultiplierMultiplier: 1,
+    },
+    compact: {
+      roundnessWeightMultiplier: 1.28,
+      contactWeightMultiplier: 1.1,
+      radialPenaltyWeightMultiplier: 1.18,
+      nearCenterPenaltyWeightMultiplier: 1.2,
+      farOutPenaltyWeightMultiplier: 1.18,
+      lineExtensionPenaltyMultiplier: 1.35,
+      localDensityPenaltyMultiplier: 1.22,
+      localDensityRadiusMultiplierMultiplier: 0.92,
+      targetRadiusBaseMultiplierMultiplier: 0.92,
+      targetRadiusAvgBonusMultiplierMultiplier: 0.72,
+      targetMinRadiusMultiplierMultiplier: 1.2,
+      targetMaxRadiusMultiplierMultiplier: 0.88,
+    },
+    branchy: {
+      roundnessWeightMultiplier: 0.48,
+      contactWeightMultiplier: 0.92,
+      radialPenaltyWeightMultiplier: 0.58,
+      nearCenterPenaltyWeightMultiplier: 0.45,
+      farOutPenaltyWeightMultiplier: 0.4,
+      lineExtensionPenaltyMultiplier: 0.18,
+      localDensityPenaltyMultiplier: 0.45,
+      localDensityRadiusMultiplierMultiplier: 0.86,
+      targetRadiusBaseMultiplierMultiplier: 1.12,
+      targetRadiusAvgBonusMultiplierMultiplier: 1.18,
+      targetMinRadiusMultiplierMultiplier: 0.55,
+      targetMaxRadiusMultiplierMultiplier: 1.3,
+    },
+    corridor: {
+      roundnessWeightMultiplier: 0.08,
+      contactWeightMultiplier: 0.76,
+      radialPenaltyWeightMultiplier: 0.28,
+      nearCenterPenaltyWeightMultiplier: 0.12,
+      farOutPenaltyWeightMultiplier: 0.08,
+      lineExtensionPenaltyMultiplier: 0,
+      localDensityPenaltyMultiplier: 0.15,
+      localDensityRadiusMultiplierMultiplier: 0.78,
+      targetRadiusBaseMultiplierMultiplier: 1.28,
+      targetRadiusAvgBonusMultiplierMultiplier: 1.45,
+      targetMinRadiusMultiplierMultiplier: 0.3,
+      targetMaxRadiusMultiplierMultiplier: 1.62,
+    },
+  },
+};
 const HEX_FRONT_LIGHT_BONUS_HEXES = 2.5;
 const HEX_BACK_LIGHT_REDUCTION_HEXES = 1.1;
 const HEX_BACK_DARKEN_BIAS = 0.14;
 const DEFAULT_BOARD_ZOOM = 1;
+const BOARD_ZOOM_STEP = 0.01;
+const BOARD_WHEEL_ZOOM_SENSITIVITY = 0.0006;
 const BOARD_AUTO_CENTER_RESIZE_DELTA_X = 400;
 const BOARD_AUTO_CENTER_RESIZE_SETTLE_MS = 180;
 const BOARD_ITEM_SCALE = 1;
@@ -217,6 +306,64 @@ const COMPACT_DRAG_GROW_DISTANCE_PX = 100;
 const COMPACT_DRAG_START_SIZE_BOOST = 1.12;
 const OVERLAP_POLYGON_INSET_PX = 3;
 const REFERENCE_CARD_COLLISION_INSET_PX = 10;
+const TILE_POSE_GEOMETRY_CACHE_LIMIT = 320;
+const AUTO_BUILD_TUNING_DEFAULTS = {
+  engineMode: AUTO_BUILD_ENGINE_CLASSIC,
+  forceArchetype: AUTO_BUILD_ARCHETYPE_RANDOM,
+  archetypeBalancedWeight: AUTO_BUILD_ARCHETYPE_DEFAULTS.weights.balanced,
+  archetypeCompactWeight: AUTO_BUILD_ARCHETYPE_DEFAULTS.weights.compact,
+  archetypeBranchyWeight: AUTO_BUILD_ARCHETYPE_DEFAULTS.weights.branchy,
+  archetypeCorridorWeight: AUTO_BUILD_ARCHETYPE_DEFAULTS.weights.corridor,
+  deterministicMode: false,
+  roundnessWeight: 150,
+  contactWeight: 22,
+  minFaceDistWeight: 0.55,
+  minCenterDistWeight: 0.5,
+  avgCenterDistWeight: 0.22,
+  radialPenaltyWeight: 0.35,
+  nearCenterPenaltyWeight: 1.15,
+  farOutPenaltyWeight: 0.7,
+  lineExtensionPenalty: AUTO_BUILD_LINE_EXTENSION_PENALTY,
+  localDensityPenalty: AUTO_BUILD_LOCAL_DENSITY_PENALTY,
+  topBucketScoreDelta: AUTO_BUILD_TOP_BUCKET_SCORE_DELTA,
+  topBucketSize: AUTO_BUILD_TOP_BUCKET_SIZE,
+  localDensityRadiusMultiplier: 1.6,
+  targetRadiusBaseMultiplier: 1.35,
+  targetRadiusAvgBonusMultiplier: 0.7,
+  targetMinRadiusMultiplier: 0.6,
+  targetMaxRadiusMultiplier: 1.5,
+};
+const AUTO_BUILD_TUNING_FIELDS = [
+  { key: "engineMode", label: "Auto Build Engine", type: "enum", options: AUTO_BUILD_ENGINE_OPTIONS, group: "Engine / Archetypes" },
+  { key: "forceArchetype", label: "Force Archetype", type: "enum", options: AUTO_BUILD_ARCHETYPE_OPTIONS, group: "Engine / Archetypes" },
+  { key: "archetypeBalancedWeight", label: "Balanced Weight", min: 0, max: 100, step: 1, group: "Engine / Archetypes" },
+  { key: "archetypeCompactWeight", label: "Compact Weight", min: 0, max: 100, step: 1, group: "Engine / Archetypes" },
+  { key: "archetypeBranchyWeight", label: "Branchy Weight", min: 0, max: 100, step: 1, group: "Engine / Archetypes" },
+  { key: "archetypeCorridorWeight", label: "Corridor Weight", min: 0, max: 100, step: 1, group: "Engine / Archetypes" },
+  { key: "deterministicMode", label: "Deterministic Auto Build", type: "boolean", group: "Search / Randomness" },
+  { key: "topBucketSize", label: "Top Bucket Size", min: 1, max: 16, step: 1, group: "Search / Randomness" },
+  { key: "topBucketScoreDelta", label: "Top Bucket Score Delta", min: 0, max: 50, step: 1, group: "Search / Randomness" },
+  { key: "roundnessWeight", label: "Roundness Weight", min: 0, max: 220, step: 1, group: "Scoring Weights" },
+  { key: "contactWeight", label: "Contact Weight", min: 0, max: 60, step: 1, group: "Scoring Weights" },
+  { key: "minFaceDistWeight", label: "Min Face Distance Weight", min: 0, max: 2, step: 0.01, group: "Scoring Weights" },
+  { key: "minCenterDistWeight", label: "Min Center Distance Weight", min: 0, max: 2, step: 0.01, group: "Scoring Weights" },
+  { key: "avgCenterDistWeight", label: "Avg Center Distance Weight", min: 0, max: 1, step: 0.01, group: "Scoring Weights" },
+  { key: "radialPenaltyWeight", label: "Radial Penalty Weight", min: 0, max: 2, step: 0.01, group: "Scoring Weights" },
+  { key: "nearCenterPenaltyWeight", label: "Near Center Penalty Weight", min: 0, max: 3, step: 0.01, group: "Scoring Weights" },
+  { key: "farOutPenaltyWeight", label: "Far Out Penalty Weight", min: 0, max: 2, step: 0.01, group: "Scoring Weights" },
+  { key: "lineExtensionPenalty", label: "Line Extension Penalty", min: 0, max: 60, step: 1, group: "Scoring Weights" },
+  { key: "localDensityPenalty", label: "Local Density Penalty", min: 0, max: 40, step: 1, group: "Scoring Weights" },
+  { key: "localDensityRadiusMultiplier", label: "Local Density Radius Multiplier", min: 0.5, max: 3, step: 0.01, group: "Cluster Shape" },
+  { key: "targetRadiusBaseMultiplier", label: "Target Radius Base Multiplier", min: 0.5, max: 3, step: 0.01, group: "Cluster Shape" },
+  { key: "targetRadiusAvgBonusMultiplier", label: "Target Radius Avg Bonus Multiplier", min: 0, max: 2, step: 0.01, group: "Cluster Shape" },
+  { key: "targetMinRadiusMultiplier", label: "Target Min Radius Multiplier", min: 0, max: 1.5, step: 0.01, group: "Cluster Shape" },
+  { key: "targetMaxRadiusMultiplier", label: "Target Max Radius Multiplier", min: 1, max: 3, step: 0.01, group: "Cluster Shape" },
+];
+const AUTO_BUILD_TUNING_GROUP_NOTES = {
+  "Engine / Archetypes": "Classic preserves the current engine. Archetype applies a profile-driven variant. Balanced = general layout, Compact = tighter clustering, Branchy = more side exploration, Corridor = rare elongated layouts.",
+  "Search / Randomness": "These debug controls change how strongly the solver follows score order versus shuffled exploration.",
+  "Cluster Shape": "These values shape how tightly or loosely the layout grows around its current center.",
+};
 document.documentElement.style.setProperty("--tile-size", `${TILE_SIZE}px`);
 
 const board = document.getElementById("board");
@@ -276,6 +423,12 @@ const importWallDataInput = document.getElementById("import-wall-data-input");
 const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
 const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-contact-checkbox");
 const toggleFaceFeedbackCheckbox = document.getElementById("toggle-face-feedback-checkbox");
+const autoBuildTuningControlsEl = document.getElementById("auto-build-tuning-controls");
+const autoBuildTuningResetBtn = document.getElementById("auto-build-tuning-reset-btn");
+const autoBuildTuningCopyBtn = document.getElementById("auto-build-tuning-copy-btn");
+const autoBuildTuningOutputEl = document.getElementById("auto-build-tuning-output");
+const autoBuildSampleCountInput = document.getElementById("auto-build-sample-count-input");
+const autoBuildSampleExportBtn = document.getElementById("auto-build-sample-export-btn");
 const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
@@ -292,6 +445,10 @@ let boardHexLastRenderKey = "";
 const boardHexPathCache = new Map();
 const boardHexPathPool = [];
 const diceSpinTimers = new WeakMap();
+const tileGuidePointsCache = new WeakMap();
+const tileSideDirectionsCache = new WeakMap();
+const tilePoseGeometryCache = new WeakMap();
+const autoBuildTuningInputRefs = new Map();
 
 const state = {
   tiles: new Map(),
@@ -332,8 +489,11 @@ const state = {
   referenceTileSrc: "",
   referenceMarker: null,
   boardZoom: DEFAULT_BOARD_ZOOM,
+  boardZoomRaw: DEFAULT_BOARD_ZOOM,
   compactSidePanelMode: false,
   preCompactDrawerState: null,
+  preCompactBoardZoom: null,
+  preCompactBoardZoomRaw: null,
   lastAutoCenterViewportWidth: 0,
   leftDrawerCollapsed: false,
   rightDrawerCollapsed: false,
@@ -347,6 +507,8 @@ const state = {
     wallOverrideTileIdMigrations: 0,
   },
 };
+
+let autoBuildTuning = loadAutoBuildTuning();
 
 init().catch((error) => {
   console.error(error);
@@ -801,7 +963,7 @@ function bindGlobalControls() {
       triggerDiceSpin(autoBuildBtn);
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
-          autoBuildSelectedTiles();
+          runAutoBuild();
         });
       });
     });
@@ -1095,7 +1257,7 @@ function bindGlobalControls() {
     if (key === "r") {
       event.preventDefault();
       if (autoBuildBtn) triggerDiceSpin(autoBuildBtn);
-      autoBuildSelectedTiles();
+      runAutoBuild();
       return;
     }
 
@@ -1160,7 +1322,7 @@ function bindGlobalControls() {
       const rect = board.getBoundingClientRect();
       const anchorX = clamp(event.clientX - rect.left, 0, rect.width);
       const anchorY = clamp(event.clientY - rect.top, 0, rect.height);
-      const delta = -event.deltaY * 0.0012;
+      const delta = -event.deltaY * BOARD_WHEEL_ZOOM_SENSITIVITY;
       zoomBoardAtPoint(delta, anchorX, anchorY);
     },
     { passive: false },
@@ -1184,6 +1346,7 @@ function bindGlobalControls() {
     applyAppearanceMode("system", { showStatus: false, save: false });
   });
 
+  initAutoBuildTuningPanel();
 }
 
 function triggerDiceSpin(buttonEl) {
@@ -1272,6 +1435,9 @@ function updateCompactSidePanelMode() {
 
 function setCompactSidePanelMode(enabled) {
   const useCompact = Boolean(enabled);
+  const compactZoom = 0.75;
+  let restoreZoom = DEFAULT_BOARD_ZOOM;
+  let restoreRawZoom = DEFAULT_BOARD_ZOOM;
   state.compactSidePanelMode = useCompact;
   document.body.classList.toggle("compact-sidepanel-mode", useCompact);
   if (useCompact) {
@@ -1284,6 +1450,8 @@ function setCompactSidePanelMode(enabled) {
       left: Boolean(state.leftDrawerCollapsed),
       right: Boolean(state.rightDrawerCollapsed),
     };
+    state.preCompactBoardZoom = getBoardZoom();
+    state.preCompactBoardZoomRaw = getBoardRawZoom();
     if (state.reserveEditMode) {
       state.reserveEditMode = false;
       document.body.classList.remove("reserve-edit-mode");
@@ -1322,18 +1490,28 @@ function setCompactSidePanelMode(enabled) {
     rerenderTrayAndReserve();
   }
 
+  if (useCompact) {
+    restoreZoom = compactZoom;
+    restoreRawZoom = compactZoom;
+  } else {
+    restoreZoom = Number(state.preCompactBoardZoom) || DEFAULT_BOARD_ZOOM;
+    restoreRawZoom = Number(state.preCompactBoardZoomRaw) || restoreZoom;
+    state.preCompactBoardZoom = null;
+    state.preCompactBoardZoomRaw = null;
+  }
+
   if (compactModeTransitionTimer) {
     clearTimeout(compactModeTransitionTimer);
     compactModeTransitionTimer = null;
   }
   requestAnimationFrame(() => {
-    resetBoardView();
+    resetBoardViewToZoom(restoreZoom, restoreRawZoom);
     scheduleBoardHexGridRender();
   });
   if (!useCompact) {
     // Run a second recenter after drawer/layout transition settles.
     compactModeTransitionTimer = setTimeout(() => {
-      resetBoardView();
+      resetBoardViewToZoom(restoreZoom, restoreRawZoom);
       scheduleBoardHexGridRender();
       compactModeTransitionTimer = null;
     }, 260);
@@ -1556,6 +1734,217 @@ function saveAutoThemeByTileSet(enabled) {
   } catch (error) {
     console.warn("Could not save auto theme preference.", error);
   }
+}
+
+function sanitizeAutoBuildTuningValue(meta, value) {
+  const fallback = AUTO_BUILD_TUNING_DEFAULTS[meta.key];
+  if (meta.type === "boolean") return Boolean(value);
+  if (meta.type === "enum") {
+    const option = meta.options?.find((entry) => entry.value === value);
+    return option ? option.value : fallback;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  const clamped = clamp(numeric, meta.min, meta.max);
+  const steps = Math.round((clamped - meta.min) / meta.step);
+  const snapped = meta.min + steps * meta.step;
+  return Number(snapped.toFixed(4));
+}
+
+function sanitizeAutoBuildTuning(raw) {
+  const sanitized = {};
+  for (const meta of AUTO_BUILD_TUNING_FIELDS) {
+    sanitized[meta.key] = sanitizeAutoBuildTuningValue(meta, raw?.[meta.key]);
+  }
+  return sanitized;
+}
+
+function loadAutoBuildTuning() {
+  try {
+    const raw = localStorage.getItem(AUTO_BUILD_TUNING_STORAGE_KEY);
+    if (!raw) return { ...AUTO_BUILD_TUNING_DEFAULTS };
+    return sanitizeAutoBuildTuning(JSON.parse(raw));
+  } catch (error) {
+    console.warn("Could not load auto build tuning values.", error);
+    return { ...AUTO_BUILD_TUNING_DEFAULTS };
+  }
+}
+
+function saveAutoBuildTuning() {
+  try {
+    localStorage.setItem(AUTO_BUILD_TUNING_STORAGE_KEY, JSON.stringify(autoBuildTuning));
+  } catch (error) {
+    console.warn("Could not save auto build tuning values.", error);
+  }
+}
+
+function formatAutoBuildTuningValue(meta, value) {
+  if (meta.type === "boolean") return value ? "true" : "false";
+  if (meta.type === "enum") {
+    return meta.options?.find((entry) => entry.value === value)?.label ?? String(value);
+  }
+  const stepText = String(meta.step);
+  const decimals = stepText.includes(".") ? (stepText.split(".")[1]?.length || 0) : 0;
+  return decimals ? Number(value).toFixed(decimals) : String(Math.round(value));
+}
+
+function formatAutoBuildTuningExportValue(meta, value) {
+  if (meta.type === "boolean") return value ? "true" : "false";
+  if (meta.type === "enum") return JSON.stringify(String(value));
+  const stepText = String(meta.step);
+  const decimals = stepText.includes(".") ? (stepText.split(".")[1]?.length || 0) : 0;
+  return decimals ? Number(value).toFixed(decimals) : String(Math.round(value));
+}
+
+function getAutoBuildTuningExport() {
+  const lines = ["const AUTO_BUILD_TUNING_DEFAULTS = {"];
+  for (const meta of AUTO_BUILD_TUNING_FIELDS) {
+    lines.push(`  ${meta.key}: ${formatAutoBuildTuningExportValue(meta, autoBuildTuning[meta.key])},`);
+  }
+  lines.push("};");
+  return lines.join("\n");
+}
+
+async function copyAutoBuildTuningExport() {
+  const payload = getAutoBuildTuningExport();
+  try {
+    await navigator.clipboard.writeText(payload);
+    setStatus("Auto build tuning values copied. Paste them back here and I can bake them into the defaults.");
+  } catch (error) {
+    console.warn("Could not copy auto build tuning values.", error);
+    setStatus(`Could not copy auto build tuning values. Use devtools localStorage key ${AUTO_BUILD_TUNING_STORAGE_KEY}.`, true);
+  }
+}
+
+function updateAutoBuildTuningPanel() {
+  for (const meta of AUTO_BUILD_TUNING_FIELDS) {
+    const ref = autoBuildTuningInputRefs.get(meta.key);
+    if (!ref) continue;
+    const value = autoBuildTuning[meta.key];
+    if (meta.type === "boolean") {
+      ref.input.checked = Boolean(value);
+    } else if (meta.type === "enum") {
+      ref.input.value = String(value);
+    } else {
+      ref.input.value = String(value);
+    }
+    ref.valueEl.textContent = formatAutoBuildTuningValue(meta, value);
+  }
+  if (autoBuildTuningOutputEl) {
+    autoBuildTuningOutputEl.value = getAutoBuildTuningExport();
+  }
+}
+
+function resetAutoBuildTuning() {
+  autoBuildTuning = { ...AUTO_BUILD_TUNING_DEFAULTS };
+  saveAutoBuildTuning();
+  updateAutoBuildTuningPanel();
+}
+
+function initAutoBuildTuningPanel() {
+  if (!autoBuildTuningControlsEl || autoBuildTuningInputRefs.size) {
+    updateAutoBuildTuningPanel();
+    return;
+  }
+
+  let currentGroup = "";
+  const fragment = document.createDocumentFragment();
+  for (const meta of AUTO_BUILD_TUNING_FIELDS) {
+    if (meta.group && meta.group !== currentGroup) {
+      currentGroup = meta.group;
+      const groupHeading = document.createElement("p");
+      groupHeading.className = "auto-build-tuning-group-heading";
+      groupHeading.textContent = currentGroup;
+      fragment.appendChild(groupHeading);
+      const groupNoteText = AUTO_BUILD_TUNING_GROUP_NOTES[currentGroup];
+      if (groupNoteText) {
+        const groupNote = document.createElement("p");
+        groupNote.className = "auto-build-tuning-group-note";
+        groupNote.textContent = groupNoteText;
+        fragment.appendChild(groupNote);
+      }
+    }
+
+    const row = document.createElement("div");
+    row.className = "auto-build-tuning-row";
+
+    const head = document.createElement("div");
+    head.className = "auto-build-tuning-row-head";
+
+    const label = document.createElement("label");
+    label.className = "auto-build-tuning-label";
+    label.textContent = meta.label;
+
+    const valueEl = document.createElement("span");
+    valueEl.className = "auto-build-tuning-value";
+
+    head.appendChild(label);
+    head.appendChild(valueEl);
+
+    const input = meta.type === "enum"
+      ? document.createElement("select")
+      : document.createElement("input");
+    if (meta.type === "boolean") {
+      input.type = "checkbox";
+    } else if (meta.type !== "enum") {
+      input.type = "range";
+      input.min = String(meta.min);
+      input.max = String(meta.max);
+      input.step = String(meta.step);
+    }
+    if (meta.type === "enum") {
+      for (const option of meta.options || []) {
+        const optionEl = document.createElement("option");
+        optionEl.value = option.value;
+        optionEl.textContent = option.label;
+        input.appendChild(optionEl);
+      }
+    }
+    input.dataset.tuningKey = meta.key;
+    const eventName = meta.type === "boolean" || meta.type === "enum" ? "change" : "input";
+    input.addEventListener(eventName, () => {
+      const nextValue = meta.type === "boolean" ? input.checked : input.value;
+      autoBuildTuning = {
+        ...autoBuildTuning,
+        [meta.key]: sanitizeAutoBuildTuningValue(meta, nextValue),
+      };
+      saveAutoBuildTuning();
+      valueEl.textContent = formatAutoBuildTuningValue(meta, autoBuildTuning[meta.key]);
+      if (autoBuildTuningOutputEl) {
+        autoBuildTuningOutputEl.value = getAutoBuildTuningExport();
+      }
+    });
+
+    row.appendChild(head);
+    if (meta.type === "boolean") {
+      row.classList.add("auto-build-tuning-row-toggle");
+      label.prepend(input);
+    } else {
+      row.appendChild(input);
+    }
+    fragment.appendChild(row);
+    autoBuildTuningInputRefs.set(meta.key, { input, valueEl });
+  }
+
+  autoBuildTuningControlsEl.appendChild(fragment);
+
+  if (autoBuildTuningResetBtn) {
+    autoBuildTuningResetBtn.addEventListener("click", () => {
+      resetAutoBuildTuning();
+      setStatus("Auto build tuning reset to defaults.");
+    });
+  }
+  if (autoBuildTuningCopyBtn) {
+    autoBuildTuningCopyBtn.addEventListener("click", () => {
+      copyAutoBuildTuningExport();
+    });
+  }
+  if (autoBuildSampleExportBtn) {
+    autoBuildSampleExportBtn.addEventListener("click", () => {
+      exportAutoBuildSamplePdfs();
+    });
+  }
+  updateAutoBuildTuningPanel();
 }
 
 function saveAppearanceMode(mode) {
@@ -1912,6 +2301,10 @@ function getBoardZoom() {
   return Number.isFinite(state.boardZoom) ? state.boardZoom : 1;
 }
 
+function getBoardRawZoom() {
+  return Number.isFinite(state.boardZoomRaw) ? state.boardZoomRaw : getBoardZoom();
+}
+
 function worldToBoardScreenX(x, zoom = getBoardZoom()) {
   return x * zoom;
 }
@@ -1930,11 +2323,22 @@ function syncBoardSceneTransforms() {
   });
 }
 
+function quantizeBoardZoom(zoom) {
+  const clamped = clamp(zoom, 0.7, 1.8);
+  return Math.round(clamped / BOARD_ZOOM_STEP) * BOARD_ZOOM_STEP;
+}
+
 function applyBoardZoom(zoom, options = {}) {
   const syncScene = options?.syncScene !== false;
-  const clamped = clamp(zoom, 0.7, 1.8);
-  state.boardZoom = clamped;
-  board.style.setProperty("--board-zoom", clamped.toFixed(3));
+  const rawZoom = clamp(
+    Number.isFinite(options?.rawZoom) ? options.rawZoom : zoom,
+    0.7,
+    1.8,
+  );
+  const quantized = quantizeBoardZoom(zoom);
+  state.boardZoomRaw = rawZoom;
+  state.boardZoom = quantized;
+  board.style.setProperty("--board-zoom", quantized.toFixed(3));
   updateBoardZoomIndicator();
   scheduleBoardHexGridRender();
   if (syncScene) syncBoardSceneTransforms();
@@ -1952,21 +2356,35 @@ function recenterBoardView({ resetZoom = false } = {}) {
   updateBoardAutoCenterViewportAnchor();
 }
 
+function resetBoardViewToZoom(zoom = DEFAULT_BOARD_ZOOM, rawZoom = zoom) {
+  applyBoardZoom(zoom, { syncScene: false, rawZoom });
+  const dx = -state.boardPanX;
+  const dy = -state.boardPanY;
+  translateBoardContent(dx, dy, { syncScene: false });
+  centerBoardViewOnEntranceX({ syncScene: false });
+  syncBoardSceneTransforms();
+  updateBoardAutoCenterViewportAnchor();
+}
+
 function resetBoardView() {
-  recenterBoardView({ resetZoom: true });
+  resetBoardViewToZoom(DEFAULT_BOARD_ZOOM);
 }
 
 function zoomBoardAtPoint(delta, anchorBoardX, anchorBoardY) {
   const prevZoom = getBoardZoom();
-  const nextZoom = clamp(prevZoom + delta, 0.7, 1.8);
-  if (Math.abs(nextZoom - prevZoom) < 1e-6) return;
+  const nextRawZoom = clamp(getBoardRawZoom() + delta, 0.7, 1.8);
+  const nextZoom = quantizeBoardZoom(nextRawZoom);
+  if (Math.abs(nextZoom - prevZoom) < 1e-6) {
+    state.boardZoomRaw = nextRawZoom;
+    return;
+  }
 
   const worldXBefore = anchorBoardX / prevZoom;
   const worldYBefore = anchorBoardY / prevZoom;
   const worldXAfter = anchorBoardX / nextZoom;
   const worldYAfter = anchorBoardY / nextZoom;
 
-  applyBoardZoom(nextZoom, { syncScene: false });
+  applyBoardZoom(nextZoom, { syncScene: false, rawZoom: nextRawZoom });
   translateBoardContent(worldXAfter - worldXBefore, worldYAfter - worldYBefore, { syncScene: false });
   syncBoardSceneTransforms();
 }
@@ -2090,6 +2508,19 @@ function captureBuildViewLayout() {
       rotation: Number(tile.rotation) || 0,
     });
   }
+  const bossTokens = state.bossTokens.map((token) => ({
+    id: token.id,
+    src: token.src,
+    x: Number(token.x) || 0,
+    y: Number(token.y) || 0,
+    size: Number(token.size) || TILE_SIZE,
+  }));
+  const referenceMarker = state.referenceMarker
+    ? {
+        x: Number(state.referenceMarker.x) || 0,
+        y: Number(state.referenceMarker.y) || 0,
+      }
+    : null;
   return {
     tileSetId: state.selectedTileSetId,
     boardPanX: Number(state.boardPanX) || 0,
@@ -2097,6 +2528,8 @@ function captureBuildViewLayout() {
     boardZoom: Number(state.boardZoom) || 1,
     regularTileOrder: [...getRegularTileOrder(state.selectedTileSetId)],
     reserveOrder: [...getReserveTileOrder(state.selectedTileSetId)],
+    referenceMarker,
+    bossTokens,
     tiles,
   };
 }
@@ -2123,6 +2556,7 @@ function restoreBuildViewLayout(snapshot) {
   state.boardPanX = Number(snapshot.boardPanX) || 0;
   state.boardPanY = Number(snapshot.boardPanY) || 0;
   state.boardZoom = Number(snapshot.boardZoom) || 1;
+  state.boardZoomRaw = state.boardZoom;
   applyBoardZoom(state.boardZoom);
   syncRegularTileActivityFromSlotOrder(state.selectedTileSetId);
 
@@ -2139,11 +2573,116 @@ function restoreBuildViewLayout(snapshot) {
   const start = state.tiles.get(ENTRANCE_TILE_ID);
   if (start?.placed) {
     setEntranceFadeAnchorFromTile(start);
-    placeReferenceAboveStart(start);
+    if (snapshot.referenceMarker && state.referenceTileSrc) {
+      placeReferenceMarkerAt(snapshot.referenceMarker.x, snapshot.referenceMarker.y);
+    } else {
+      placeReferenceAboveStart(start);
+    }
+  }
+  for (const savedToken of snapshot.bossTokens || []) {
+    createBossToken(
+      savedToken.src,
+      Number(savedToken.x) || 0,
+      Number(savedToken.y) || 0,
+      Number(savedToken.size) || TILE_SIZE,
+    );
   }
 
   selectTile(null);
   return true;
+}
+
+function getCurrentLayoutExportItems(options = {}) {
+  const includeReference = options.includeReference !== false;
+  const includeBoss = options.includeBoss !== false;
+  const placedTiles = getPlacedTiles();
+  const tileItems = placedTiles.map((tile) => ({
+    kind: isEntranceTile(tile) ? "entrance" : "tile",
+    tileId: tile.tileId,
+    src: tile.imageSrc,
+    x: tile.x,
+    y: tile.y,
+    width: isEntranceTile(tile) ? (TILE_SIZE - 3) : TILE_SIZE,
+    height: TILE_SIZE,
+    rotation: normalizeAngle(tile.rotation || 0),
+  }));
+  const referenceItems = includeReference && state.referenceMarker && state.referenceTileSrc
+    ? [{
+        kind: "reference",
+        tileId: REFERENCE_CARD_ID,
+        src: state.referenceTileSrc,
+        x: state.referenceMarker.x,
+        y: state.referenceMarker.y,
+        width: TILE_SIZE,
+        height: TILE_SIZE,
+        rotation: 0,
+      }]
+    : [];
+  const bossItems = includeBoss
+    ? state.bossTokens.map((token) => ({
+        kind: "boss",
+        tileId: token.id,
+        src: token.src,
+        x: token.x,
+        y: token.y,
+        width: token.size || TILE_SIZE,
+        height: token.size || TILE_SIZE,
+        rotation: 0,
+      }))
+    : [];
+  return [...tileItems, ...referenceItems, ...bossItems];
+}
+
+function captureCurrentLayoutSnapshot(options = {}) {
+  const items = getCurrentLayoutExportItems({
+    includeReference: options.includeReference ?? false,
+    includeBoss: options.includeBoss ?? false,
+  });
+  return {
+    engine: options.engine || AUTO_BUILD_ENGINE_CLASSIC,
+    archetype: options.archetype || null,
+    sampleIndex: Number(options.sampleIndex) || 0,
+    tileSetId: state.selectedTileSetId,
+    tileSetLabel: getTileSetConfig(state.selectedTileSetId)?.label || "Dungeon",
+    placedTiles: items.filter((item) => item.kind === "tile" || item.kind === "entrance"),
+    referenceCard: items.find((item) => item.kind === "reference") || null,
+    bossTokens: items.filter((item) => item.kind === "boss"),
+    items,
+  };
+}
+
+function getLayoutSnapshotBounds(items) {
+  if (!Array.isArray(items) || !items.length) return null;
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const item of items) {
+    const halfWidth = (item.width || TILE_SIZE) / 2;
+    const halfHeight = (item.height || TILE_SIZE) / 2;
+    minX = Math.min(minX, item.x - halfWidth);
+    minY = Math.min(minY, item.y - halfHeight);
+    maxX = Math.max(maxX, item.x + halfWidth);
+    maxY = Math.max(maxY, item.y + halfHeight);
+  }
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+  };
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function exportCurrentLayoutPdf() {
@@ -2152,36 +2691,7 @@ function exportCurrentLayoutPdf() {
     return;
   }
 
-  const placedTiles = getPlacedTiles();
-  const reference = state.referenceMarker && state.referenceTileSrc
-    ? {
-        src: state.referenceTileSrc,
-        x: state.referenceMarker.x,
-        y: state.referenceMarker.y,
-        width: TILE_SIZE,
-        height: TILE_SIZE,
-        rotation: 0,
-      }
-    : null;
-  const bossItems = state.bossTokens.map((token) => ({
-    src: token.src,
-    x: token.x,
-    y: token.y,
-    width: token.size || TILE_SIZE,
-    height: token.size || TILE_SIZE,
-    rotation: 0,
-  }));
-
-  const tileItems = placedTiles.map((tile) => ({
-    src: tile.imageSrc,
-    x: tile.x,
-    y: tile.y,
-    width: isEntranceTile(tile) ? (TILE_SIZE - 3) : TILE_SIZE,
-    height: TILE_SIZE,
-    rotation: normalizeAngle(tile.rotation || 0),
-  }));
-
-  const items = [...tileItems, ...(reference ? [reference] : []), ...bossItems];
+  const items = getCurrentLayoutExportItems({ includeReference: true, includeBoss: true });
   if (!items.length) {
     setStatus("Nothing is available to export.", true);
     return;
@@ -2432,6 +2942,447 @@ function exportCurrentLayoutPdf() {
   setStatus("PDF export page opened.");
 }
 
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
+function cloneAutoBuildHistoryState() {
+  const cloned = {};
+  for (const [key, value] of Object.entries(state.autoBuildHistoryBySet || {})) {
+    cloned[key] = Array.isArray(value) ? [...value] : [];
+  }
+  return cloned;
+}
+
+function restoreAutoBuildHistoryState(snapshot) {
+  state.autoBuildHistoryBySet = {};
+  for (const [key, value] of Object.entries(snapshot || {})) {
+    state.autoBuildHistoryBySet[key] = Array.isArray(value) ? [...value] : [];
+  }
+}
+
+function getAutoBuildSampleBatchDescriptors() {
+  return [
+    {
+      engine: AUTO_BUILD_ENGINE_CLASSIC,
+      archetype: null,
+      modeLabel: "Classic",
+      title: "Auto Build Samples - Classic",
+      filename: "auto_build_samples_classic.pdf",
+    },
+    {
+      engine: AUTO_BUILD_ENGINE_ARCHETYPE,
+      archetype: "balanced",
+      modeLabel: "Balanced",
+      title: "Auto Build Samples - Balanced",
+      filename: "auto_build_samples_balanced.pdf",
+    },
+    {
+      engine: AUTO_BUILD_ENGINE_ARCHETYPE,
+      archetype: "compact",
+      modeLabel: "Compact",
+      title: "Auto Build Samples - Compact",
+      filename: "auto_build_samples_compact.pdf",
+    },
+    {
+      engine: AUTO_BUILD_ENGINE_ARCHETYPE,
+      archetype: "branchy",
+      modeLabel: "Branchy",
+      title: "Auto Build Samples - Branchy",
+      filename: "auto_build_samples_branchy.pdf",
+    },
+    {
+      engine: AUTO_BUILD_ENGINE_ARCHETYPE,
+      archetype: "corridor",
+      modeLabel: "Corridor",
+      title: "Auto Build Samples - Corridor",
+      filename: "auto_build_samples_corridor.pdf",
+    },
+  ];
+}
+
+function writeAutoBuildSampleWindowPlaceholder(targetWindow, title, message) {
+  if (!targetWindow || targetWindow.closed) return;
+  targetWindow.document.open();
+  targetWindow.document.write(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #f8f2ea;
+      color: #33251a;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .card {
+      width: min(520px, 100%);
+      padding: 24px;
+      border: 1px solid #d8c8b7;
+      border-radius: 14px;
+      background: #fffaf3;
+      box-shadow: 0 12px 30px rgba(48, 31, 18, 0.12);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font: 700 24px/1.1 "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      color: #6c4322;
+    }
+    p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #5c4d40;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(message)}</p>
+  </div>
+</body>
+</html>`);
+  targetWindow.document.close();
+}
+
+function openAutoBuildSampleExportWindows(descriptors) {
+  const opened = [];
+  for (const descriptor of descriptors) {
+    const targetWindow = window.open("about:blank", "_blank", "width=1280,height=920");
+    if (!targetWindow) {
+      for (const entry of opened) {
+        try {
+          entry.targetWindow.close();
+        } catch (error) {
+          console.warn("Could not close blocked sample export window.", error);
+        }
+      }
+      return null;
+    }
+    writeAutoBuildSampleWindowPlaceholder(
+      targetWindow,
+      descriptor.title,
+      "Generating layout samples. This may take a little while.",
+    );
+    opened.push({ ...descriptor, targetWindow });
+  }
+  return opened;
+}
+
+function getBatchExportSampleCount() {
+  const raw = Number(autoBuildSampleCountInput?.value);
+  if (!Number.isFinite(raw)) return 20;
+  return Math.round(clamp(raw, 1, 100));
+}
+
+function generateLayoutSnapshotForMode({ engine, archetype = null, sampleIndex = 0 } = {}) {
+  const statusLabel = engine === AUTO_BUILD_ENGINE_ARCHETYPE
+    ? buildAutoBuildStatusLabel({ archetypeId: archetype, forced: true })
+    : buildAutoBuildStatusLabel();
+  const tuning = engine === AUTO_BUILD_ENGINE_ARCHETYPE
+    ? getAutoBuildTuningForArchetype(archetype, autoBuildTuning)
+    : autoBuildTuning;
+  const result = autoBuildSelectedTiles({
+    tuning,
+    archetypeId: archetype,
+    statusLabel,
+    showStatus: false,
+    spawnBoss: false,
+  });
+  if (!result?.built) return null;
+  return captureCurrentLayoutSnapshot({
+    engine,
+    archetype,
+    sampleIndex,
+    includeReference: false,
+    includeBoss: false,
+  });
+}
+
+async function generateBatchLayoutSnapshots({ engine, archetype = null, count = 20, modeLabel = "Classic" } = {}) {
+  const snapshots = [];
+  const maxAttempts = Math.max(count * 3, count + 12);
+  let attempts = 0;
+  while (snapshots.length < count && attempts < maxAttempts) {
+    attempts += 1;
+    setStatus(`Generating ${modeLabel} samples: ${snapshots.length + 1}/${count}...`);
+    const snapshot = generateLayoutSnapshotForMode({
+      engine,
+      archetype,
+      sampleIndex: snapshots.length + 1,
+    });
+    if (snapshot) {
+      snapshots.push(snapshot);
+    }
+    if ((attempts % 2) === 0) {
+      await waitForNextFrame();
+    }
+  }
+  if (snapshots.length < count) {
+    throw new Error(`Only generated ${snapshots.length} of ${count} ${modeLabel} samples.`);
+  }
+  return snapshots;
+}
+
+function buildLayoutSamplePreviewMarkup(snapshot, previewWidth, previewHeight) {
+  const items = snapshot?.placedTiles || [];
+  const bounds = getLayoutSnapshotBounds(items);
+  if (!bounds) {
+    return `<div class="sample-preview-empty">No placed tiles</div>`;
+  }
+  const padding = 18;
+  const availableWidth = Math.max(1, previewWidth - padding * 2);
+  const availableHeight = Math.max(1, previewHeight - padding * 2);
+  const scale = Math.min(availableWidth / bounds.width, availableHeight / bounds.height, 0.55);
+  return items.map((item) => {
+    const width = item.width * scale;
+    const height = item.height * scale;
+    const left = (previewWidth / 2) + ((item.x - bounds.centerX) * scale) - (width / 2);
+    const top = (previewHeight / 2) + ((item.y - bounds.centerY) * scale) - (height / 2);
+    return `
+      <img
+        class="sample-item"
+        src="${item.src}"
+        alt=""
+        style="
+          left:${left.toFixed(2)}px;
+          top:${top.toFixed(2)}px;
+          width:${width.toFixed(2)}px;
+          height:${height.toFixed(2)}px;
+          transform: rotate(${item.rotation.toFixed(2)}deg);
+        "
+      />
+    `;
+  }).join("");
+}
+
+function exportLayoutSnapshotsPdf({ targetWindow, snapshots, title, filename, engineLabel, sampleCount, exportedAt, tileSetLabel }) {
+  if (!targetWindow || targetWindow.closed) return;
+
+  const previewWidth = 470;
+  const previewHeight = 170;
+  const samplesPerPage = 6;
+  const pages = [];
+  for (let i = 0; i < snapshots.length; i += samplesPerPage) {
+    pages.push(snapshots.slice(i, i + samplesPerPage));
+  }
+  const metadataLine = `Engine: ${engineLabel} | Sample count: ${sampleCount} | Tile Set: ${tileSetLabel} | Exported: ${exportedAt}`;
+  const pagesMarkup = pages.map((pageSnapshots, pageIndex) => `
+    <section class="batch-page${pageIndex > 0 ? " page-break" : ""}">
+      <header class="batch-header">
+        <div>
+          <h1>${escapeHtml(title)}</h1>
+          <p class="batch-meta">${escapeHtml(metadataLine)}</p>
+        </div>
+        <p class="batch-page-number">Page ${pageIndex + 1} / ${pages.length}</p>
+      </header>
+      <div class="sample-grid">
+        ${pageSnapshots.map((snapshot) => `
+          <article class="sample-card">
+            <div class="sample-card-head">
+              <h2>Sample ${String(snapshot.sampleIndex).padStart(2, "0")}</h2>
+            </div>
+            <div class="sample-preview">
+              ${buildLayoutSamplePreviewMarkup(snapshot, previewWidth, previewHeight)}
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `).join("");
+
+  targetWindow.document.open();
+  targetWindow.document.write(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(filename)}</title>
+  <style>
+    @page {
+      size: 297mm 210mm;
+      margin: 10mm;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: #24180f;
+      background: #f5efe8;
+    }
+    .batch-page {
+      width: 100%;
+      min-height: calc(210mm - 20mm);
+      padding: 12px 8px 8px;
+      break-inside: avoid;
+    }
+    .page-break {
+      break-before: page;
+      page-break-before: always;
+    }
+    .batch-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .batch-header h1 {
+      margin: 0 0 4px;
+      font: 700 28px/1.1 "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      color: #6c4322;
+    }
+    .batch-meta,
+    .batch-page-number {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #5e5144;
+    }
+    .sample-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .sample-card {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid #d7c8b8;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(255,255,255,0.72) 0%, transparent 44%),
+        #fffaf3;
+      box-shadow: 0 8px 20px rgba(47, 30, 17, 0.08);
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .sample-card-head h2 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #6e5640;
+    }
+    .sample-preview {
+      position: relative;
+      width: ${previewWidth}px;
+      height: ${previewHeight}px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid #dfd0c0;
+      border-radius: 12px;
+      background:
+        radial-gradient(circle at 24% 18%, rgba(255,255,255,0.7) 0%, transparent 40%),
+        linear-gradient(180deg, #fffefb 0%, #f4ecdf 100%);
+    }
+    .sample-item {
+      position: absolute;
+      display: block;
+      object-fit: contain;
+      transform-origin: center center;
+      pointer-events: none;
+      user-select: none;
+    }
+    .sample-preview-empty {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      font-size: 13px;
+      color: #7b6858;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+      }
+      .sample-card {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  ${pagesMarkup}
+</body>
+</html>`);
+  targetWindow.document.close();
+  targetWindow.focus();
+}
+
+async function exportAutoBuildSamplePdfs() {
+  if (state.wallEditMode) {
+    setStatus("Layout sample export is available on Build View only.", true);
+    return;
+  }
+
+  const sampleCount = getBatchExportSampleCount();
+  if (autoBuildSampleCountInput) {
+    autoBuildSampleCountInput.value = String(sampleCount);
+  }
+  const descriptors = getAutoBuildSampleBatchDescriptors();
+  const openedWindows = openAutoBuildSampleExportWindows(descriptors);
+  if (!openedWindows) {
+    setStatus("Could not open sample export windows. Allow pop-ups and try again.", true);
+    return;
+  }
+
+  const layoutSnapshot = captureBuildViewLayout();
+  const autoBuildHistorySnapshot = cloneAutoBuildHistoryState();
+  const exportedAt = new Date().toLocaleString();
+  const tileSetLabel = getTileSetConfig(state.selectedTileSetId)?.label || "Dungeon";
+
+  if (autoBuildSampleExportBtn) autoBuildSampleExportBtn.disabled = true;
+
+  try {
+    for (const descriptor of openedWindows) {
+      restoreAutoBuildHistoryState({});
+      const snapshots = await generateBatchLayoutSnapshots({
+        engine: descriptor.engine,
+        archetype: descriptor.archetype,
+        count: sampleCount,
+        modeLabel: descriptor.modeLabel,
+      });
+      exportLayoutSnapshotsPdf({
+        targetWindow: descriptor.targetWindow,
+        snapshots,
+        title: descriptor.title,
+        filename: descriptor.filename,
+        engineLabel: descriptor.engine === AUTO_BUILD_ENGINE_ARCHETYPE
+          ? `Archetype: ${AUTO_BUILD_ARCHETYPE_LABELS[descriptor.archetype] || descriptor.archetype}`
+          : "Classic",
+        sampleCount,
+        exportedAt,
+        tileSetLabel,
+      });
+      await waitForNextFrame();
+    }
+    setStatus(`Layout sample export pages opened for Classic, Balanced, Compact, Branchy, and Corridor (${sampleCount} samples each). Use each page's print dialog to save the PDF files.`);
+  } catch (error) {
+    console.error(error);
+    for (const descriptor of openedWindows) {
+      writeAutoBuildSampleWindowPlaceholder(
+        descriptor.targetWindow,
+        descriptor.title,
+        `Export failed: ${error.message}`,
+      );
+    }
+    setStatus(`Layout sample export failed. ${error.message}`, true);
+  } finally {
+    restoreAutoBuildHistoryState(autoBuildHistorySnapshot);
+    restoreBuildViewLayout(layoutSnapshot);
+    if (autoBuildSampleExportBtn) autoBuildSampleExportBtn.disabled = false;
+  }
+}
+
 function startRound() {
   if (state.wallEditMode) {
     startWallEditSession();
@@ -2487,16 +3438,109 @@ function rerollTrayTiles() {
   setStatus("Tray tiles rerolled. Grid placements kept.");
 }
 
-function autoBuildSelectedTiles() {
-  if (state.wallEditMode) {
-    setStatus("Auto build is unavailable in wall edit mode.", true);
+function getSelectedAutoBuildEngine() {
+  return autoBuildTuning.engineMode === AUTO_BUILD_ENGINE_ARCHETYPE
+    ? AUTO_BUILD_ENGINE_ARCHETYPE
+    : AUTO_BUILD_ENGINE_CLASSIC;
+}
+
+function getForcedAutoBuildArchetype(tuning = autoBuildTuning) {
+  const forced = tuning.forceArchetype;
+  return forced && forced !== AUTO_BUILD_ARCHETYPE_RANDOM ? forced : null;
+}
+
+function pickWeightedAutoBuildArchetype(tuning = autoBuildTuning) {
+  const forced = getForcedAutoBuildArchetype(tuning);
+  if (forced) return forced;
+  const weights = [
+    { id: "balanced", weight: tuning.archetypeBalancedWeight },
+    { id: "compact", weight: tuning.archetypeCompactWeight },
+    { id: "branchy", weight: tuning.archetypeBranchyWeight },
+    { id: "corridor", weight: tuning.archetypeCorridorWeight },
+  ].filter((entry) => entry.weight > 0);
+  if (!weights.length) return "balanced";
+  const total = weights.reduce((sum, entry) => sum + entry.weight, 0);
+  let threshold = Math.random() * total;
+  for (const entry of weights) {
+    threshold -= entry.weight;
+    if (threshold <= 0) return entry.id;
+  }
+  return weights[weights.length - 1].id;
+}
+
+function buildAutoBuildStatusLabel(options = {}) {
+  if (options.archetypeId) {
+    const label = AUTO_BUILD_ARCHETYPE_LABELS[options.archetypeId] || options.archetypeId;
+    return options.forced ? `Archetype: ${label} (forced)` : `Archetype: ${label}`;
+  }
+  return "Classic";
+}
+
+function getAutoBuildTuningForArchetype(archetypeId, baseTuning = autoBuildTuning) {
+  const profile = AUTO_BUILD_ARCHETYPE_DEFAULTS.profiles[archetypeId]
+    || AUTO_BUILD_ARCHETYPE_DEFAULTS.profiles.balanced;
+  return {
+    ...baseTuning,
+    roundnessWeight: baseTuning.roundnessWeight * profile.roundnessWeightMultiplier,
+    contactWeight: baseTuning.contactWeight * profile.contactWeightMultiplier,
+    radialPenaltyWeight: baseTuning.radialPenaltyWeight * profile.radialPenaltyWeightMultiplier,
+    nearCenterPenaltyWeight: baseTuning.nearCenterPenaltyWeight * profile.nearCenterPenaltyWeightMultiplier,
+    farOutPenaltyWeight: baseTuning.farOutPenaltyWeight * profile.farOutPenaltyWeightMultiplier,
+    lineExtensionPenalty: baseTuning.lineExtensionPenalty * profile.lineExtensionPenaltyMultiplier,
+    localDensityPenalty: baseTuning.localDensityPenalty * profile.localDensityPenaltyMultiplier,
+    localDensityRadiusMultiplier: baseTuning.localDensityRadiusMultiplier * profile.localDensityRadiusMultiplierMultiplier,
+    targetRadiusBaseMultiplier: baseTuning.targetRadiusBaseMultiplier * profile.targetRadiusBaseMultiplierMultiplier,
+    targetRadiusAvgBonusMultiplier: baseTuning.targetRadiusAvgBonusMultiplier * profile.targetRadiusAvgBonusMultiplierMultiplier,
+    targetMinRadiusMultiplier: baseTuning.targetMinRadiusMultiplier * profile.targetMinRadiusMultiplierMultiplier,
+    targetMaxRadiusMultiplier: baseTuning.targetMaxRadiusMultiplier * profile.targetMaxRadiusMultiplierMultiplier,
+  };
+}
+
+function runClassicAutoBuild() {
+  autoBuildSelectedTiles({
+    tuning: autoBuildTuning,
+    statusLabel: buildAutoBuildStatusLabel(),
+  });
+}
+
+function runArchetypeAutoBuild() {
+  const forcedArchetype = getForcedAutoBuildArchetype();
+  const archetypeId = forcedArchetype || pickWeightedAutoBuildArchetype();
+  autoBuildSelectedTiles({
+    tuning: getAutoBuildTuningForArchetype(archetypeId),
+    statusLabel: buildAutoBuildStatusLabel({ archetypeId, forced: Boolean(forcedArchetype) }),
+    archetypeId,
+  });
+}
+
+function runAutoBuild() {
+  const engine = getSelectedAutoBuildEngine();
+  if (engine === AUTO_BUILD_ENGINE_ARCHETYPE) {
+    runArchetypeAutoBuild();
     return;
   }
+  runClassicAutoBuild();
+}
+
+function autoBuildSelectedTiles(options = {}) {
+  const showStatus = options.showStatus !== false;
+  const spawnBoss = options.spawnBoss !== false;
+  if (state.wallEditMode) {
+    if (showStatus) setStatus("Auto build is unavailable in wall edit mode.", true);
+    return { built: false, reason: "wall_edit_mode" };
+  }
+
+  const tuning = options.tuning || autoBuildTuning;
+  const statusLabel = options.statusLabel || buildAutoBuildStatusLabel();
+  const shuffleEnabled = !tuning.deterministicMode;
+  const softCandidateLimit = shuffleEnabled
+    ? AUTO_BUILD_CANDIDATE_SOFT_LIMIT
+    : AUTO_BUILD_CANDIDATE_HARD_LIMIT;
 
   const allRegularTiles = Array.from(state.tiles.values()).filter((tile) => !isEntranceTile(tile));
   if (allRegularTiles.length < 6) {
-    setStatus("Not enough tiles available for auto build.", true);
-    return;
+    if (showStatus) setStatus("Not enough tiles available for auto build.", true);
+    return { built: false, reason: "not_enough_tiles" };
   }
 
   const selectedAutoBuildIds = new Set(
@@ -2524,8 +3568,8 @@ function autoBuildSelectedTiles() {
 
   const entrance = state.tiles.get(ENTRANCE_TILE_ID);
   if (!entrance) {
-    setStatus("Entrance tile is unavailable.", true);
-    return;
+    if (showStatus) setStatus("Entrance tile is unavailable.", true);
+    return { built: false, reason: "missing_entrance" };
   }
   if (!entrance.placed) {
     placeStartTileAtCenter();
@@ -2536,8 +3580,8 @@ function autoBuildSelectedTiles() {
     .map((tileId) => state.tiles.get(tileId))
     .filter(Boolean);
   if (!activeRegularTiles.length) {
-    setStatus("No selected tiles available for auto build.", true);
-    return;
+    if (showStatus) setStatus("No selected tiles available for auto build.", true);
+    return { built: false, reason: "no_selected_tiles" };
   }
 
   const originalTileState = new Map(
@@ -2569,22 +3613,7 @@ function autoBuildSelectedTiles() {
     updatePlacedProgress();
   };
 
-  const sideDirCache = new Map();
   const placementEvalCache = new Map();
-
-  const getWallFaceSignature = (tile) => {
-    if (!tile?.wallFaceSet || !tile.wallFaceSet.size) return "";
-    return [...tile.wallFaceSet].sort((a, b) => a - b).join(",");
-  };
-
-  const getSideDirectionsCached = (tile) => {
-    const key = `${tile.tileId}|${tile.rotation}|${getWallFaceSignature(tile)}`;
-    const cached = sideDirCache.get(key);
-    if (cached) return cached;
-    const dirs = getSideDirections(tile);
-    sideDirCache.set(key, dirs);
-    return dirs;
-  };
 
   const roundForCache = (value) => Math.round(value * 10) / 10;
   const buildPlacedSignature = (tiles) => tiles
@@ -2609,14 +3638,15 @@ function autoBuildSelectedTiles() {
     return result;
   };
 
-  const getRotationOptions = () => shuffle(
+  const getRotationOptions = () => maybeShuffle(
     Array.from({ length: 360 / ROTATION_STEP }, (_, idx) => idx * ROTATION_STEP),
+    shuffleEnabled,
   );
 
   const getPlacementCandidates = (tile, placedTiles, placedSignature) => {
     const candidates = [];
     const seen = new Set();
-    const anchors = shuffle([...placedTiles]);
+    const anchors = maybeShuffle([...placedTiles], shuffleEnabled);
     const registerCandidate = (x, y) => {
       if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) return;
       const snapped = snapTileCenterToHex(tile, x, y);
@@ -2643,12 +3673,12 @@ function autoBuildSelectedTiles() {
 
     // Primary pass: derive candidate targets from face pairing, then let computeBestSnap
     // search nearby valid placements using existing app snap/contact logic.
-    const tileDirs = getSideDirectionsCached(tile);
-    const tileDirOrder = shuffle(Array.from({ length: tileDirs.length }, (_, idx) => idx));
+    const tileDirs = getSideDirections(tile);
+    const tileDirOrder = maybeShuffle(Array.from({ length: tileDirs.length }, (_, idx) => idx), shuffleEnabled);
     primaryCandidateLoop:
     for (const anchorTile of anchors) {
-      const anchorDirs = getSideDirectionsCached(anchorTile);
-      const anchorDirOrder = shuffle(Array.from({ length: anchorDirs.length }, (_, idx) => idx));
+      const anchorDirs = getSideDirections(anchorTile);
+      const anchorDirOrder = maybeShuffle(Array.from({ length: anchorDirs.length }, (_, idx) => idx), shuffleEnabled);
       for (const tileDirIdx of tileDirOrder) {
         if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) break primaryCandidateLoop;
         const aDir = tileDirs[tileDirIdx];
@@ -2686,7 +3716,7 @@ function autoBuildSelectedTiles() {
 
     // Fallback pass: sample nearby hex rings around already placed tiles.
     const layout = getBoardHexLayout();
-    if (candidates.length < AUTO_BUILD_CANDIDATE_SOFT_LIMIT) {
+    if (candidates.length < softCandidateLimit) {
       const ringDirs = [
         { x: layout.dx, y: layout.dy / 2 },
         { x: layout.dx, y: -layout.dy / 2 },
@@ -2699,7 +3729,7 @@ function autoBuildSelectedTiles() {
       ringCandidateLoop:
       for (const anchorTile of anchors) {
         for (let depth = 1; depth <= maxRingDepth; depth += 1) {
-          if (candidates.length >= AUTO_BUILD_CANDIDATE_SOFT_LIMIT) break ringCandidateLoop;
+          if (candidates.length >= softCandidateLimit) break ringCandidateLoop;
           for (let dirIdx = 0; dirIdx < ringDirs.length; dirIdx += 1) {
             const dir = ringDirs[dirIdx];
             const next = ringDirs[(dirIdx + 1) % ringDirs.length];
@@ -2719,15 +3749,31 @@ function autoBuildSelectedTiles() {
     if (!candidates.length) {
       const cx = board.clientWidth / 2;
       const cy = board.clientHeight / 2;
-      for (let i = 0; i < 120; i += 1) {
-        const rx = cx + (Math.random() - 0.5) * board.clientWidth * 0.95;
-        const ry = cy + (Math.random() - 0.5) * board.clientHeight * 0.95;
-        registerCandidate(rx, ry);
+      if (shuffleEnabled) {
+        for (let i = 0; i < 120; i += 1) {
+          const rx = cx + (Math.random() - 0.5) * board.clientWidth * 0.95;
+          const ry = cy + (Math.random() - 0.5) * board.clientHeight * 0.95;
+          registerCandidate(rx, ry);
+        }
+      } else {
+        const maxRadius = Math.min(board.clientWidth, board.clientHeight) * 0.42;
+        for (let i = 0; i < 120; i += 1) {
+          const ring = Math.floor(i / 12) + 1;
+          const indexInRing = i % 12;
+          const angle = (Math.PI * 2 * indexInRing) / 12;
+          const radius = (ring / 10) * maxRadius;
+          registerCandidate(
+            cx + Math.cos(angle) * radius,
+            cy + Math.sin(angle) * radius,
+          );
+        }
       }
     }
 
-    const randomized = shuffle(candidates).slice(0, AUTO_BUILD_CANDIDATE_SOFT_LIMIT);
-    if (!randomized.length) return randomized;
+    const rankedCandidates = shuffleEnabled
+      ? maybeShuffle(candidates, true).slice(0, AUTO_BUILD_CANDIDATE_SOFT_LIMIT)
+      : [...candidates];
+    if (!rankedCandidates.length) return rankedCandidates;
 
     let centroidX = 0;
     let centroidY = 0;
@@ -2751,9 +3797,12 @@ function autoBuildSelectedTiles() {
       avgPlacedRadius += Math.hypot(placed.x - centroidX, placed.y - centroidY);
     }
     avgPlacedRadius = placedTiles.length ? (avgPlacedRadius / placedTiles.length) : 0;
-    const targetRadius = Math.max(layout.dx * 1.35, avgPlacedRadius + layout.dx * 0.7);
-    const targetMinRadius = Math.max(layout.dx * 0.95, targetRadius * 0.6);
-    const targetMaxRadius = targetRadius * 1.5;
+    const targetRadius = Math.max(
+      layout.dx * tuning.targetRadiusBaseMultiplier,
+      avgPlacedRadius + layout.dx * tuning.targetRadiusAvgBonusMultiplier,
+    );
+    const targetMinRadius = Math.max(layout.dx * 0.95, targetRadius * tuning.targetMinRadiusMultiplier);
+    const targetMaxRadius = targetRadius * tuning.targetMaxRadiusMultiplier;
 
     const getRecentHeading = () => {
       if (placedTiles.length < 3) return null;
@@ -2767,9 +3816,9 @@ function autoBuildSelectedTiles() {
       return { x: vx / len, y: vy / len };
     };
     const recentHeading = getRecentHeading();
-    const localDensityRadius = layout.dx * 1.6;
+    const localDensityRadius = layout.dx * tuning.localDensityRadiusMultiplier;
 
-    for (const candidate of randomized) {
+    for (const candidate of rankedCandidates) {
       const clearance = getCandidateClearanceMetrics(tile, placedTiles, candidate.x, candidate.y);
       const distFromClusterCenter = Math.hypot(candidate.x - centroidX, candidate.y - centroidY);
       const nextMinX = Math.min(minPlacedX, candidate.x);
@@ -2793,7 +3842,7 @@ function autoBuildSelectedTiles() {
           const dirY = dy / dLen;
           const dot = dirX * recentHeading.x + dirY * recentHeading.y;
           if (dot > 0.86) {
-            lineExtensionPenalty = (dot - 0.86) / (1 - 0.86) * AUTO_BUILD_LINE_EXTENSION_PENALTY;
+            lineExtensionPenalty = (dot - 0.86) / (1 - 0.86) * tuning.lineExtensionPenalty;
           }
         }
       }
@@ -2802,25 +3851,28 @@ function autoBuildSelectedTiles() {
         const d = Math.hypot(candidate.x - placed.x, candidate.y - placed.y);
         if (d <= localDensityRadius) localNeighborCount += 1;
       }
-      const localDensityPenalty = Math.max(0, localNeighborCount - 2) * AUTO_BUILD_LOCAL_DENSITY_PENALTY;
+      const localDensityPenalty = Math.max(0, localNeighborCount - 2) * tuning.localDensityPenalty;
 
       candidate.layoutScore =
-        roundness * 150
-        + candidate.count * 22
-        + clearance.minFaceDist * 0.55
-        + clearance.minCenterDist * 0.5
-        + clearance.avgCenterDist * 0.22
-        - radialPenalty * 0.35
-        - nearCenterPenalty * 1.15
-        - farOutPenalty * 0.7
+        roundness * tuning.roundnessWeight
+        + candidate.count * tuning.contactWeight
+        + clearance.minFaceDist * tuning.minFaceDistWeight
+        + clearance.minCenterDist * tuning.minCenterDistWeight
+        + clearance.avgCenterDist * tuning.avgCenterDistWeight
+        - radialPenalty * tuning.radialPenaltyWeight
+        - nearCenterPenalty * tuning.nearCenterPenaltyWeight
+        - farOutPenalty * tuning.farOutPenaltyWeight
         - lineExtensionPenalty
         - localDensityPenalty;
     }
 
-    randomized.sort(
+    rankedCandidates.sort(
       (a, b) => (b.layoutScore - a.layoutScore) || (b.count - a.count),
     );
-    return randomized;
+    if (!shuffleEnabled && rankedCandidates.length > AUTO_BUILD_CANDIDATE_SOFT_LIMIT) {
+      return rankedCandidates.slice(0, AUTO_BUILD_CANDIDATE_SOFT_LIMIT);
+    }
+    return rankedCandidates;
   };
 
   const tryBuildLayout = () => {
@@ -2829,7 +3881,7 @@ function autoBuildSelectedTiles() {
       tile.placed = false;
     }
 
-    const tileOrder = shuffle([...activeRegularTiles]);
+    const tileOrder = maybeShuffle([...activeRegularTiles], shuffleEnabled);
     const placedTiles = [entrance];
 
     const placeAtIndex = (index) => {
@@ -2847,18 +3899,18 @@ function autoBuildSelectedTiles() {
         if (!candidates.length) continue;
 
         const bestScore = candidates[0].layoutScore;
-        const scoreFloor = bestScore - AUTO_BUILD_TOP_BUCKET_SCORE_DELTA;
+        const scoreFloor = bestScore - tuning.topBucketScoreDelta;
         const topBucket = [];
         const remainder = [];
         for (let i = 0; i < candidates.length; i += 1) {
           const candidate = candidates[i];
-          if (i < AUTO_BUILD_TOP_BUCKET_SIZE || candidate.layoutScore >= scoreFloor) {
+          if (i < tuning.topBucketSize || candidate.layoutScore >= scoreFloor) {
             topBucket.push(candidate);
           } else {
             remainder.push(candidate);
           }
         }
-        const orderedCandidates = [...shuffle(topBucket), ...remainder];
+        const orderedCandidates = [...maybeShuffle(topBucket, shuffleEnabled), ...remainder];
 
         for (const candidate of orderedCandidates) {
           positionTile(tile, candidate.x, candidate.y);
@@ -2902,8 +3954,10 @@ function autoBuildSelectedTiles() {
 
   if (!built) {
     restoreOriginalState();
-    setStatus("Auto build could not find a valid full layout. Try rerolling tiles and run again.", true);
-    return;
+    if (showStatus) {
+      setStatus(`Auto build could not find a valid full layout (${statusLabel}). Try rerolling tiles and run again.`, true);
+    }
+    return { built: false, reason: "no_valid_layout", statusLabel };
   }
 
   for (const tile of activeRegularTiles) {
@@ -2920,15 +3974,28 @@ function autoBuildSelectedTiles() {
     pushAutoBuildHistory(autoBuildHistoryKey, chosenSignature);
   }
   if (noveltyRetryCount > 0) {
-    setStatus(`Auto build complete: selected tiles placed with valid contact rules (${noveltyRetryCount} extra attempts for shape variety)${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
+    if (showStatus) {
+      setStatus(`Auto build complete (${statusLabel}): selected tiles placed with valid contact rules (${noveltyRetryCount} extra attempts for shape variety)${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
+    }
   } else {
-    setStatus(`Auto build complete: selected tiles placed with valid contact rules${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
+    if (showStatus) {
+      setStatus(`Auto build complete (${statusLabel}): selected tiles placed with valid contact rules${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
+    }
   }
-  spawnRandomBossAtReferenceTopMagnet({
-    showStatus: false,
-    silentNoReference: true,
-    silentNoBoss: true,
-  });
+  if (spawnBoss) {
+    spawnRandomBossAtReferenceTopMagnet({
+      showStatus: false,
+      silentNoReference: true,
+      silentNoBoss: true,
+    });
+  }
+  return {
+    built: true,
+    statusLabel,
+    chosenSignature,
+    noveltyRetryCount,
+    movedReferenceSide,
+  };
 }
 
 function resetTiles() {
@@ -4551,8 +5618,9 @@ function countReferenceCardOverlaps(refX, refY, tiles) {
   const refBounds = getPolygonBounds(refPoly);
   for (const tile of tiles || []) {
     if (!tile) continue;
-    const tilePoly = getOverlapWorldPolygon(tile);
-    const tileBounds = getPolygonBounds(tilePoly);
+    const tileGeometry = getTilePoseGeometry(tile);
+    const tilePoly = tileGeometry.overlapPolygon;
+    const tileBounds = tileGeometry.overlapBounds;
     if (!boundsOverlap(refBounds, tileBounds)) continue;
     if (polygonsOverlap(refPoly, tilePoly)) count += 1;
   }
@@ -5111,21 +6179,36 @@ function createTileGuideOverlay(tile) {
 }
 
 function getGuideFacePoints(tile) {
+  if (!tile) return [];
+  const cached = tileGuidePointsCache.get(tile);
+  if (cached?.length) return cached;
+
   const templateType = getGuidePointTemplateType(tile);
-  const templateOverride = templateType ? getGuidePointTemplateOverride(templateType) : null;
-  if (templateOverride) return templateOverride;
+  const templateOverride = templateType ? getGuidePointTemplateOverrideRaw(templateType) : null;
+  if (templateOverride?.length) {
+    const next = cloneGuidePoints(templateOverride);
+    tileGuidePointsCache.set(tile, next);
+    return next;
+  }
 
   if (shouldUseTemplateGuidePoints(tile)) {
     const templatePoints = getTemplateGuidePointsForTile(tile);
-    if (templatePoints?.length) return templatePoints;
+    if (templatePoints?.length) {
+      tileGuidePointsCache.set(tile, templatePoints);
+      return templatePoints;
+    }
   }
 
   const points = tile.faceGeometry.points.map((p) => ({ ...p }));
+  let resolved = points;
   if (isEntranceTile(tile)) {
     const templateTile =
       state.tiles.get("tile_01")
       || Array.from(state.tiles.values()).find((t) => !isEntranceTile(t));
-    if (!templateTile) return points;
+    if (!templateTile) {
+      tileGuidePointsCache.set(tile, resolved);
+      return resolved;
+    }
 
     const templateBase = templateTile.faceGeometry.points.map((p) => ({ ...p }));
     const reference = applyNormalTileGuideAdjustments(
@@ -5239,10 +6322,12 @@ function getGuideFacePoints(tile) {
     }
     if (points[14]) points.splice(14, 1);
     if (points[13]) points.splice(13, 1);
-    return points;
+  } else {
+    resolved = applyNormalTileGuideAdjustments(points);
   }
 
-  return applyNormalTileGuideAdjustments(points);
+  tileGuidePointsCache.set(tile, resolved);
+  return resolved;
 }
 
 function shouldUseTemplateGuidePoints(tile) {
@@ -5563,11 +6648,14 @@ function persistTileWallFaces(tileSetId, tileId, faceSet) {
   const sorted = Array.from(faceSet).sort((a, b) => a - b);
   state.wallOverrides[tileSetId][tileId] = sorted;
   saveWallOverrides();
+  const editorRef = state.wallEditorTileRefs.get(`${tileSetId}:${tileId}`);
+  if (editorRef?.tile) clearTileGeometryCache(editorRef.tile);
 
   if (tileSetId === state.selectedTileSetId) {
     const activeTile = state.tiles.get(tileId);
     if (activeTile) {
       activeTile.wallFaceSet = new Set(sorted);
+      clearTileGeometryCache(activeTile);
       refreshTileWallGuide(activeTile);
     }
   }
@@ -5601,6 +6689,25 @@ function getActiveTileForWallEditing() {
 
 function cloneGuidePoints(points) {
   return Array.isArray(points) ? points.map((point) => ({ x: point.x, y: point.y })) : null;
+}
+
+function getWallFaceSignature(tile) {
+  if (!tile?.wallFaceSet || !tile.wallFaceSet.size) return "";
+  return [...tile.wallFaceSet].sort((a, b) => a - b).join(",");
+}
+
+function clearTileGeometryCache(tile) {
+  if (!tile) return;
+  tileGuidePointsCache.delete(tile);
+  tileSideDirectionsCache.delete(tile);
+  tilePoseGeometryCache.delete(tile);
+}
+
+function clearAllTileGeometryCaches() {
+  for (const tile of state.tiles.values()) clearTileGeometryCache(tile);
+  for (const ref of state.wallEditorTileRefs.values()) {
+    clearTileGeometryCache(ref.tile);
+  }
 }
 
 function sanitizeGuidePointTemplatePoints(points) {
@@ -5652,12 +6759,14 @@ function getGuidePointTemplateType(tile) {
   return isEntranceTile(tile) ? "entrance" : "regular";
 }
 
-function getGuidePointTemplateOverride(templateType) {
-  return cloneGuidePoints(
-    state.guidePointTemplateOverrides?.[templateType]
+function getGuidePointTemplateOverrideRaw(templateType) {
+  return state.guidePointTemplateOverrides?.[templateType]
     || DEFAULT_GUIDE_POINT_TEMPLATES?.[templateType]
-    || null,
-  );
+    || null;
+}
+
+function getGuidePointTemplateOverride(templateType) {
+  return cloneGuidePoints(getGuidePointTemplateOverrideRaw(templateType));
 }
 
 function isGuidePointTemplateEditableTile(tile) {
@@ -5693,6 +6802,7 @@ function persistGuidePointTemplate(templateType, points) {
   }
   state.guidePointTemplateOverrides[templateType] = sanitized;
   saveGuidePointTemplateOverrides();
+  clearAllTileGeometryCaches();
   refreshAllGuideTemplateConsumers();
 }
 
@@ -6007,6 +7117,7 @@ function syncSelectedTileSetWallsFromOverrides() {
   for (const tile of state.tiles.values()) {
     tile.wallFaceSet = new Set(getStoredWallFaces(state.selectedTileSetId, tile.tileId));
     tile.allowAsEndTile = getStoredAllowAsEndTile(state.selectedTileSetId, tile.tileId);
+    clearTileGeometryCache(tile);
     refreshTileWallGuide(tile);
   }
 }
@@ -6695,15 +7806,55 @@ function getSideSamples(tile) {
   }));
 }
 
-function getSideDirections(tile) {
-  return getContactFaces(tile).map((f) => ({
-    nx: f.nx,
-    ny: f.ny,
-    offset: f.offset,
-  }));
+function buildInsetPolygon(tile, poly, insetPx = OVERLAP_POLYGON_INSET_PX) {
+  if (!Number.isFinite(insetPx) || insetPx <= 0) return poly;
+  return (poly || []).map((point) => {
+    const dx = point.x - tile.x;
+    const dy = point.y - tile.y;
+    const len = Math.hypot(dx, dy);
+    if (len <= insetPx || len < 1e-6) {
+      return {
+        x: tile.x + dx * 0.5,
+        y: tile.y + dy * 0.5,
+      };
+    }
+    const scale = (len - insetPx) / len;
+    return {
+      x: tile.x + dx * scale,
+      y: tile.y + dy * scale,
+    };
+  });
 }
 
-function getContactFaces(tile) {
+function getTilePoseGeometry(tile) {
+  if (!tile) {
+    return {
+      world: [],
+      faces: [],
+      overlapPolygon: [],
+      overlapBounds: null,
+    };
+  }
+
+  let cache = tilePoseGeometryCache.get(tile);
+  if (!cache) {
+    cache = new Map();
+    tilePoseGeometryCache.set(tile, cache);
+  }
+
+  const key = [
+    tile.x.toFixed(3),
+    tile.y.toFixed(3),
+    normalizeAngle(tile.rotation).toFixed(3),
+    getWallFaceSignature(tile),
+  ].join("|");
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  if (cache.size >= TILE_POSE_GEOMETRY_CACHE_LIMIT) {
+    cache.clear();
+  }
+
   const points = getGuideFacePoints(tile);
   const rotationRad = (tile.rotation * Math.PI) / 180;
   const cos = Math.cos(rotationRad);
@@ -6748,7 +7899,39 @@ function getContactFaces(tile) {
     });
   }
 
-  return faces;
+  const overlapPolygon = buildInsetPolygon(tile, world);
+  const entry = {
+    world,
+    faces,
+    overlapPolygon,
+    overlapBounds: getPolygonBounds(overlapPolygon),
+  };
+  cache.set(key, entry);
+  return entry;
+}
+
+function getSideDirections(tile) {
+  if (!tile) return [];
+  let cache = tileSideDirectionsCache.get(tile);
+  if (!cache) {
+    cache = new Map();
+    tileSideDirectionsCache.set(tile, cache);
+  }
+  const key = normalizeAngle(tile.rotation).toFixed(3);
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const next = getContactFaces(tile).map((f) => ({
+    nx: f.nx,
+    ny: f.ny,
+    offset: f.offset,
+  }));
+  cache.set(key, next);
+  return next;
+}
+
+function getContactFaces(tile) {
+  return getTilePoseGeometry(tile).faces;
 }
 
 function isBlockedContactFace(tile, face) {
@@ -6761,17 +7944,12 @@ function isBlockedContactFace(tile, face) {
 
 function isTouchingTileStartBlockedPoints(tile, otherTile, touchRadius) {
   if (!isEntranceTile(tile)) return false;
-  const points = getGuideFacePoints(tile);
-  const rotationRad = (tile.rotation * Math.PI) / 180;
-  const cos = Math.cos(rotationRad);
-  const sin = Math.sin(rotationRad);
+  const points = getTilePoseGeometry(tile).world;
 
   for (const idx of ENTRANCE_BLOCKED_FACE_INDICES) {
     const p = points[idx];
     if (!p) continue;
-    const wx = tile.x + p.x * cos - p.y * sin;
-    const wy = tile.y + p.x * sin + p.y * cos;
-    if (isWorldPointOnOpaquePixel(otherTile, wx, wy, touchRadius)) return true;
+    if (isWorldPointOnOpaquePixel(otherTile, p.x, p.y, touchRadius)) return true;
   }
 
   return false;
@@ -7368,6 +8546,10 @@ function shuffle(arr) {
   return copy;
 }
 
+function maybeShuffle(arr, enabled = true) {
+  return enabled ? shuffle(arr) : [...arr];
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -7379,11 +8561,13 @@ function dist(a, b) {
 }
 
 function hasAnyOverlap(tile, otherTiles) {
-  const tilePoly = getOverlapWorldPolygon(tile);
-  const tileBounds = getPolygonBounds(tilePoly);
+  const tileGeometry = getTilePoseGeometry(tile);
+  const tilePoly = tileGeometry.overlapPolygon;
+  const tileBounds = tileGeometry.overlapBounds;
   for (const other of otherTiles) {
-    const otherPoly = getOverlapWorldPolygon(other);
-    const otherBounds = getPolygonBounds(otherPoly);
+    const otherGeometry = getTilePoseGeometry(other);
+    const otherPoly = otherGeometry.overlapPolygon;
+    const otherBounds = otherGeometry.overlapBounds;
     if (!boundsOverlap(tileBounds, otherBounds)) continue;
     if (pointInPolygonStrict({ x: tile.x, y: tile.y }, otherPoly)) return true;
     if (pointInPolygonStrict({ x: other.x, y: other.y }, tilePoly)) return true;
@@ -7447,35 +8631,14 @@ function tilesAlphaOverlap(a, b) {
 }
 
 function getWorldPolygon(tile) {
-  const points = getGuideFacePoints(tile);
-  const rotationRad = (tile.rotation * Math.PI) / 180;
-  const cos = Math.cos(rotationRad);
-  const sin = Math.sin(rotationRad);
-  return points.map((p) => ({
-    x: tile.x + p.x * cos - p.y * sin,
-    y: tile.y + p.x * sin + p.y * cos,
-  }));
+  return getTilePoseGeometry(tile).world;
 }
 
 function getOverlapWorldPolygon(tile, insetPx = OVERLAP_POLYGON_INSET_PX) {
-  const poly = getWorldPolygon(tile);
-  if (!Number.isFinite(insetPx) || insetPx <= 0) return poly;
-  return poly.map((point) => {
-    const dx = point.x - tile.x;
-    const dy = point.y - tile.y;
-    const len = Math.hypot(dx, dy);
-    if (len <= insetPx || len < 1e-6) {
-      return {
-        x: tile.x + dx * 0.5,
-        y: tile.y + dy * 0.5,
-      };
-    }
-    const scale = (len - insetPx) / len;
-    return {
-      x: tile.x + dx * scale,
-      y: tile.y + dy * scale,
-    };
-  });
+  if (Math.abs(insetPx - OVERLAP_POLYGON_INSET_PX) <= 1e-6) {
+    return getTilePoseGeometry(tile).overlapPolygon;
+  }
+  return buildInsetPolygon(tile, getWorldPolygon(tile), insetPx);
 }
 
 function polygonsOverlap(polyA, polyB) {

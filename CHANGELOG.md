@@ -14,7 +14,12 @@
 - Split board recentering from zoom reset so viewport-resize auto-centering now preserves the current zoom level instead of snapping back to 100% and mis-centering the board.
 - Fixed tray-origin drag softness by moving normal tray-to-board drags onto the same explicit pixel-size path already used for board-origin drags, instead of relying on blurrier transform scaling.
 - Trimmed reserve-tile sizing in `styles.css` so reserve cards render smaller in normal, reserve-edit, and compact side-panel layouts.
+- Reworked board zoom/state handling: wheel zoom now snaps to visible 1% increments without invisible sub-percent drift, raw wheel deltas accumulate so small notches still register cleanly, compact mode forces a temporary 75% board zoom and restores the previous normal-mode zoom on exit, and tile-set/reset flows now keep the board/reference framing in a more stable starting position.
+- Added a DEV-only `Auto Build Tuning` panel with persistent local-storage-backed controls for Classic solver scoring weights, search randomness, cluster-shape targets, and copy/reset helpers so auto-build heuristics can be tuned live without editing hardcoded constants.
+- Added a second DEV-only auto-build engine path: Classic remains the original solver, while Archetype mode adds weighted `Balanced`, `Compact`, `Branchy`, and rare `Corridor` profile selection plus an optional force-archetype override, all routed through the same placement legality/contact/overlap logic and reported in build status text.
+- Added a DEV-only batch comparison export workflow that generates print-ready layout sample pages for Classic plus each Archetype using the current tuning values, with per-mode sample counts, fixed preview scaling, per-sample labels/metadata, isolated novelty history during generation, and board-state restore afterwards so large comparison runs do not disturb the active layout.
 - Session note: Fixed three “tiny visual glitches” that each turned out to be a completely different geometry problem.
+- Session note: Asked the auto-builder to be more scientific and accidentally gave it a lab coat.
 
 ## 2026-04-04
 - Increased board play-scale by 15% for grid placement flows: enlarged on-board and drag-context tile sizing (including Entrance, regular tiles, reference card, and boss token sizing) while preserving drawer/tray card sizing so only board/drag contexts are visually larger.

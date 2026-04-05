@@ -86,6 +86,28 @@
                 <span>Ignore 4-Point Rule</span>
               </label>
               </div>
+              <details class="auto-build-tuning-panel" id="auto-build-tuning-panel">
+                <summary>
+                  <span>Auto Build Tuning</span>
+                  <span class="auto-build-tuning-badge">DEV ONLY</span>
+                </summary>
+                <div class="auto-build-tuning-body">
+                  <p class="auto-build-tuning-note">These controls are for tuning and comparing the DEV-only auto-build engines. They are not intended for release UI, and deterministic mode is strictly for debug/testing.</p>
+                  <div id="auto-build-tuning-controls" class="auto-build-tuning-controls"></div>
+                  <div class="auto-build-sample-export">
+                    <label class="auto-build-sample-export-label" for="auto-build-sample-count-input">
+                      <span>Sample Count</span>
+                      <input id="auto-build-sample-count-input" type="number" min="1" max="100" step="1" value="20" />
+                    </label>
+                    <button id="auto-build-sample-export-btn" type="button">Export Layout Sample PDFs</button>
+                  </div>
+                  <div class="auto-build-tuning-actions">
+                    <button id="auto-build-tuning-reset-btn" type="button">Reset Defaults</button>
+                    <button id="auto-build-tuning-copy-btn" type="button">Copy Values</button>
+                  </div>
+                  <textarea id="auto-build-tuning-output" class="auto-build-tuning-output" readonly spellcheck="false"></textarea>
+                </div>
+              </details>
             </div>
           </details>
           <div class="quick-actions-menu" id="quick-actions-menu">

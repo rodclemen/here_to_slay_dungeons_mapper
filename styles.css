@@ -690,6 +690,185 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   letter-spacing: 0.03em;
 }
 
+.auto-build-tuning-panel {
+  border-top: 1px solid #d0d8dd;
+  padding-top: 8px;
+}
+
+.auto-build-tuning-panel > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.auto-build-tuning-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.auto-build-tuning-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--control-border);
+  background: rgba(154, 63, 43, 0.08);
+  color: var(--warn);
+  font-size: 0.67rem;
+  letter-spacing: 0.03em;
+}
+
+.auto-build-tuning-body {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.auto-build-tuning-note {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.auto-build-tuning-controls {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.auto-build-tuning-group-heading {
+  margin: 4px 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.auto-build-tuning-group-note {
+  margin: -2px 0 2px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.auto-build-tuning-row {
+  display: grid;
+  gap: 4px;
+}
+
+.auto-build-tuning-row-toggle {
+  gap: 0;
+}
+
+.auto-build-tuning-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auto-build-tuning-label {
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.auto-build-tuning-row-toggle .auto-build-tuning-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auto-build-tuning-value {
+  font-size: 0.76rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-build-tuning-row-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+.auto-build-tuning-row input[type="range"] {
+  width: 100%;
+  margin: 0;
+}
+
+.auto-build-tuning-row select {
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+}
+
+.auto-build-tuning-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.auto-build-sample-export {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-elevated) 70%, transparent);
+}
+
+.auto-build-sample-export-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.76rem;
+  color: var(--ink);
+}
+
+.auto-build-sample-export-label input {
+  width: 78px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font: inherit;
+}
+
+.auto-build-sample-export button {
+  min-height: 32px;
+  padding: 7px 10px;
+  font-size: 0.76rem;
+}
+
+.auto-build-tuning-actions button {
+  flex: 1 1 0;
+  min-height: 30px;
+  padding: 6px 8px;
+  font-size: 0.76rem;
+}
+
+.auto-build-tuning-output {
+  width: 100%;
+  min-height: 180px;
+  padding: 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font: 12px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  resize: vertical;
+}
+
 .wall-edit-only {
   display: none;
 }
