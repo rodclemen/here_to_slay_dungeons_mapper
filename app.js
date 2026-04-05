@@ -179,7 +179,7 @@ const WALL_EDITOR_GROUPS = [
 const DEFAULT_WALL_FACE_DATA = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
-const START_TILE_DEFAULT_Y_OFFSET = 232;
+const START_TILE_DEFAULT_Y_OFFSET = 262;
 const BOSS_REFERENCE_MAGNET_GAP = 15 * BOARD_SCALE;
 const BOSS_REFERENCE_MAGNET_RADIUS = 72 * BOARD_SCALE;
 const BOSS_REFERENCE_MAGNET_TOP_GAP = -56 * BOARD_SCALE;
@@ -333,6 +333,7 @@ const state = {
   referenceMarker: null,
   boardZoom: DEFAULT_BOARD_ZOOM,
   compactSidePanelMode: false,
+  preCompactDrawerState: null,
   lastAutoCenterViewportWidth: 0,
   leftDrawerCollapsed: false,
   rightDrawerCollapsed: false,
@@ -1279,6 +1280,10 @@ function setCompactSidePanelMode(enabled) {
   updateBoardAutoCenterViewportAnchor();
 
   if (useCompact) {
+    state.preCompactDrawerState = {
+      left: Boolean(state.leftDrawerCollapsed),
+      right: Boolean(state.rightDrawerCollapsed),
+    };
     if (state.reserveEditMode) {
       state.reserveEditMode = false;
       document.body.classList.remove("reserve-edit-mode");
@@ -1300,16 +1305,20 @@ function setCompactSidePanelMode(enabled) {
     && bossSectionPanelMountMarker.parentElement
     && bossSectionPanel.parentElement !== bossSectionPanelMountMarker.parentElement
   ) {
-    state.leftDrawerCollapsed = false;
-    state.rightDrawerCollapsed = false;
+    const restored = state.preCompactDrawerState || { left: false, right: false };
+    state.leftDrawerCollapsed = restored.left;
+    state.rightDrawerCollapsed = restored.right;
+    state.preCompactDrawerState = null;
     bossSectionPanelMountMarker.parentElement.insertBefore(
       bossSectionPanel,
       bossSectionPanelMountMarker.nextSibling,
     );
     rerenderTrayAndReserve();
   } else {
-    state.leftDrawerCollapsed = false;
-    state.rightDrawerCollapsed = false;
+    const restored = state.preCompactDrawerState || { left: false, right: false };
+    state.leftDrawerCollapsed = restored.left;
+    state.rightDrawerCollapsed = restored.right;
+    state.preCompactDrawerState = null;
     rerenderTrayAndReserve();
   }
 
@@ -1335,12 +1344,24 @@ function syncWallEditorPointEditModeClass() {
   document.body.classList.toggle("wall-editor-point-edit-mode", Boolean(state.wallEditorPointEditMode));
 }
 
+function setAttributeIfChanged(element, name, value) {
+  if (!element) return;
+  if (element.getAttribute(name) === value) return;
+  element.setAttribute(name, value);
+}
+
 function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardScreenPosition = false } = {}) {
   const beforeRect = preserveBoardScreenPosition ? board.getBoundingClientRect() : null;
   const wasLeftCollapsed = document.body.classList.contains("left-drawer-collapsed");
+  const wasRightCollapsed = document.body.classList.contains("right-drawer-collapsed");
   const canCollapse = window.matchMedia("(min-width: 981px)").matches;
   const leftCollapsed = canCollapse && state.leftDrawerCollapsed;
   const rightCollapsed = canCollapse && state.rightDrawerCollapsed;
+  const collapseStateUnchanged = wasLeftCollapsed === leftCollapsed && wasRightCollapsed === rightCollapsed;
+
+  if (collapseStateUnchanged && !save && !rerender && !preserveBoardScreenPosition) {
+    return;
+  }
 
   document.body.classList.toggle("left-drawer-collapsed", leftCollapsed);
   document.body.classList.toggle("right-drawer-collapsed", rightCollapsed);
@@ -1360,28 +1381,28 @@ function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardS
     }
   }
 
-  if (leftDrawer) leftDrawer.setAttribute("aria-expanded", String(!leftCollapsed));
-  if (rightDrawer) rightDrawer.setAttribute("aria-expanded", String(!rightCollapsed));
-  if (leftDrawerContent) leftDrawerContent.setAttribute("aria-hidden", String(leftCollapsed));
-  if (rightDrawerContent) rightDrawerContent.setAttribute("aria-hidden", String(rightCollapsed));
+  setAttributeIfChanged(leftDrawer, "aria-expanded", String(!leftCollapsed));
+  setAttributeIfChanged(rightDrawer, "aria-expanded", String(!rightCollapsed));
+  setAttributeIfChanged(leftDrawerContent, "aria-hidden", String(leftCollapsed));
+  setAttributeIfChanged(rightDrawerContent, "aria-hidden", String(rightCollapsed));
 
   if (toggleLeftDrawerBtn) {
-    toggleLeftDrawerBtn.setAttribute("aria-expanded", String(!leftCollapsed));
-    toggleLeftDrawerBtn.setAttribute("aria-label", leftCollapsed ? "Expand tile drawer" : "Collapse tile drawer");
-    toggleLeftDrawerBtn.setAttribute("title", leftCollapsed ? "Expand tile drawer" : "Collapse tile drawer");
+    const label = leftCollapsed ? "Expand tile drawer" : "Collapse tile drawer";
+    setAttributeIfChanged(toggleLeftDrawerBtn, "aria-expanded", String(!leftCollapsed));
+    setAttributeIfChanged(toggleLeftDrawerBtn, "aria-label", label);
+    setAttributeIfChanged(toggleLeftDrawerBtn, "title", label);
   }
   if (toggleRightDrawerBtn) {
-    toggleRightDrawerBtn.setAttribute("aria-expanded", String(!rightCollapsed));
-    toggleRightDrawerBtn.setAttribute("aria-label", rightCollapsed ? "Expand info drawer" : "Collapse info drawer");
-    toggleRightDrawerBtn.setAttribute("title", rightCollapsed ? "Expand info drawer" : "Collapse info drawer");
+    const label = rightCollapsed ? "Expand info drawer" : "Collapse info drawer";
+    setAttributeIfChanged(toggleRightDrawerBtn, "aria-expanded", String(!rightCollapsed));
+    setAttributeIfChanged(toggleRightDrawerBtn, "aria-label", label);
+    setAttributeIfChanged(toggleRightDrawerBtn, "title", label);
   }
 
   if (save) saveDrawerState({ left: leftCollapsed, right: rightCollapsed });
   const completeRerender = () => {
     if (!rerender) return;
-    if (!preserveBoardScreenPosition) {
-      recenterTrayAndReserveTiles();
-    }
+    recenterTrayAndReserveTiles();
     scheduleBoardHexGridRender();
     setTimeout(scheduleBoardHexGridRender, 220);
   };
@@ -1399,6 +1420,20 @@ function recenterTrayAndReserveTiles() {
     if (tile.placed) continue;
     positionTileAtTrayCenter(tile);
     updateTileTransform(tile);
+  }
+}
+
+function forEachBoardTile(callback) {
+  for (const tile of state.tiles.values()) {
+    if (!tile.dom || !isOnBoardLayer(tile.dom.parentElement)) continue;
+    callback(tile);
+  }
+}
+
+function forEachBoardBossToken(callback) {
+  for (const token of state.bossTokens) {
+    if (!token?.dom || !isOnBoardLayer(token.dom.parentElement)) continue;
+    callback(token);
   }
 }
 
@@ -1438,12 +1473,10 @@ function shiftBoardSceneBy(dx, dy) {
   state.boardPanX += dx;
   state.boardPanY += dy;
 
-  const boardTiles = Array.from(state.tiles.values())
-    .filter((tile) => tile.dom && isOnBoardLayer(tile.dom.parentElement));
-  for (const tile of boardTiles) {
+  forEachBoardTile((tile) => {
     positionTile(tile, tile.x + dx, tile.y + dy);
     updateTileTransform(tile);
-  }
+  });
 
   if (state.referenceMarker?.dom) {
     const nextX = state.referenceMarker.x + dx;
@@ -1453,12 +1486,10 @@ function shiftBoardSceneBy(dx, dy) {
     updateReferenceMarkerTransform(state.referenceMarker);
   }
 
-  const boardBossTokens = state.bossTokens
-    .filter((token) => token?.dom && isOnBoardLayer(token.dom.parentElement));
-  for (const token of boardBossTokens) {
+  forEachBoardBossToken((token) => {
     positionBossToken(token, token.x + dx, token.y + dy);
     updateBossTokenTransform(token);
-  }
+  });
 }
 
 function lockBoardSceneDuringLayoutTransition(startRect, durationMs, onDone) {
@@ -1476,6 +1507,7 @@ function lockBoardSceneDuringLayoutTransition(startRect, durationMs, onDone) {
     }
     lastLeft = rect.left;
     lastTop = rect.top;
+    recenterTrayAndReserveTiles();
     renderBoardHexGrid();
 
     if (performance.now() < endAt) {
@@ -1888,31 +1920,35 @@ function worldToBoardScreenY(y, zoom = getBoardZoom()) {
   return y * zoom;
 }
 
-function applyBoardZoom(zoom) {
+function syncBoardSceneTransforms() {
+  forEachBoardTile((tile) => {
+    updateTileTransform(tile);
+  });
+  updateReferenceMarkerTransform();
+  forEachBoardBossToken((token) => {
+    updateBossTokenTransform(token);
+  });
+}
+
+function applyBoardZoom(zoom, options = {}) {
+  const syncScene = options?.syncScene !== false;
   const clamped = clamp(zoom, 0.7, 1.8);
   state.boardZoom = clamped;
   board.style.setProperty("--board-zoom", clamped.toFixed(3));
   updateBoardZoomIndicator();
   scheduleBoardHexGridRender();
-  for (const tile of state.tiles.values()) {
-    if (!tile.dom || !isOnBoardLayer(tile.dom.parentElement)) continue;
-    updateTileTransform(tile);
-  }
-  updateReferenceMarkerTransform();
-  for (const token of state.bossTokens) {
-    if (!token?.dom || !isOnBoardLayer(token.dom.parentElement)) continue;
-    updateBossTokenTransform(token);
-  }
+  if (syncScene) syncBoardSceneTransforms();
 }
 
 function recenterBoardView({ resetZoom = false } = {}) {
   if (resetZoom) {
-    applyBoardZoom(DEFAULT_BOARD_ZOOM);
+    applyBoardZoom(DEFAULT_BOARD_ZOOM, { syncScene: false });
   }
   const dx = -state.boardPanX;
   const dy = -state.boardPanY;
-  translateBoardContent(dx, dy);
-  centerBoardViewOnEntranceX();
+  translateBoardContent(dx, dy, { syncScene: false });
+  centerBoardViewOnEntranceX({ syncScene: false });
+  syncBoardSceneTransforms();
   updateBoardAutoCenterViewportAnchor();
 }
 
@@ -1930,11 +1966,13 @@ function zoomBoardAtPoint(delta, anchorBoardX, anchorBoardY) {
   const worldXAfter = anchorBoardX / nextZoom;
   const worldYAfter = anchorBoardY / nextZoom;
 
-  applyBoardZoom(nextZoom);
-  translateBoardContent(worldXAfter - worldXBefore, worldYAfter - worldYBefore);
+  applyBoardZoom(nextZoom, { syncScene: false });
+  translateBoardContent(worldXAfter - worldXBefore, worldYAfter - worldYBefore, { syncScene: false });
+  syncBoardSceneTransforms();
 }
 
-function translateBoardContent(dx, dy) {
+function translateBoardContent(dx, dy, options = {}) {
+  const syncScene = options?.syncScene !== false;
   if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
   if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return;
 
@@ -1944,7 +1982,7 @@ function translateBoardContent(dx, dy) {
   for (const tile of state.tiles.values()) {
     if (!tile.dom || !isOnBoardLayer(tile.dom.parentElement)) continue;
     positionTile(tile, tile.x + dx, tile.y + dy);
-    updateTileTransform(tile);
+    if (syncScene) updateTileTransform(tile);
   }
 
   if (state.referenceMarker?.dom) {
@@ -1952,13 +1990,13 @@ function translateBoardContent(dx, dy) {
     const ry = state.referenceMarker.y + dy;
     state.referenceMarker.x = rx;
     state.referenceMarker.y = ry;
-    updateReferenceMarkerTransform(state.referenceMarker);
+    if (syncScene) updateReferenceMarkerTransform(state.referenceMarker);
   }
 
   for (const token of state.bossTokens) {
     if (!token?.dom || !isOnBoardLayer(token.dom.parentElement)) continue;
     positionBossToken(token, token.x + dx, token.y + dy);
-    updateBossTokenTransform(token);
+    if (syncScene) updateBossTokenTransform(token);
   }
   if (state.entranceFadeAnchor) {
     state.entranceFadeAnchor = {
@@ -4362,14 +4400,14 @@ function setEntranceFadeAnchorFromTile(tile) {
   state.entranceFadeAnchor = { x: tile.x, y: tile.y };
 }
 
-function centerBoardViewOnEntranceX() {
+function centerBoardViewOnEntranceX(options = {}) {
   const entrance = state.tiles.get(ENTRANCE_TILE_ID);
   if (!entrance?.placed) return;
   if (!entrance.dom || !isOnBoardLayer(entrance.dom.parentElement)) return;
   const targetX = board.clientWidth / (2 * getBoardZoom());
   const dx = targetX - entrance.x;
   if (Math.abs(dx) < 0.5) return;
-  translateBoardContent(dx, 0);
+  translateBoardContent(dx, 0, options);
 }
 
 function updateReferenceMarkerTransform(reference = state.referenceMarker) {
@@ -4550,13 +4588,14 @@ function beginBoardPan(event) {
   event.preventDefault();
   const startX = event.clientX;
   const startY = event.clientY;
-  const boardTiles = Array.from(state.tiles.values())
-    .filter((tile) => tile.dom && isOnBoardLayer(tile.dom.parentElement))
-    .map((tile) => ({
+  const boardTiles = [];
+  forEachBoardTile((tile) => {
+    boardTiles.push({
       tile,
       x: tile.x,
       y: tile.y,
-    }));
+    });
+  });
   const reference = state.referenceMarker?.dom
     ? {
         dom: state.referenceMarker.dom,
@@ -4564,13 +4603,14 @@ function beginBoardPan(event) {
         y: state.referenceMarker.y,
       }
     : null;
-  const boardBossTokens = state.bossTokens
-    .filter((token) => token?.dom && isOnBoardLayer(token.dom.parentElement))
-    .map((token) => ({
+  const boardBossTokens = [];
+  forEachBoardBossToken((token) => {
+    boardBossTokens.push({
       token,
       x: token.x,
       y: token.y,
-    }));
+    });
+  });
 
   const startPanX = state.boardPanX;
   const startPanY = state.boardPanY;
@@ -5991,13 +6031,13 @@ function selectTile(id) {
 }
 
 function updatePlacedProgress() {
-  const placedCount = getPlacedTiles().filter((tile) => !isEntranceTile(tile)).length;
+  const placedCount = getPlacedRegularTileCount();
   if (placedProgressEl) placedProgressEl.textContent = `Placed ${placedCount} / 6 tiles`;
   updatePlacementFeedbackChecklist();
 }
 
 function updatePlacementFeedbackChecklist() {
-  const placedCount = getPlacedTiles().filter((tile) => !isEntranceTile(tile)).length;
+  const placedCount = getPlacedRegularTileCount();
   const tilesComplete = placedCount >= 6;
   const bossSelected = state.bossTokens.length > 0;
 
@@ -6055,6 +6095,7 @@ function beginDrag(tile, event) {
     compactDragProgress: 0,
     compactStartWidth: tileRect.width * COMPACT_DRAG_START_SIZE_BOOST,
     compactStartHeight: tileRect.height * COMPACT_DRAG_START_SIZE_BOOST,
+    placedTilesExcludingSelf: getPlacedTilesExcluding(tile),
   };
 
   // Enter drag visual state immediately on press/hold, before pointer movement.
@@ -6187,7 +6228,7 @@ function beginDrag(tile, event) {
     }
 
     setPlacementFeedback(tile, null);
-    finishDrop(tile);
+    finishDrop(tile, tile.drag?.placedTilesExcludingSelf);
     tile.drag = null;
   };
 
@@ -6196,7 +6237,7 @@ function beginDrag(tile, event) {
   window.addEventListener("pointercancel", handleUp);
 }
 
-function finishDrop(tile) {
+function finishDrop(tile, placedTiles = null) {
   const snappedCenter = snapTileCenterToHex(tile, tile.x, tile.y);
   positionTile(tile, snappedCenter.x, snappedCenter.y);
   updateTileTransform(tile);
@@ -6212,27 +6253,27 @@ function finishDrop(tile) {
     return;
   }
 
-  const placedTiles = getPlacedTiles().filter((t) => t.tileId !== tile.tileId);
+  const otherPlacedTiles = placedTiles || getPlacedTilesExcluding(tile);
 
-  if (placedTiles.length === 0) {
+  if (otherPlacedTiles.length === 0) {
     revertToTray(tile, "Place the Entrance Tile first.");
     return;
   }
 
-  if (hasAnyOverlap(tile, placedTiles)) {
+  if (hasAnyOverlap(tile, otherPlacedTiles)) {
     handleInvalidDrop(
       tile,
-      placedTiles,
+      otherPlacedTiles,
       "Invalid placement: tiles cannot overlap. Returning to tray in 10s.",
       true,
     );
     return;
   }
 
-  let result = findBestContact(tile, placedTiles);
+  let result = findBestContact(tile, otherPlacedTiles);
   if (!result.valid) {
     if (!state.ignoreContactRule) {
-      handleInvalidDrop(tile, placedTiles, `Invalid placement: ${getInvalidContactReason(result)} Returning to tray in 10s.`);
+      handleInvalidDrop(tile, otherPlacedTiles, `Invalid placement: ${getInvalidContactReason(result)} Returning to tray in 10s.`);
       return;
     }
   }
@@ -6778,7 +6819,29 @@ function isWorldPointOnOpaquePixel(tile, wx, wy, radius = 0, minAlpha = 24) {
 }
 
 function getPlacedTiles() {
-  return Array.from(state.tiles.values()).filter((tile) => tile.placed);
+  const placed = [];
+  for (const tile of state.tiles.values()) {
+    if (tile.placed) placed.push(tile);
+  }
+  return placed;
+}
+
+function getPlacedTilesExcluding(excludedTile) {
+  const excludedId = excludedTile?.tileId;
+  const placed = [];
+  for (const tile of state.tiles.values()) {
+    if (!tile.placed || tile.tileId === excludedId) continue;
+    placed.push(tile);
+  }
+  return placed;
+}
+
+function getPlacedRegularTileCount() {
+  let count = 0;
+  for (const tile of state.tiles.values()) {
+    if (tile.placed && !isEntranceTile(tile)) count += 1;
+  }
+  return count;
 }
 
 function revertToTray(tile, message, warn = false) {

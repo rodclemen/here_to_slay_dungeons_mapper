@@ -759,7 +759,6 @@ button:hover {
   z-index: 6;
   transition: width 0.18s ease;
   color: var(--control-text);
-  contain: paint;
 }
 
 .drawer-right {
@@ -2883,6 +2882,14 @@ body.feedback-legacy .tile-guide-contact-seg {
 body.compact-sidepanel-mode .workspace {
   display: block;
   height: 100%;
+}
+
+body.compact-sidepanel-mode .topbar {
+  grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
+}
+
+body.compact-sidepanel-mode .actions {
+  justify-content: flex-start;
 }
 
 body.compact-sidepanel-mode .drawer {
