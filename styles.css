@@ -53,6 +53,10 @@
   --tile-size: 170px;
 }
 
+html {
+  background: var(--bg);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -63,6 +67,7 @@ body {
   color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
+  min-height: 100vh;
   background:
     radial-gradient(circle at 18% 15%, #fff5e7 0%, transparent 42%),
     radial-gradient(circle at 85% 84%, #f5ddc5 0%, transparent 38%),
@@ -84,11 +89,21 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0;
+  background: inherit;
+  isolation: isolate;
+  transition: opacity 180ms ease;
+  opacity: 1;
+}
+
+body.tile-set-crossfading .app {
+  opacity: 0.12;
+  pointer-events: none;
 }
 
 .topbar {
   border-bottom: 1px solid var(--topbar-border);
   padding: 10px 16px;
+  background-color: var(--surface-elevated);
   background: var(--topbar-bg);
   backdrop-filter: blur(8px);
   box-shadow: var(--topbar-shadow);
@@ -722,11 +737,13 @@ button:hover {
   overflow: hidden;
   padding: 0;
   height: 100%;
+  background: linear-gradient(130deg, var(--board-bg-start) 0%, var(--board-bg-end) 100%);
 }
 
 .drawer {
   border: 1px solid var(--drawer-border);
   border-radius: 12px;
+  background-color: var(--surface-elevated);
   background: var(--drawer-bg);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -742,6 +759,7 @@ button:hover {
   z-index: 6;
   transition: width 0.18s ease;
   color: var(--control-text);
+  contain: paint;
 }
 
 .drawer-right {

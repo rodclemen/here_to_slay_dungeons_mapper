@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-05
+- Reworked tile-set switching and board-grid rendering: tile-set changes now run through a whole-page crossfade, the board hex grid now reuses a persistent SVG path pool instead of rebuilding all cells on each render, duplicate grid RAF scheduling is suppressed, and unchanged render inputs now skip full redraws entirely. Also corrected the `README.md` banner asset path casing and updated the external game link target.
 - Rewrote `README.md` into a full project guide: replaced the old prototype-focused notes with a bannered overview covering purpose, feature tour, usage flow, controls, architecture, project structure, local run instructions, limitations, and future directions so the repo now explains both what the mapper does and how it is built.
 - Tightened placement-overlap behavior in `app.js`: removed the blunt center-distance overlap reject, moved overlap checks onto inset guide polygons instead of PNG alpha, added containment checks so stacked tiles are still rejected, and fixed drag feedback so overlapping placements no longer flash green before being returned.
 - Reduced false reference-card/boss drift after auto-build by replacing the old square-box proximity test with an inset reference-card collision shape checked against the same overlap geometry used for tiles, so the reference card only relocates when tiles meaningfully intrude into its area.

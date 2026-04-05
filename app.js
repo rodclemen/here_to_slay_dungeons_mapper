@@ -212,6 +212,7 @@ const DEFAULT_BOARD_ZOOM = 1;
 const BOARD_AUTO_CENTER_RESIZE_DELTA_X = 400;
 const BOARD_AUTO_CENTER_RESIZE_SETTLE_MS = 180;
 const BOARD_ITEM_SCALE = 1;
+const TILE_SET_CROSSFADE_OUT_MS = 120;
 const COMPACT_DRAG_GROW_DISTANCE_PX = 100;
 const COMPACT_DRAG_START_SIZE_BOOST = 1.12;
 const OVERLAP_POLYGON_INSET_PX = 3;
@@ -286,7 +287,10 @@ let boardHexThemeCache = null;
 let boardHexLayoutCache = null;
 let boardContentLayer = null;
 let boardHexSvg = null;
+let boardHexGroup = null;
+let boardHexLastRenderKey = "";
 const boardHexPathCache = new Map();
+const boardHexPathPool = [];
 const diceSpinTimers = new WeakMap();
 
 const state = {
@@ -720,6 +724,31 @@ function syncSelectedTileSetHeading() {
   selectedTileSetNameEl.textContent = label ? `- ${label}` : "";
 }
 
+function waitForTimeout(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function waitForNextPaint() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(resolve);
+    });
+  });
+}
+
+async function runTileSetCrossfade(task) {
+  document.body.classList.add("tile-set-crossfading");
+  await waitForTimeout(TILE_SET_CROSSFADE_OUT_MS);
+  try {
+    return await task();
+  } finally {
+    await waitForNextPaint();
+    document.body.classList.remove("tile-set-crossfading");
+  }
+}
+
 async function applyTileSet(tileSetId, showStatus = true) {
   const nextTileSet = getTileSetConfig(tileSetId);
   if (nextTileSet.status !== "ready") {
@@ -864,7 +893,11 @@ function bindGlobalControls() {
   if (tileSetSelect) {
     tileSetSelect.addEventListener("change", async (event) => {
       const nextTileSetId = event.target.value;
-      await applyTileSet(nextTileSetId, true);
+      if (nextTileSetId === state.selectedTileSetId) {
+        setTileSetMenuOpen(false);
+        return;
+      }
+      await runTileSetCrossfade(() => applyTileSet(nextTileSetId, true));
       syncTileSetMenuOptions();
       setTileSetMenuOpen(false);
     });
@@ -2904,6 +2937,9 @@ function clearBoard(options = {}) {
   board.querySelector(".board-content")?.remove();
   boardContentLayer = null;
   boardHexSvg = null;
+  boardHexGroup = null;
+  boardHexLastRenderKey = "";
+  boardHexPathPool.length = 0;
   state.referenceMarker = null;
   state.bossTokens = [];
   if (!preserveEntranceFadeAnchor) {
@@ -2942,13 +2978,17 @@ function mountBoardHexGrid() {
   const svg = document.createElementNS(BOARD_HEX_SVG_NS, "svg");
   svg.classList.add("board-hex-grid");
   svg.setAttribute("aria-hidden", "true");
+  const group = document.createElementNS(BOARD_HEX_SVG_NS, "g");
+  svg.appendChild(group);
   layer.appendChild(svg);
   boardHexSvg = svg;
+  boardHexGroup = group;
+  boardHexLastRenderKey = "";
   renderBoardHexGrid();
 }
 
 function scheduleBoardHexGridRender() {
-  cancelAnimationFrame(boardHexRenderRaf);
+  if (boardHexRenderRaf) return;
   boardHexRenderRaf = requestAnimationFrame(renderBoardHexGrid);
 }
 
@@ -3004,9 +3044,18 @@ function getBoardHexThemeMetrics() {
 }
 
 function renderBoardHexGrid() {
+  boardHexRenderRaf = 0;
   const svg = boardHexSvg?.isConnected ? boardHexSvg : getBoardContentLayer().querySelector(".board-hex-grid");
   if (!svg) return;
   boardHexSvg = svg;
+  const group = boardHexGroup?.isConnected
+    ? boardHexGroup
+    : svg.querySelector("g") || (() => {
+      const nextGroup = document.createElementNS(BOARD_HEX_SVG_NS, "g");
+      svg.appendChild(nextGroup);
+      return nextGroup;
+    })();
+  boardHexGroup = group;
 
   const w = Math.floor(board.clientWidth);
   const h = Math.floor(board.clientHeight);
@@ -3025,7 +3074,6 @@ function renderBoardHexGrid() {
   svg.style.transformOrigin = "0 0";
   svg.style.transform = "none";
   svg.setAttribute("viewBox", `0 0 ${drawW} ${drawH}`);
-  svg.replaceChildren();
 
   const {
     isDarkTheme,
@@ -3041,9 +3089,24 @@ function renderBoardHexGrid() {
       && Number.isFinite(fadeAnchor.y),
   );
   const entranceTile = state.tiles.get(ENTRANCE_TILE_ID);
-  const entranceRotationRad = hasEntranceAnchor && entranceTile
-    ? (normalizeAngle(entranceTile.rotation || 0) * Math.PI) / 180
+  const entranceRotation = hasEntranceAnchor && entranceTile
+    ? normalizeAngle(entranceTile.rotation || 0)
     : 0;
+  const renderKey = [
+    drawW,
+    drawH,
+    zoom.toFixed(4),
+    panX.toFixed(3),
+    panY.toFixed(3),
+    state.selectedUiThemeId,
+    hasEntranceAnchor ? "1" : "0",
+    hasEntranceAnchor ? fadeAnchor.x.toFixed(3) : "0",
+    hasEntranceAnchor ? fadeAnchor.y.toFixed(3) : "0",
+    entranceRotation.toFixed(3),
+  ].join("|");
+  if (renderKey === boardHexLastRenderKey) return;
+  boardHexLastRenderKey = renderKey;
+  const entranceRotationRad = (entranceRotation * Math.PI) / 180;
   // Default opening direction points down the board; rotate it with entrance rotation.
   const openingDirX = -Math.sin(entranceRotationRad);
   const openingDirY = Math.cos(entranceRotationRad);
@@ -3058,13 +3121,13 @@ function renderBoardHexGrid() {
   );
   const darkestTargetDist = Math.max(layout.dx * darkestTargetHexes, layout.radius * darkestTargetHexes);
 
-  const group = document.createElementNS(BOARD_HEX_SVG_NS, "g");
   group.setAttribute("stroke", strokeColor);
   group.setAttribute("stroke-width", "1");
   group.setAttribute("vector-effect", "non-scaling-stroke");
 
   const colStart = Math.floor((0 - panX - layout.minX) / layout.dx) - 2;
   const colEnd = Math.ceil((visibleWorldW - panX - layout.minX) / layout.dx) + 2;
+  let pathIndex = 0;
 
   for (let col = colStart; col <= colEnd; col += 1) {
     const xBase = layout.minX + col * layout.dx;
@@ -3106,14 +3169,24 @@ function renderBoardHexGrid() {
       const g = Math.round(lightRgb.g + (darkEndpoint.g - lightRgb.g) * mix);
       const b = Math.round(lightRgb.b + (darkEndpoint.b - lightRgb.b) * mix);
       const a = 1;
-      const path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
+      let path = boardHexPathPool[pathIndex];
+      if (!path) {
+        path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
+        boardHexPathPool.push(path);
+        group.appendChild(path);
+      } else if (path.parentNode !== group) {
+        group.appendChild(path);
+      }
+      path.removeAttribute("display");
       path.setAttribute("d", hexPath(screenX, screenY, screenRadius));
       path.setAttribute("fill", `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`);
-      group.appendChild(path);
+      pathIndex += 1;
     }
   }
 
-  svg.appendChild(group);
+  for (let i = pathIndex; i < boardHexPathPool.length; i += 1) {
+    boardHexPathPool[i].setAttribute("display", "none");
+  }
 }
 
 function getBoardHexLayout(width = Math.floor(board.clientWidth), height = Math.floor(board.clientHeight)) {
