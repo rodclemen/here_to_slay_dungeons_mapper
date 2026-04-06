@@ -33,9 +33,9 @@ Plan your dungeon. Randomize the crawl. See every layout before you play.
 
 ## Why This Exists
 
-Here to Slay: Dungeons ships with beautifully illustrated hex tiles, but laying them out on a table is fiddly. You draw six tiles from nine, rotate them, check wall faces, verify contacts — and if you want variety, you do it all again from scratch. There's no easy way to preview or compare layouts before committing a game night to one.
+Here to Slay: Dungeons ships with beautifully illustrated hex tiles, but laying them out on a table is fiddly. You draw six tiles from a stack of nine, rotate them, check wall faces, verify contacts — and if you want variety, you do it all again from scratch. There's no easy way to preview or compare layouts before committing a game night to one (I made it sound worse than it probably is).
 
-This project exists because I wanted a tool that respects the game's placement rules *exactly* while making it effortless to explore layout possibilities — manually or with a single keypress. It started as a prototype for snapping logic and grew into something I use every time I play.
+This project exists because I wanted a tool that respects the game's placement rules while making it effortless to explore layout possibilities — manually or with a single keypress. It started as an idea, but turned into a webapp that hopefully will be a fun useful tool.
 
 ---
 
@@ -43,7 +43,7 @@ This project exists because I wanted a tool that respects the game's placement r
 
 Here to Slay DUNGEONS Mapper is a browser-based dungeon layout tool. It lets you drag, rotate, and snap hex tiles onto a board that enforces the game's real placement rules — contact requirements, wall-face exclusions, blocked entrance points — so every layout you build or generate is legal.
 
-It supports all six dungeon tile sets, generates random layouts with one click, and handles the bookkeeping the tabletop can't: tracking which tiles are active, which are in reserve, which boss you've selected, and what your layout looks like at any zoom level.
+It supports all six dungeon tile sets, and can generate random layouts with one click.
 
 The core problem it solves: **seeing the dungeon before you build it**. Whether you're planning a session, testing a specific tile arrangement, or just want a fresh random crawl, the mapper gets you there faster than shuffling cardboard.
 
@@ -57,7 +57,6 @@ The core problem it solves: **seeing the dungeon before you build it**. Whether 
 - **Reserve tile swapping** — swap any active tile with a reserve tile without losing board state
 - **Boss selection and magnetic placement** — boss tokens snap to reference card positions
 - **Light and dark themes** per tile set, with automatic or manual switching
-- **Responsive layout** — works on large monitors and compact viewports alike
 - **Zero dependencies** — pure vanilla JavaScript, HTML, and CSS. No build step, no framework
 
 ---
@@ -76,7 +75,7 @@ Drag tiles from the tray onto the board. As you drag, the tile snaps to the near
 
 ### Auto Build
 
-Press `R` or click the dice icon to generate a random legal layout from the current active tiles. The algorithm uses recursive backtracking with scored candidate positions, evaluating contact quality, layout compactness, and spatial variety. It tracks recent layouts per tile set and actively avoids repeating shapes, so consecutive builds produce meaningfully different dungeons.
+Press `R` or click the dice icon to generate a random legal layout from the current active tiles. The algorithm uses recursive backtracking with scored candidate positions, evaluating contact quality, layout compactness, and spatial variety. It tracks recent layouts per tile set and actively avoids repeating shapes, so consecutive builds produce meaningfully different dungeons. By default, Auto Build also spawns a random boss at the reference card when it succeeds.
 
 ### Reserve Tile Swapping
 
@@ -84,7 +83,7 @@ Each round draws six tiles from nine. The remaining three sit in reserve. Toggle
 
 ### Boss Selection & Placement
 
-Each tile set includes two boss options. The boss pile in the side panel lets you cycle between them or spawn one randomly. Boss tokens magnetically snap to predefined positions around the reference card — side slots and a top slot — with one-per-source enforcement so you never accidentally place duplicates.
+Each tile set includes two boss options. The boss pile in the side panel lets you cycle between them, hold-drag the top card onto the board, or spawn one randomly with the dice button or `B`. If you enable `Random Boss: All Sets` in Advanced Tools, random boss selection can pull from every ready tile set instead of only the current one. Boss tokens magnetically snap to predefined positions around the reference card — side slots and a top slot — with one-per-source enforcement so you never accidentally place duplicates.
 
 ### Placement Feedback
 
@@ -106,7 +105,7 @@ Every tile set has paired light and dark UI themes — twelve total. Themes shif
 
 2. **Six tiles appear in the tray.** These are your active tiles for this round, drawn from the set's nine regular tiles. Three more sit in reserve below.
 
-3. **Place the entrance tile** by dragging it onto the board. It snaps to the hex grid. You can rotate it in 90° steps with `W`/`E` — but only before placing the first regular tile.
+3. **Start from the entrance tile** already placed on the board. It snaps to the hex grid automatically at round start. You can rotate it in 90° steps with `W`/`E` — but only before placing the first regular tile.
 
 4. **Drag regular tiles** from the tray to the board. Each must contact at least two connected faces of already-placed tiles. Wall faces don't count. The app shows green or red feedback as you drag.
 
@@ -114,7 +113,7 @@ Every tile set has paired light and dark UI themes — twelve total. Themes shif
 
 6. **Swap reserve tiles** if you want different options. Toggle reserve edit mode, then click one tray tile and one reserve tile to exchange them.
 
-7. **Place a boss token** by clicking the boss pile or pressing `B`. The token snaps to a magnet position near the reference card.
+7. **Place a boss token** by pressing `B`, clicking the random-boss dice button, or hold-dragging the top boss card from the pile. The token snaps to a magnet position near the reference card.
 
 8. **Zoom and pan** with the scroll wheel and by dragging empty board space.
 
@@ -132,7 +131,7 @@ The board renders a flat-top hexagonal grid as SVG, dynamically sized to the vie
 
 The grid serves as both a visual reference and the snap coordinate system. A 15% play-scale multiplier (`BOARD_SCALE = 1.15`) enlarges the grid for comfortable placement. Layout metrics are cached by viewport dimensions, so the grid doesn't recompute on every render pass.
 
-A directional lighting gradient radiates from the entrance tile, simulating a "cave opening" effect — hexes near the entrance are lighter, hexes deeper into the dungeon darken progressively. The gradient parameters differ between light and dark themes.
+Entrance-anchored per-hex lighting simulates a "cave opening" effect — hexes near the entrance are lighter, hexes deeper into the dungeon darken progressively. The lighting falloff and darkening parameters differ between light and dark themes.
 
 ### Snapping
 
@@ -142,7 +141,7 @@ During auto-build, a more sophisticated snap search (`computeBestSnap()`) derive
 
 ### Tile Geometry and Face System
 
-Each tile carries a guide polygon — a set of numbered perimeter points that define its placeable shape. Faces are the edge segments between consecutive points. The guide polygon is derived from the tile's PNG alpha channel at load time, then adjusted with shared guide-point templates for geometric consistency.
+Each tile carries a guide polygon — a set of numbered perimeter points that define its placeable shape. Faces are the edge segments between consecutive points. The app prefers shared guide-point templates and local overrides when they exist, falling back to face geometry derived from the tile PNG alpha channel at load time.
 
 Rotation transforms the polygon by applying a 2D rotation matrix to each point around the tile center. Regular tiles rotate in 60° steps; the entrance tile in 90° steps. All downstream systems — contact detection, wall exclusion, overlap checks — operate on the rotated geometry.
 
@@ -199,7 +198,7 @@ Dark themes adjust the hex grid's lighting gradient, increasing the falloff dist
 
 ## Architecture Notes
 
-The application is a single-page vanilla JavaScript app — one HTML file, one CSS file, one JS file (~7,500 lines). No framework, no build step, no dependencies.
+The application is a single-page vanilla JavaScript app — one HTML file, one CSS file, one JS file (~8,500 lines). No framework, no build step, no dependencies.
 
 **State management.** A single global `state` object holds all application state: tile data (stored in a `Map` by tile ID), board position, zoom level, tray ordering, boss tokens, theme selection, and UI flags. State mutations trigger targeted DOM updates rather than full re-renders.
 
@@ -238,7 +237,7 @@ Rotation targets the tile under the cursor. Entrance tiles rotate in 90° steps;
 | Scroll wheel | Zoom at cursor position |
 | Click zoom indicator | Reset zoom to 100% and recenter |
 | Click boss pile | Cycle to next boss option |
-| Hold boss pile (150ms) | Drag boss token onto board |
+| Hold top boss card (150ms) | Drag boss token onto board |
 
 ---
 
@@ -256,7 +255,7 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 
 ```
 ├── index.html              # Application shell and UI structure
-├── app.js                  # All application logic (~7,500 lines)
+├── app.js                  # All application logic (~8,500 lines)
 ├── styles.css              # Complete styling and theme definitions
 ├── about.html              # Guide and manual page
 ├── tiles/
@@ -281,8 +280,8 @@ This is a static app with no build step and no dependencies.
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/Here_to_slay.git
-cd Here_to_slay
+git clone https://github.com/rodclemen/here_to_slay_dungeons_randomizer.git
+cd here_to_slay_dungeons_randomizer
 
 # Serve with any static file server
 python3 -m http.server 8000
@@ -302,6 +301,7 @@ Then open `http://localhost:8000` in your browser.
 - **Entrance rotation locks** after the first regular tile is placed. This matches the intended gameplay flow but can surprise new users.
 - **Auto-build is bounded.** The generator retries up to 600 attempts and 120 novelty checks. In rare edge cases with unusual wall configurations, it may not find a layout.
 - **No persistent layout saving.** Board layouts are session-only. The app persists UI preferences and wall data, but not tile positions. PDF export is available for capturing a layout.
+- **Bridge-tile disconnects are possible.** If you move a placed tile that was acting as a bridge between two parts of the dungeon, you can leave behind a disconnected island of tiles. The mapper does not currently prevent that state.
 - **Tile set readiness varies.** Not all six sets may have complete assets and wall data at any given time. The app audits readiness at startup and disables incomplete sets.
 - **Desktop-oriented.** The responsive layout adapts to smaller viewports, but the drag-and-drop interaction model is designed for mouse and pointer input.
 
@@ -323,26 +323,4 @@ These are directions, not promises. The app does what it does well today.
 
 This is a solo passion project built for a game I love. If you play Here to Slay: Dungeons and want a faster way to set up or explore layouts, I hope this is useful.
 
-If you find a bug or have an idea, [open an issue](../../issues). Contributions and feedback are welcome.
-
----
-
-## NOTES FOR ME
-
-### Image placeholders inserted
-- **Banner image** at the very top: `./graphics/about_banner.png` — already exists in your repo, no placeholder needed.
-- No additional placeholder images were inserted. The README reads well without them given the project's current asset set. If you want to add screenshots later, the strongest placements would be:
-  1. After the "Highlights" section — a full-app screenshot showing tiles placed on the board with the tray and boss panel visible
-  2. Inside "Auto Build" in the Feature Tour — a short GIF showing auto-build in action (you already have `Graphics/auto_build.gif`)
-  3. Inside "Themes & Visual Design" — a side-by-side of two different tile set themes
-
-### Things to fill in
-- **GitHub clone URL:** Replace `<your-username>` in the "Running Locally" section with your actual GitHub username.
-- **GitHub Issues link:** The `[open an issue](../../issues)` link uses a relative path — it will work on GitHub but verify it resolves correctly for your repo.
-
-### Facts to verify
-- **Graphics folder casing:** The banner path uses `./graphics/about_banner.png` (lowercase). Your actual folder is named `Graphics` (uppercase). GitHub on macOS may be case-insensitive locally but case-sensitive on the web. Verify the correct casing and update the banner path if needed. The same applies if you add any other image references.
-- **"~7,500 lines" for app.js:** This was accurate at time of writing (~7,469 lines). If the file has grown significantly, update the number.
-- **All six tile sets listed as available:** The README lists all six tile sets. If some are not yet `ready` status, you may want to note which are fully playable vs. in progress.
-- **PDF export mention:** The Limitations section mentions PDF export. Confirm this is still exposed in the UI (it was in `exportCurrentLayoutPdf()`).
-- **About page link:** The project structure mentions `about.html`. Confirm the top-bar link label (`Guide`) matches what's in the nav.
+If you find a bug or have an idea, [open an issue](https://github.com/rodclemen/here_to_slay_dungeons_randomizer/issues). Contributions and feedback are welcome.

@@ -58,7 +58,8 @@
       z-index: 20;
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: center;
+      gap: 0;
       flex-wrap: wrap;
       padding: 12px 14px;
       margin-bottom: 16px;
@@ -73,11 +74,11 @@
     .toc-link {
       display: inline-flex;
       align-items: center;
-      min-height: 34px;
-      padding: 0 12px;
-      border: 1px solid var(--about-border-strong);
-      border-radius: 999px;
-      background: var(--about-panel);
+      min-height: auto;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
       color: var(--about-text);
       font-size: 0.86rem;
       white-space: nowrap;
@@ -86,6 +87,12 @@
     .brand-chip {
       font-weight: 700;
       color: var(--about-accent-strong);
+    }
+
+    .top-linkbar > * + *::before {
+      content: "|";
+      margin-right: 10px;
+      color: var(--about-muted);
     }
 
     .hero,
@@ -380,13 +387,13 @@
 <body class="about-page">
   <main class="page">
     <nav class="top-linkbar">
-      <span class="brand-chip">Here to Slay DUNGEONS Mapper</span>
       <a class="toc-link" href="./index.html" aria-label="Back to Mapper">Back to Mapper</a>
       <a class="toc-link" href="#what-it-is">What It Is</a>
       <a class="toc-link" href="#getting-started">Getting Started</a>
       <a class="toc-link" href="#build-dungeon">Build Your Dungeon</a>
       <a class="toc-link" href="#boss-cards">Boss Cards</a>
       <a class="toc-link" href="#controls">Controls</a>
+      <a class="toc-link" href="#known-issues">Known Issues</a>
       <a class="toc-link" href="#support">Donate</a>
     </nav>
 
@@ -423,7 +430,7 @@
             <li>Choose a tile set from the top bar.</li>
             <li>Review the six selected tiles in the left drawer.</li>
             <li>Drag tiles onto the board and rotate them as needed.</li>
-            <li>When placing a tile, a green or ret outline will tell you if the placement is allowed.</li>
+            <li>When placing a tile, a green or red outline will tell you if the placement is allowed.</li>
             <li>The feedback panel will give info for placement success or warnings.</li>
             <li>Add a boss once the dungeon is ready.</li>
           </ul>
@@ -439,7 +446,7 @@
       <div class="two-col">
         <div class="card">
           <h3>Top Bar</h3>
-          <p>The top bar contains the tile set selector, appearance mode control, advanced tools menu, quick actions menu, and the Guide link.</p>
+          <p>The top bar contains the tile set selector, appearance mode control, advanced tools menu, quick actions menu, and the Guide link. Advanced Tools includes options like theme selection, face-based placement feedback, Random Boss: All Sets, and debug controls. Quick Actions currently contains Export PDF and Reset Tiles.</p>
         </div>
         <div class="card">
           <h3>Left Drawer</h3>
@@ -451,7 +458,7 @@
         </div>
         <div class="card">
           <h3>Right Drawer</h3>
-          <p>This drawer contains the Boss Selection pile and the Placement Feedback area, including checklist progress and status messages.</p>
+          <p>In the standard desktop layout, this drawer contains the Boss Selection pile and the Placement Feedback area, including checklist progress and status messages. In compact mode, the boss section moves into the left drawer and the right drawer is collapsed away.</p>
         </div>
       </div>
       <div class="callout">
@@ -465,7 +472,7 @@
       <div class="two-col">
         <div class="card">
           <h3>Entrance Tile</h3>
-          <p>The entrance tile is always placed first and cannot be sent back to the tray. Once other tiles connect to it, its rotation becomes much more restricted.</p>
+          <p>The entrance tile is always placed first and cannot be sent back to the tray. Once another dungeon tile is placed, entrance rotation is locked.</p>
         </div>
         <div class="card">
           <h3>Reference Card</h3>
@@ -479,11 +486,11 @@
       <h3>Placing Tiles</h3>
       <p>Drag a tile from the tray to the board. As it moves over the play area, the mapper snaps it to the nearest hex position and checks whether the current spot is valid. If the tile meets the placement rules, it stays. If it fails, the feedback panel tells you why.</p>
       <h3>Rotating Tiles</h3>
-      <p>Hovering over a tile reveals the rotate controls. You can rotate tiles in either direction to line up faces and improve legal contact. Already placed tiles can also be rotated, but they will be re-validated immediately.</p>
+      <p>Hovering over a tile reveals the rotate controls. You can rotate tiles in either direction to line up faces and improve legal contact. Already placed tiles are re-validated immediately: if a tile was connected to only one neighbor, the mapper will keep rotating in the same direction until it finds the next valid orientation; if a tile was connected to two or more neighbors and rotation breaks it, the tile is highlighted red so you can fix it manually.</p>
       <h3>Legal Placement</h3>
       <p>The mapper enforces the dungeon placement rules in normal use. A tile needs enough valid contact with the current layout, overlaps are rejected, and blocked faces on the entrance tile are respected.</p>
       <h3>What Happens When Something Fails</h3>
-      <p>Invalid placements are clearly marked and explained. Depending on the situation, a bad tile may be pushed toward an open hex or sent back to the tray after a short delay.</p>
+      <p>Invalid placements are clearly marked and explained. Depending on the situation, a bad tile may be pushed toward an open hex or sent back to the tray after a short delay. Invalid rotations on already placed tiles are now handled separately and may either auto-correct or stay highlighted for manual cleanup.</p>
     </section>
 
     <section class="section">
@@ -541,12 +548,12 @@
       <h2>Boss Cards</h2>
       <div class="section-grid">
         <div>
-          <p>The Boss Selection pile is in the right drawer. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
+          <p>The Boss Selection pile is in the right drawer during the standard layout. In compact mode it moves into the left drawer. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
           <p>Once placed, boss tokens snap to magnet positions around the reference card. They can be moved later, and dragging a placed boss back to the pile or info drawer returns it cleanly.</p>
         </div>
         <div class="card">
           <h3>Boss Placement</h3>
-          <p>Click to cycle bosses, drag to place them, or let the random-boss button choose one for you. Once on the board, bosses stay aligned to the reference area instead of floating around like lost side quests.</p>
+          <p>Click to cycle bosses, drag to place them, or let the random-boss button choose one for you. If you enable Random Boss: All Sets in Advanced Tools, the random boss draw can pull from every ready tile set instead of only the current one. Once on the board, bosses stay aligned to the reference area instead of floating around like lost side quests.</p>
         </div>
       </div>
     </section>
@@ -698,6 +705,13 @@
         <li>Collapse the drawers if you want more board space for dragging and zooming.</li>
         <li>Use reserve swapping when the tray is close to what you want but not quite right.</li>
         <li>Enable face-based placement feedback if you want more detailed connection guidance.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="known-issues">
+      <h2>Known Issues</h2>
+      <ul>
+        <li>If you move a tile that is already placed and that tile was acting as a bridge between two parts of the dungeon, it is possible to leave behind a closed-off island of tiles. The mapper does not currently prevent that state. It is a known limitation, and for now the assumption is that the break is visually obvious enough that you can spot it and fix it manually.</li>
       </ul>
     </section>
 

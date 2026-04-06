@@ -63,7 +63,8 @@ const LAST_LIGHT_UI_THEME_STORAGE_KEY = "hts_last_light_ui_theme_v1";
 const LAST_DARK_UI_THEME_STORAGE_KEY = "hts_last_dark_ui_theme_v1";
 const AUTO_THEME_BY_TILE_SET_STORAGE_KEY = "hts_auto_theme_by_tile_set_v1";
 const DRAWER_STATE_STORAGE_KEY = "hts_drawer_state_v1";
-const AUTO_BUILD_TUNING_STORAGE_KEY = "hts_auto_build_tuning_v1";
+const AUTO_BUILD_DEV_TUNING_STORAGE_KEY = "hts_auto_build_dev_tuning_v1";
+const LEGACY_AUTO_BUILD_TUNING_STORAGE_KEY = "hts_auto_build_tuning_v1";
 const DEFAULT_TILE_SET_ID = "molten";
 const DEFAULT_UI_THEME_ID = "molten";
 const DEFAULT_APPEARANCE_MODE = "system";
@@ -198,100 +199,11 @@ const COMPACT_SIDE_PANEL_MAX_WIDTH = 980;
 const TRAY_SLOT_COUNT = 6;
 const REGULAR_TILE_SLOT_COUNT = TILE_IDS.length;
 const AUTO_BUILD_MAX_ATTEMPTS = 600;
-const AUTO_BUILD_TOP_BUCKET_SIZE = 8;
-const AUTO_BUILD_TOP_BUCKET_SCORE_DELTA = 22;
 const AUTO_BUILD_LINE_EXTENSION_PENALTY = 28;
 const AUTO_BUILD_LOCAL_DENSITY_PENALTY = 16;
 const AUTO_BUILD_CANDIDATE_SOFT_LIMIT = 180;
 const AUTO_BUILD_CANDIDATE_HARD_LIMIT = 280;
-const AUTO_BUILD_NOVELTY_RETRY_LIMIT = 120;
 const AUTO_BUILD_HISTORY_LIMIT = 36;
-const AUTO_BUILD_ENGINE_CLASSIC = "classic";
-const AUTO_BUILD_ENGINE_ARCHETYPE = "archetype";
-const AUTO_BUILD_ENGINE_OPTIONS = [
-  { value: AUTO_BUILD_ENGINE_CLASSIC, label: "Classic" },
-  { value: AUTO_BUILD_ENGINE_ARCHETYPE, label: "Archetype" },
-];
-const AUTO_BUILD_ARCHETYPE_RANDOM = "random";
-const AUTO_BUILD_ARCHETYPE_OPTIONS = [
-  { value: AUTO_BUILD_ARCHETYPE_RANDOM, label: "Random" },
-  { value: "balanced", label: "Balanced" },
-  { value: "compact", label: "Compact" },
-  { value: "branchy", label: "Branchy" },
-  { value: "corridor", label: "Corridor" },
-];
-const AUTO_BUILD_ARCHETYPE_LABELS = {
-  balanced: "Balanced",
-  compact: "Compact",
-  branchy: "Branchy",
-  corridor: "Corridor",
-};
-const AUTO_BUILD_ARCHETYPE_DEFAULTS = {
-  weights: {
-    balanced: 50,
-    compact: 25,
-    branchy: 18,
-    corridor: 7,
-  },
-  profiles: {
-    balanced: {
-      roundnessWeightMultiplier: 1,
-      contactWeightMultiplier: 1,
-      radialPenaltyWeightMultiplier: 1,
-      nearCenterPenaltyWeightMultiplier: 1,
-      farOutPenaltyWeightMultiplier: 1,
-      lineExtensionPenaltyMultiplier: 1,
-      localDensityPenaltyMultiplier: 1,
-      localDensityRadiusMultiplierMultiplier: 1,
-      targetRadiusBaseMultiplierMultiplier: 1,
-      targetRadiusAvgBonusMultiplierMultiplier: 1,
-      targetMinRadiusMultiplierMultiplier: 1,
-      targetMaxRadiusMultiplierMultiplier: 1,
-    },
-    compact: {
-      roundnessWeightMultiplier: 1.28,
-      contactWeightMultiplier: 1.1,
-      radialPenaltyWeightMultiplier: 1.18,
-      nearCenterPenaltyWeightMultiplier: 1.2,
-      farOutPenaltyWeightMultiplier: 1.18,
-      lineExtensionPenaltyMultiplier: 1.35,
-      localDensityPenaltyMultiplier: 1.22,
-      localDensityRadiusMultiplierMultiplier: 0.92,
-      targetRadiusBaseMultiplierMultiplier: 0.92,
-      targetRadiusAvgBonusMultiplierMultiplier: 0.72,
-      targetMinRadiusMultiplierMultiplier: 1.2,
-      targetMaxRadiusMultiplierMultiplier: 0.88,
-    },
-    branchy: {
-      roundnessWeightMultiplier: 0.48,
-      contactWeightMultiplier: 0.92,
-      radialPenaltyWeightMultiplier: 0.58,
-      nearCenterPenaltyWeightMultiplier: 0.45,
-      farOutPenaltyWeightMultiplier: 0.4,
-      lineExtensionPenaltyMultiplier: 0.18,
-      localDensityPenaltyMultiplier: 0.45,
-      localDensityRadiusMultiplierMultiplier: 0.86,
-      targetRadiusBaseMultiplierMultiplier: 1.12,
-      targetRadiusAvgBonusMultiplierMultiplier: 1.18,
-      targetMinRadiusMultiplierMultiplier: 0.55,
-      targetMaxRadiusMultiplierMultiplier: 1.3,
-    },
-    corridor: {
-      roundnessWeightMultiplier: 0.08,
-      contactWeightMultiplier: 0.76,
-      radialPenaltyWeightMultiplier: 0.28,
-      nearCenterPenaltyWeightMultiplier: 0.12,
-      farOutPenaltyWeightMultiplier: 0.08,
-      lineExtensionPenaltyMultiplier: 0,
-      localDensityPenaltyMultiplier: 0.15,
-      localDensityRadiusMultiplierMultiplier: 0.78,
-      targetRadiusBaseMultiplierMultiplier: 1.28,
-      targetRadiusAvgBonusMultiplierMultiplier: 1.45,
-      targetMinRadiusMultiplierMultiplier: 0.3,
-      targetMaxRadiusMultiplierMultiplier: 1.62,
-    },
-  },
-};
 const HEX_FRONT_LIGHT_BONUS_HEXES = 2.5;
 const HEX_BACK_LIGHT_REDUCTION_HEXES = 1.1;
 const HEX_BACK_DARKEN_BIAS = 0.14;
@@ -307,63 +219,16 @@ const COMPACT_DRAG_START_SIZE_BOOST = 1.12;
 const OVERLAP_POLYGON_INSET_PX = 3;
 const REFERENCE_CARD_COLLISION_INSET_PX = 10;
 const TILE_POSE_GEOMETRY_CACHE_LIMIT = 320;
-const AUTO_BUILD_TUNING_DEFAULTS = {
-  engineMode: AUTO_BUILD_ENGINE_CLASSIC,
-  forceArchetype: AUTO_BUILD_ARCHETYPE_RANDOM,
-  archetypeBalancedWeight: AUTO_BUILD_ARCHETYPE_DEFAULTS.weights.balanced,
-  archetypeCompactWeight: AUTO_BUILD_ARCHETYPE_DEFAULTS.weights.compact,
-  archetypeBranchyWeight: AUTO_BUILD_ARCHETYPE_DEFAULTS.weights.branchy,
-  archetypeCorridorWeight: AUTO_BUILD_ARCHETYPE_DEFAULTS.weights.corridor,
-  deterministicMode: false,
-  roundnessWeight: 150,
-  contactWeight: 22,
-  minFaceDistWeight: 0.55,
-  minCenterDistWeight: 0.5,
-  avgCenterDistWeight: 0.22,
-  radialPenaltyWeight: 0.35,
-  nearCenterPenaltyWeight: 1.15,
-  farOutPenaltyWeight: 0.7,
-  lineExtensionPenalty: AUTO_BUILD_LINE_EXTENSION_PENALTY,
-  localDensityPenalty: AUTO_BUILD_LOCAL_DENSITY_PENALTY,
-  topBucketScoreDelta: AUTO_BUILD_TOP_BUCKET_SCORE_DELTA,
-  topBucketSize: AUTO_BUILD_TOP_BUCKET_SIZE,
-  localDensityRadiusMultiplier: 1.6,
-  targetRadiusBaseMultiplier: 1.35,
-  targetRadiusAvgBonusMultiplier: 0.7,
-  targetMinRadiusMultiplier: 0.6,
-  targetMaxRadiusMultiplier: 1.5,
+const AUTO_BUILD_DEV_TUNING_DEFAULTS = {
+  layoutSpread: 0.35,
+  branchiness: 0.25,
+  variety: 0.15,
 };
-const AUTO_BUILD_TUNING_FIELDS = [
-  { key: "engineMode", label: "Auto Build Engine", type: "enum", options: AUTO_BUILD_ENGINE_OPTIONS, group: "Engine / Archetypes" },
-  { key: "forceArchetype", label: "Force Archetype", type: "enum", options: AUTO_BUILD_ARCHETYPE_OPTIONS, group: "Engine / Archetypes" },
-  { key: "archetypeBalancedWeight", label: "Balanced Weight", min: 0, max: 100, step: 1, group: "Engine / Archetypes" },
-  { key: "archetypeCompactWeight", label: "Compact Weight", min: 0, max: 100, step: 1, group: "Engine / Archetypes" },
-  { key: "archetypeBranchyWeight", label: "Branchy Weight", min: 0, max: 100, step: 1, group: "Engine / Archetypes" },
-  { key: "archetypeCorridorWeight", label: "Corridor Weight", min: 0, max: 100, step: 1, group: "Engine / Archetypes" },
-  { key: "deterministicMode", label: "Deterministic Auto Build", type: "boolean", group: "Search / Randomness" },
-  { key: "topBucketSize", label: "Top Bucket Size", min: 1, max: 16, step: 1, group: "Search / Randomness" },
-  { key: "topBucketScoreDelta", label: "Top Bucket Score Delta", min: 0, max: 50, step: 1, group: "Search / Randomness" },
-  { key: "roundnessWeight", label: "Roundness Weight", min: 0, max: 220, step: 1, group: "Scoring Weights" },
-  { key: "contactWeight", label: "Contact Weight", min: 0, max: 60, step: 1, group: "Scoring Weights" },
-  { key: "minFaceDistWeight", label: "Min Face Distance Weight", min: 0, max: 2, step: 0.01, group: "Scoring Weights" },
-  { key: "minCenterDistWeight", label: "Min Center Distance Weight", min: 0, max: 2, step: 0.01, group: "Scoring Weights" },
-  { key: "avgCenterDistWeight", label: "Avg Center Distance Weight", min: 0, max: 1, step: 0.01, group: "Scoring Weights" },
-  { key: "radialPenaltyWeight", label: "Radial Penalty Weight", min: 0, max: 2, step: 0.01, group: "Scoring Weights" },
-  { key: "nearCenterPenaltyWeight", label: "Near Center Penalty Weight", min: 0, max: 3, step: 0.01, group: "Scoring Weights" },
-  { key: "farOutPenaltyWeight", label: "Far Out Penalty Weight", min: 0, max: 2, step: 0.01, group: "Scoring Weights" },
-  { key: "lineExtensionPenalty", label: "Line Extension Penalty", min: 0, max: 60, step: 1, group: "Scoring Weights" },
-  { key: "localDensityPenalty", label: "Local Density Penalty", min: 0, max: 40, step: 1, group: "Scoring Weights" },
-  { key: "localDensityRadiusMultiplier", label: "Local Density Radius Multiplier", min: 0.5, max: 3, step: 0.01, group: "Cluster Shape" },
-  { key: "targetRadiusBaseMultiplier", label: "Target Radius Base Multiplier", min: 0.5, max: 3, step: 0.01, group: "Cluster Shape" },
-  { key: "targetRadiusAvgBonusMultiplier", label: "Target Radius Avg Bonus Multiplier", min: 0, max: 2, step: 0.01, group: "Cluster Shape" },
-  { key: "targetMinRadiusMultiplier", label: "Target Min Radius Multiplier", min: 0, max: 1.5, step: 0.01, group: "Cluster Shape" },
-  { key: "targetMaxRadiusMultiplier", label: "Target Max Radius Multiplier", min: 1, max: 3, step: 0.01, group: "Cluster Shape" },
+const AUTO_BUILD_DEV_TUNING_FIELDS = [
+  { key: "layoutSpread", label: "Layout Spread", min: 0, max: 1, step: 0.01 },
+  { key: "branchiness", label: "Branchiness", min: 0, max: 1, step: 0.01 },
+  { key: "variety", label: "Variety", min: 0, max: 1, step: 0.01 },
 ];
-const AUTO_BUILD_TUNING_GROUP_NOTES = {
-  "Engine / Archetypes": "Classic preserves the current engine. Archetype applies a profile-driven variant. Balanced = general layout, Compact = tighter clustering, Branchy = more side exploration, Corridor = rare elongated layouts.",
-  "Search / Randomness": "These debug controls change how strongly the solver follows score order versus shuffled exploration.",
-  "Cluster Shape": "These values shape how tightly or loosely the layout grows around its current center.",
-};
 document.documentElement.style.setProperty("--tile-size", `${TILE_SIZE}px`);
 
 const board = document.getElementById("board");
@@ -371,6 +236,7 @@ const tray = document.getElementById("tray");
 const reservePile = document.getElementById("reserve-pile");
 const bossPile = document.getElementById("boss-pile");
 const selectedTileSetNameEl = document.getElementById("selected-tileset-name");
+const bossTileSetNameEl = document.getElementById("boss-tileset-name");
 const tileSetMenu = document.getElementById("tile-set-menu");
 const tileSetTrigger = document.getElementById("tile-set-trigger");
 const tileSetDropdown = document.getElementById("tile-set-dropdown");
@@ -423,12 +289,10 @@ const importWallDataInput = document.getElementById("import-wall-data-input");
 const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
 const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-contact-checkbox");
 const toggleFaceFeedbackCheckbox = document.getElementById("toggle-face-feedback-checkbox");
+const toggleAllBossesCheckbox = document.getElementById("toggle-all-bosses-checkbox");
 const autoBuildTuningControlsEl = document.getElementById("auto-build-tuning-controls");
 const autoBuildTuningResetBtn = document.getElementById("auto-build-tuning-reset-btn");
 const autoBuildTuningCopyBtn = document.getElementById("auto-build-tuning-copy-btn");
-const autoBuildTuningOutputEl = document.getElementById("auto-build-tuning-output");
-const autoBuildSampleCountInput = document.getElementById("auto-build-sample-count-input");
-const autoBuildSampleExportBtn = document.getElementById("auto-build-sample-export-btn");
 const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
@@ -478,8 +342,10 @@ const state = {
   renderedTraySlots: [],
   ignoreContactRule: false,
   useFaceFeedback: false,
+  useAllBosses: false,
   bossEditMode: true,
   bossPileOrderByTileSet: {},
+  allBossesPileOrder: [],
   bossTokens: [],
   nextBossTokenId: 1,
   boardPanX: 0,
@@ -498,6 +364,7 @@ const state = {
   leftDrawerCollapsed: false,
   rightDrawerCollapsed: false,
   autoBuildHistoryBySet: {},
+  autoBuildPreviewPlacedCount: null,
   readinessByTileSet: {},
   entranceFadeAnchor: null,
   bossPileCycleInProgress: false,
@@ -508,7 +375,7 @@ const state = {
   },
 };
 
-let autoBuildTuning = loadAutoBuildTuning();
+let autoBuildDevTuning = loadAutoBuildDevTuning();
 
 init().catch((error) => {
   console.error(error);
@@ -531,6 +398,7 @@ async function init() {
   if (tileSetSelect) tileSetSelect.value = state.selectedTileSetId;
   syncTileSetMenuOptions();
   syncSelectedTileSetHeading();
+  syncBossTileSetHeading();
   applyAppearanceMode(state.selectedAppearanceMode, { showStatus: false, save: false });
   setAutoThemeByTileSet(state.autoThemeByTileSet, {
     save: false,
@@ -887,6 +755,16 @@ function syncSelectedTileSetHeading() {
   selectedTileSetNameEl.textContent = label ? `- ${label}` : "";
 }
 
+function syncBossTileSetHeading() {
+  if (!bossTileSetNameEl) return;
+  if (state.useAllBosses) {
+    bossTileSetNameEl.textContent = "- All";
+  } else {
+    const label = getTileSetConfig(state.selectedTileSetId)?.label || "";
+    bossTileSetNameEl.textContent = label ? `- ${label}` : "";
+  }
+}
+
 function waitForTimeout(ms) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -923,10 +801,12 @@ async function applyTileSet(tileSetId, showStatus = true) {
     syncTileSetMenuOptions();
     return;
   }
+
   const previousTileSetId = state.selectedTileSetId;
   try {
     state.selectedTileSetId = nextTileSet.id;
     syncSelectedTileSetHeading();
+    syncBossTileSetHeading();
     state.referenceTileSrc = getReferenceTileSrc(nextTileSet.id);
     await loadTiles(nextTileSet.id);
     applyBoardZoom(DEFAULT_BOARD_ZOOM);
@@ -942,6 +822,7 @@ async function applyTileSet(tileSetId, showStatus = true) {
     const previousTileSet = getTileSetConfig(previousTileSetId);
     state.selectedTileSetId = previousTileSet.id;
     syncSelectedTileSetHeading();
+    syncBossTileSetHeading();
     state.referenceTileSrc = getReferenceTileSrc(previousTileSet.id);
     if (tileSetSelect) tileSetSelect.value = previousTileSet.id;
     syncTileSetMenuOptions();
@@ -1023,6 +904,19 @@ function bindGlobalControls() {
         state.useFaceFeedback
           ? "Connection feedback mode: face-by-face."
           : "Connection feedback mode: classic full outline.",
+      );
+    });
+  }
+  if (toggleAllBossesCheckbox) {
+    toggleAllBossesCheckbox.checked = state.useAllBosses;
+    toggleAllBossesCheckbox.addEventListener("change", () => {
+      state.useAllBosses = toggleAllBossesCheckbox.checked;
+      renderBossPile();
+      syncBossTileSetHeading();
+      setStatus(
+        state.useAllBosses
+          ? "Random boss: drawing from all tile sets."
+          : "Random boss: drawing from current tile set only.",
       );
     });
   }
@@ -1736,13 +1630,8 @@ function saveAutoThemeByTileSet(enabled) {
   }
 }
 
-function sanitizeAutoBuildTuningValue(meta, value) {
-  const fallback = AUTO_BUILD_TUNING_DEFAULTS[meta.key];
-  if (meta.type === "boolean") return Boolean(value);
-  if (meta.type === "enum") {
-    const option = meta.options?.find((entry) => entry.value === value);
-    return option ? option.value : fallback;
-  }
+function sanitizeAutoBuildDevTuningValue(meta, value) {
+  const fallback = AUTO_BUILD_DEV_TUNING_DEFAULTS[meta.key];
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
   const clamped = clamp(numeric, meta.min, meta.max);
@@ -1751,93 +1640,73 @@ function sanitizeAutoBuildTuningValue(meta, value) {
   return Number(snapped.toFixed(4));
 }
 
-function sanitizeAutoBuildTuning(raw) {
+function sanitizeAutoBuildDevTuning(raw) {
   const sanitized = {};
-  for (const meta of AUTO_BUILD_TUNING_FIELDS) {
-    sanitized[meta.key] = sanitizeAutoBuildTuningValue(meta, raw?.[meta.key]);
+  for (const meta of AUTO_BUILD_DEV_TUNING_FIELDS) {
+    sanitized[meta.key] = sanitizeAutoBuildDevTuningValue(meta, raw?.[meta.key]);
   }
   return sanitized;
 }
 
-function loadAutoBuildTuning() {
+function loadAutoBuildDevTuning() {
   try {
-    const raw = localStorage.getItem(AUTO_BUILD_TUNING_STORAGE_KEY);
-    if (!raw) return { ...AUTO_BUILD_TUNING_DEFAULTS };
-    return sanitizeAutoBuildTuning(JSON.parse(raw));
+    localStorage.removeItem(LEGACY_AUTO_BUILD_TUNING_STORAGE_KEY);
+    const raw = localStorage.getItem(AUTO_BUILD_DEV_TUNING_STORAGE_KEY);
+    if (!raw) return { ...AUTO_BUILD_DEV_TUNING_DEFAULTS };
+    return sanitizeAutoBuildDevTuning(JSON.parse(raw));
   } catch (error) {
-    console.warn("Could not load auto build tuning values.", error);
-    return { ...AUTO_BUILD_TUNING_DEFAULTS };
+    console.warn("Could not load auto build dev tuning values.", error);
+    return { ...AUTO_BUILD_DEV_TUNING_DEFAULTS };
   }
 }
 
-function saveAutoBuildTuning() {
+function saveAutoBuildDevTuning() {
   try {
-    localStorage.setItem(AUTO_BUILD_TUNING_STORAGE_KEY, JSON.stringify(autoBuildTuning));
+    localStorage.setItem(AUTO_BUILD_DEV_TUNING_STORAGE_KEY, JSON.stringify(autoBuildDevTuning));
   } catch (error) {
-    console.warn("Could not save auto build tuning values.", error);
+    console.warn("Could not save auto build dev tuning values.", error);
   }
 }
 
-function formatAutoBuildTuningValue(meta, value) {
-  if (meta.type === "boolean") return value ? "true" : "false";
-  if (meta.type === "enum") {
-    return meta.options?.find((entry) => entry.value === value)?.label ?? String(value);
-  }
+function formatAutoBuildDevTuningValue(meta, value) {
   const stepText = String(meta.step);
   const decimals = stepText.includes(".") ? (stepText.split(".")[1]?.length || 0) : 0;
   return decimals ? Number(value).toFixed(decimals) : String(Math.round(value));
 }
 
-function formatAutoBuildTuningExportValue(meta, value) {
-  if (meta.type === "boolean") return value ? "true" : "false";
-  if (meta.type === "enum") return JSON.stringify(String(value));
-  const stepText = String(meta.step);
-  const decimals = stepText.includes(".") ? (stepText.split(".")[1]?.length || 0) : 0;
-  return decimals ? Number(value).toFixed(decimals) : String(Math.round(value));
-}
-
-function getAutoBuildTuningExport() {
-  const lines = ["const AUTO_BUILD_TUNING_DEFAULTS = {"];
-  for (const meta of AUTO_BUILD_TUNING_FIELDS) {
-    lines.push(`  ${meta.key}: ${formatAutoBuildTuningExportValue(meta, autoBuildTuning[meta.key])},`);
+function getAutoBuildDevTuningExport() {
+  const lines = ["const AUTO_BUILD_DEV_TUNING_DEFAULTS = {"];
+  for (const meta of AUTO_BUILD_DEV_TUNING_FIELDS) {
+    lines.push(`  ${meta.key}: ${formatAutoBuildDevTuningValue(meta, autoBuildDevTuning[meta.key])},`);
   }
   lines.push("};");
   return lines.join("\n");
 }
 
-async function copyAutoBuildTuningExport() {
-  const payload = getAutoBuildTuningExport();
+async function copyAutoBuildDevTuningExport() {
+  const payload = getAutoBuildDevTuningExport();
   try {
     await navigator.clipboard.writeText(payload);
-    setStatus("Auto build tuning values copied. Paste them back here and I can bake them into the defaults.");
+    setStatus("Auto build tuning values copied.");
   } catch (error) {
     console.warn("Could not copy auto build tuning values.", error);
-    setStatus(`Could not copy auto build tuning values. Use devtools localStorage key ${AUTO_BUILD_TUNING_STORAGE_KEY}.`, true);
+    setStatus(`Could not copy auto build tuning values. Use devtools localStorage key ${AUTO_BUILD_DEV_TUNING_STORAGE_KEY}.`, true);
   }
 }
 
 function updateAutoBuildTuningPanel() {
-  for (const meta of AUTO_BUILD_TUNING_FIELDS) {
+  for (const meta of AUTO_BUILD_DEV_TUNING_FIELDS) {
     const ref = autoBuildTuningInputRefs.get(meta.key);
     if (!ref) continue;
-    const value = autoBuildTuning[meta.key];
-    if (meta.type === "boolean") {
-      ref.input.checked = Boolean(value);
-    } else if (meta.type === "enum") {
-      ref.input.value = String(value);
-    } else {
-      ref.input.value = String(value);
-    }
-    ref.valueEl.textContent = formatAutoBuildTuningValue(meta, value);
-  }
-  if (autoBuildTuningOutputEl) {
-    autoBuildTuningOutputEl.value = getAutoBuildTuningExport();
+    const value = autoBuildDevTuning[meta.key];
+    ref.input.value = String(value);
+    ref.valueEl.textContent = formatAutoBuildDevTuningValue(meta, value);
   }
 }
 
 function resetAutoBuildTuning() {
-  autoBuildTuning = { ...AUTO_BUILD_TUNING_DEFAULTS };
-  saveAutoBuildTuning();
+  autoBuildDevTuning = { ...AUTO_BUILD_DEV_TUNING_DEFAULTS };
+  saveAutoBuildDevTuning();
   updateAutoBuildTuningPanel();
 }
 
@@ -1847,24 +1716,8 @@ function initAutoBuildTuningPanel() {
     return;
   }
 
-  let currentGroup = "";
   const fragment = document.createDocumentFragment();
-  for (const meta of AUTO_BUILD_TUNING_FIELDS) {
-    if (meta.group && meta.group !== currentGroup) {
-      currentGroup = meta.group;
-      const groupHeading = document.createElement("p");
-      groupHeading.className = "auto-build-tuning-group-heading";
-      groupHeading.textContent = currentGroup;
-      fragment.appendChild(groupHeading);
-      const groupNoteText = AUTO_BUILD_TUNING_GROUP_NOTES[currentGroup];
-      if (groupNoteText) {
-        const groupNote = document.createElement("p");
-        groupNote.className = "auto-build-tuning-group-note";
-        groupNote.textContent = groupNoteText;
-        fragment.appendChild(groupNote);
-      }
-    }
-
+  for (const meta of AUTO_BUILD_DEV_TUNING_FIELDS) {
     const row = document.createElement("div");
     row.className = "auto-build-tuning-row";
 
@@ -1881,47 +1734,23 @@ function initAutoBuildTuningPanel() {
     head.appendChild(label);
     head.appendChild(valueEl);
 
-    const input = meta.type === "enum"
-      ? document.createElement("select")
-      : document.createElement("input");
-    if (meta.type === "boolean") {
-      input.type = "checkbox";
-    } else if (meta.type !== "enum") {
-      input.type = "range";
-      input.min = String(meta.min);
-      input.max = String(meta.max);
-      input.step = String(meta.step);
-    }
-    if (meta.type === "enum") {
-      for (const option of meta.options || []) {
-        const optionEl = document.createElement("option");
-        optionEl.value = option.value;
-        optionEl.textContent = option.label;
-        input.appendChild(optionEl);
-      }
-    }
+    const input = document.createElement("input");
+    input.type = "range";
+    input.min = String(meta.min);
+    input.max = String(meta.max);
+    input.step = String(meta.step);
     input.dataset.tuningKey = meta.key;
-    const eventName = meta.type === "boolean" || meta.type === "enum" ? "change" : "input";
-    input.addEventListener(eventName, () => {
-      const nextValue = meta.type === "boolean" ? input.checked : input.value;
-      autoBuildTuning = {
-        ...autoBuildTuning,
-        [meta.key]: sanitizeAutoBuildTuningValue(meta, nextValue),
+    input.addEventListener("input", () => {
+      autoBuildDevTuning = {
+        ...autoBuildDevTuning,
+        [meta.key]: sanitizeAutoBuildDevTuningValue(meta, input.value),
       };
-      saveAutoBuildTuning();
-      valueEl.textContent = formatAutoBuildTuningValue(meta, autoBuildTuning[meta.key]);
-      if (autoBuildTuningOutputEl) {
-        autoBuildTuningOutputEl.value = getAutoBuildTuningExport();
-      }
+      saveAutoBuildDevTuning();
+      valueEl.textContent = formatAutoBuildDevTuningValue(meta, autoBuildDevTuning[meta.key]);
     });
 
     row.appendChild(head);
-    if (meta.type === "boolean") {
-      row.classList.add("auto-build-tuning-row-toggle");
-      label.prepend(input);
-    } else {
-      row.appendChild(input);
-    }
+    row.appendChild(input);
     fragment.appendChild(row);
     autoBuildTuningInputRefs.set(meta.key, { input, valueEl });
   }
@@ -1936,12 +1765,7 @@ function initAutoBuildTuningPanel() {
   }
   if (autoBuildTuningCopyBtn) {
     autoBuildTuningCopyBtn.addEventListener("click", () => {
-      copyAutoBuildTuningExport();
-    });
-  }
-  if (autoBuildSampleExportBtn) {
-    autoBuildSampleExportBtn.addEventListener("click", () => {
-      exportAutoBuildSamplePdfs();
+      copyAutoBuildDevTuningExport();
     });
   }
   updateAutoBuildTuningPanel();
@@ -2633,58 +2457,6 @@ function getCurrentLayoutExportItems(options = {}) {
   return [...tileItems, ...referenceItems, ...bossItems];
 }
 
-function captureCurrentLayoutSnapshot(options = {}) {
-  const items = getCurrentLayoutExportItems({
-    includeReference: options.includeReference ?? false,
-    includeBoss: options.includeBoss ?? false,
-  });
-  return {
-    engine: options.engine || AUTO_BUILD_ENGINE_CLASSIC,
-    archetype: options.archetype || null,
-    sampleIndex: Number(options.sampleIndex) || 0,
-    tileSetId: state.selectedTileSetId,
-    tileSetLabel: getTileSetConfig(state.selectedTileSetId)?.label || "Dungeon",
-    placedTiles: items.filter((item) => item.kind === "tile" || item.kind === "entrance"),
-    referenceCard: items.find((item) => item.kind === "reference") || null,
-    bossTokens: items.filter((item) => item.kind === "boss"),
-    items,
-  };
-}
-
-function getLayoutSnapshotBounds(items) {
-  if (!Array.isArray(items) || !items.length) return null;
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (const item of items) {
-    const halfWidth = (item.width || TILE_SIZE) / 2;
-    const halfHeight = (item.height || TILE_SIZE) / 2;
-    minX = Math.min(minX, item.x - halfWidth);
-    minY = Math.min(minY, item.y - halfHeight);
-    maxX = Math.max(maxX, item.x + halfWidth);
-    maxY = Math.max(maxY, item.y + halfHeight);
-  }
-  return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    width: Math.max(1, maxX - minX),
-    height: Math.max(1, maxY - minY),
-    centerX: (minX + maxX) / 2,
-    centerY: (minY + maxY) / 2,
-  };
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 function exportCurrentLayoutPdf() {
   if (state.wallEditMode) {
     setStatus("PDF export is available on Build View only.", true);
@@ -2942,445 +2714,282 @@ function exportCurrentLayoutPdf() {
   setStatus("PDF export page opened.");
 }
 
-function waitForNextFrame() {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => resolve());
-  });
+function getAutoBuildSearchProfile(tuning = autoBuildDevTuning) {
+  const spread = clamp(Number(tuning.layoutSpread) || 0, 0, 1);
+  const branch = clamp(Number(tuning.branchiness) || 0, 0, 1);
+  const variety = clamp(Number(tuning.variety) || 0, 0, 1);
+  return {
+    roundnessWeight: 150 - spread * 72 - branch * 92,
+    contactWeight: 22 - spread * 7 - branch * 8,
+    minFaceDistWeight: 0.55,
+    minCenterDistWeight: 0.5 + spread * 0.2 + branch * 0.12,
+    avgCenterDistWeight: 0.22 + spread * 0.14 + branch * 0.08,
+    radialPenaltyWeight: Math.max(0.05, 0.35 - spread * 0.24 - branch * 0.08),
+    nearCenterPenaltyWeight: 1.15 + spread * 0.46 + branch * 0.34,
+    farOutPenaltyWeight: Math.max(0.08, 0.7 - spread * 0.42 - branch * 0.08),
+    lineExtensionPenalty: AUTO_BUILD_LINE_EXTENSION_PENALTY * (1 - spread * 0.58) * (1 - branch * 0.2),
+    localDensityPenalty: AUTO_BUILD_LOCAL_DENSITY_PENALTY * (1 + branch * 0.95 + spread * 0.24),
+    topBucketSize: 4 + Math.round(variety * 4),
+    topBucketScoreDelta: 10 + variety * 18 + spread * 4 + branch * 4,
+    localDensityRadiusMultiplier: 1.6 + branch * 0.12 + spread * 0.08,
+    targetRadiusBaseMultiplier: 1.35 + spread * 1.0 + branch * 0.24,
+    targetRadiusAvgBonusMultiplier: 0.7 + spread * 0.72 + branch * 0.18,
+    targetMinRadiusMultiplier: clamp(0.6 + spread * 0.1 + branch * 0.08, 0.18, 1.5),
+    targetMaxRadiusMultiplier: 1.5 + spread * 0.9 + branch * 0.22,
+    targetCompletedLayouts: 4 + Math.round(variety * 4) + Math.round(spread * 1.5) + Math.round(branch * 1.5),
+    minCompletedLayouts: 2 + Math.round(variety * 1.5),
+    finalChoicePoolSize: 1 + Math.round(variety * 3),
+    completionTimeBudgetMs: 120 + Math.round(variety * 90) + Math.round(spread * 35) + Math.round(branch * 35),
+    maxCompletionAttempts: 90 + Math.round(variety * 70) + Math.round(spread * 20) + Math.round(branch * 20),
+    recentShapePenalty: 0.4,
+  };
 }
 
-function cloneAutoBuildHistoryState() {
-  const cloned = {};
-  for (const [key, value] of Object.entries(state.autoBuildHistoryBySet || {})) {
-    cloned[key] = Array.isArray(value) ? [...value] : [];
+function captureAutoBuildCandidateState(tiles) {
+  return tiles.map((tile) => ({
+    tileSetId: tile.tileSetId || state.selectedTileSetId,
+    tileId: tile.tileId,
+    x: tile.x,
+    y: tile.y,
+    rotation: tile.rotation,
+  }));
+}
+
+function applyAutoBuildCandidateState(tiles, snapshot) {
+  const byId = new Map((snapshot || []).map((entry) => [getTileInstanceKey(entry), entry]));
+  for (const tile of tiles) {
+    const saved = byId.get(getTileInstanceKey(tile));
+    if (!saved) continue;
+    tile.rotation = saved.rotation;
+    tile.placed = true;
+    positionTile(tile, saved.x, saved.y);
   }
-  return cloned;
 }
 
-function restoreAutoBuildHistoryState(snapshot) {
-  state.autoBuildHistoryBySet = {};
-  for (const [key, value] of Object.entries(snapshot || {})) {
-    state.autoBuildHistoryBySet[key] = Array.isArray(value) ? [...value] : [];
+function analyzeAutoBuildCompletedLayout(regularTiles, entranceTile) {
+  const tiles = Array.isArray(regularTiles) ? regularTiles.filter(Boolean) : [];
+  const allTiles = entranceTile ? [entranceTile, ...tiles] : [...tiles];
+  if (!allTiles.length) {
+    return {
+      spreadMetric: 0,
+      branchMetric: 0,
+      compactnessMetric: 1,
+      corridorMetric: 0,
+      clusterMetric: 0,
+      hubinessMetric: 0,
+      leafinessMetric: 0,
+    };
   }
-}
 
-function getAutoBuildSampleBatchDescriptors() {
-  return [
-    {
-      engine: AUTO_BUILD_ENGINE_CLASSIC,
-      archetype: null,
-      modeLabel: "Classic",
-      title: "Auto Build Samples - Classic",
-      filename: "auto_build_samples_classic.pdf",
-    },
-    {
-      engine: AUTO_BUILD_ENGINE_ARCHETYPE,
-      archetype: "balanced",
-      modeLabel: "Balanced",
-      title: "Auto Build Samples - Balanced",
-      filename: "auto_build_samples_balanced.pdf",
-    },
-    {
-      engine: AUTO_BUILD_ENGINE_ARCHETYPE,
-      archetype: "compact",
-      modeLabel: "Compact",
-      title: "Auto Build Samples - Compact",
-      filename: "auto_build_samples_compact.pdf",
-    },
-    {
-      engine: AUTO_BUILD_ENGINE_ARCHETYPE,
-      archetype: "branchy",
-      modeLabel: "Branchy",
-      title: "Auto Build Samples - Branchy",
-      filename: "auto_build_samples_branchy.pdf",
-    },
-    {
-      engine: AUTO_BUILD_ENGINE_ARCHETYPE,
-      archetype: "corridor",
-      modeLabel: "Corridor",
-      title: "Auto Build Samples - Corridor",
-      filename: "auto_build_samples_corridor.pdf",
-    },
-  ];
-}
-
-function writeAutoBuildSampleWindowPlaceholder(targetWindow, title, message) {
-  if (!targetWindow || targetWindow.closed) return;
-  targetWindow.document.open();
-  targetWindow.document.write(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeHtml(title)}</title>
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background: #f8f2ea;
-      color: #33251a;
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
-    }
-    .card {
-      width: min(520px, 100%);
-      padding: 24px;
-      border: 1px solid #d8c8b7;
-      border-radius: 14px;
-      background: #fffaf3;
-      box-shadow: 0 12px 30px rgba(48, 31, 18, 0.12);
-    }
-    h1 {
-      margin: 0 0 10px;
-      font: 700 24px/1.1 "Palatino Linotype", "Book Antiqua", Palatino, serif;
-      color: #6c4322;
-    }
-    p {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.45;
-      color: #5c4d40;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>${escapeHtml(title)}</h1>
-    <p>${escapeHtml(message)}</p>
-  </div>
-</body>
-</html>`);
-  targetWindow.document.close();
-}
-
-function openAutoBuildSampleExportWindows(descriptors) {
-  const opened = [];
-  for (const descriptor of descriptors) {
-    const targetWindow = window.open("about:blank", "_blank", "width=1280,height=920");
-    if (!targetWindow) {
-      for (const entry of opened) {
-        try {
-          entry.targetWindow.close();
-        } catch (error) {
-          console.warn("Could not close blocked sample export window.", error);
-        }
-      }
-      return null;
-    }
-    writeAutoBuildSampleWindowPlaceholder(
-      targetWindow,
-      descriptor.title,
-      "Generating layout samples. This may take a little while.",
-    );
-    opened.push({ ...descriptor, targetWindow });
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let centroidX = 0;
+  let centroidY = 0;
+  for (const tile of allTiles) {
+    minX = Math.min(minX, tile.x);
+    minY = Math.min(minY, tile.y);
+    maxX = Math.max(maxX, tile.x);
+    maxY = Math.max(maxY, tile.y);
+    centroidX += tile.x;
+    centroidY += tile.y;
   }
-  return opened;
-}
+  centroidX /= allTiles.length;
+  centroidY /= allTiles.length;
 
-function getBatchExportSampleCount() {
-  const raw = Number(autoBuildSampleCountInput?.value);
-  if (!Number.isFinite(raw)) return 20;
-  return Math.round(clamp(raw, 1, 100));
-}
+  let avgRadius = 0;
+  let maxRadius = 0;
+  for (const tile of allTiles) {
+    const radius = Math.hypot(tile.x - centroidX, tile.y - centroidY);
+    avgRadius += radius;
+    if (radius > maxRadius) maxRadius = radius;
+  }
+  avgRadius = allTiles.length ? avgRadius / allTiles.length : 0;
 
-function generateLayoutSnapshotForMode({ engine, archetype = null, sampleIndex = 0 } = {}) {
-  const statusLabel = engine === AUTO_BUILD_ENGINE_ARCHETYPE
-    ? buildAutoBuildStatusLabel({ archetypeId: archetype, forced: true })
-    : buildAutoBuildStatusLabel();
-  const tuning = engine === AUTO_BUILD_ENGINE_ARCHETYPE
-    ? getAutoBuildTuningForArchetype(archetype, autoBuildTuning)
-    : autoBuildTuning;
-  const result = autoBuildSelectedTiles({
-    tuning,
-    archetypeId: archetype,
-    statusLabel,
-    showStatus: false,
-    spawnBoss: false,
-  });
-  if (!result?.built) return null;
-  return captureCurrentLayoutSnapshot({
-    engine,
-    archetype,
-    sampleIndex,
-    includeReference: false,
-    includeBoss: false,
-  });
-}
-
-async function generateBatchLayoutSnapshots({ engine, archetype = null, count = 20, modeLabel = "Classic" } = {}) {
-  const snapshots = [];
-  const maxAttempts = Math.max(count * 3, count + 12);
-  let attempts = 0;
-  while (snapshots.length < count && attempts < maxAttempts) {
-    attempts += 1;
-    setStatus(`Generating ${modeLabel} samples: ${snapshots.length + 1}/${count}...`);
-    const snapshot = generateLayoutSnapshotForMode({
-      engine,
-      archetype,
-      sampleIndex: snapshots.length + 1,
-    });
-    if (snapshot) {
-      snapshots.push(snapshot);
-    }
-    if ((attempts % 2) === 0) {
-      await waitForNextFrame();
+  let diameter = 0;
+  for (let i = 0; i < allTiles.length; i += 1) {
+    for (let j = i + 1; j < allTiles.length; j += 1) {
+      diameter = Math.max(diameter, Math.hypot(allTiles[i].x - allTiles[j].x, allTiles[i].y - allTiles[j].y));
     }
   }
-  if (snapshots.length < count) {
-    throw new Error(`Only generated ${snapshots.length} of ${count} ${modeLabel} samples.`);
-  }
-  return snapshots;
-}
 
-function buildLayoutSamplePreviewMarkup(snapshot, previewWidth, previewHeight) {
-  const items = snapshot?.placedTiles || [];
-  const bounds = getLayoutSnapshotBounds(items);
-  if (!bounds) {
-    return `<div class="sample-preview-empty">No placed tiles</div>`;
-  }
-  const padding = 18;
-  const availableWidth = Math.max(1, previewWidth - padding * 2);
-  const availableHeight = Math.max(1, previewHeight - padding * 2);
-  const scale = Math.min(availableWidth / bounds.width, availableHeight / bounds.height, 0.55);
-  return items.map((item) => {
-    const width = item.width * scale;
-    const height = item.height * scale;
-    const left = (previewWidth / 2) + ((item.x - bounds.centerX) * scale) - (width / 2);
-    const top = (previewHeight / 2) + ((item.y - bounds.centerY) * scale) - (height / 2);
-    return `
-      <img
-        class="sample-item"
-        src="${item.src}"
-        alt=""
-        style="
-          left:${left.toFixed(2)}px;
-          top:${top.toFixed(2)}px;
-          width:${width.toFixed(2)}px;
-          height:${height.toFixed(2)}px;
-          transform: rotate(${item.rotation.toFixed(2)}deg);
-        "
-      />
-    `;
-  }).join("");
-}
-
-function exportLayoutSnapshotsPdf({ targetWindow, snapshots, title, filename, engineLabel, sampleCount, exportedAt, tileSetLabel }) {
-  if (!targetWindow || targetWindow.closed) return;
-
-  const previewWidth = 470;
-  const previewHeight = 170;
-  const samplesPerPage = 6;
-  const pages = [];
-  for (let i = 0; i < snapshots.length; i += samplesPerPage) {
-    pages.push(snapshots.slice(i, i + samplesPerPage));
-  }
-  const metadataLine = `Engine: ${engineLabel} | Sample count: ${sampleCount} | Tile Set: ${tileSetLabel} | Exported: ${exportedAt}`;
-  const pagesMarkup = pages.map((pageSnapshots, pageIndex) => `
-    <section class="batch-page${pageIndex > 0 ? " page-break" : ""}">
-      <header class="batch-header">
-        <div>
-          <h1>${escapeHtml(title)}</h1>
-          <p class="batch-meta">${escapeHtml(metadataLine)}</p>
-        </div>
-        <p class="batch-page-number">Page ${pageIndex + 1} / ${pages.length}</p>
-      </header>
-      <div class="sample-grid">
-        ${pageSnapshots.map((snapshot) => `
-          <article class="sample-card">
-            <div class="sample-card-head">
-              <h2>Sample ${String(snapshot.sampleIndex).padStart(2, "0")}</h2>
-            </div>
-            <div class="sample-preview">
-              ${buildLayoutSamplePreviewMarkup(snapshot, previewWidth, previewHeight)}
-            </div>
-          </article>
-        `).join("")}
-      </div>
-    </section>
-  `).join("");
-
-  targetWindow.document.open();
-  targetWindow.document.write(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(filename)}</title>
-  <style>
-    @page {
-      size: 297mm 210mm;
-      margin: 10mm;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
-      color: #24180f;
-      background: #f5efe8;
-    }
-    .batch-page {
-      width: 100%;
-      min-height: calc(210mm - 20mm);
-      padding: 12px 8px 8px;
-      break-inside: avoid;
-    }
-    .page-break {
-      break-before: page;
-      page-break-before: always;
-    }
-    .batch-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 14px;
-    }
-    .batch-header h1 {
-      margin: 0 0 4px;
-      font: 700 28px/1.1 "Palatino Linotype", "Book Antiqua", Palatino, serif;
-      color: #6c4322;
-    }
-    .batch-meta,
-    .batch-page-number {
-      margin: 0;
-      font-size: 12px;
-      line-height: 1.35;
-      color: #5e5144;
-    }
-    .sample-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-    .sample-card {
-      display: grid;
-      gap: 8px;
-      padding: 10px;
-      border: 1px solid #d7c8b8;
-      border-radius: 14px;
-      background:
-        radial-gradient(circle at 18% 18%, rgba(255,255,255,0.72) 0%, transparent 44%),
-        #fffaf3;
-      box-shadow: 0 8px 20px rgba(47, 30, 17, 0.08);
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-    .sample-card-head h2 {
-      margin: 0;
-      font-size: 14px;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: #6e5640;
-    }
-    .sample-preview {
-      position: relative;
-      width: ${previewWidth}px;
-      height: ${previewHeight}px;
-      margin: 0 auto;
-      overflow: hidden;
-      border: 1px solid #dfd0c0;
-      border-radius: 12px;
-      background:
-        radial-gradient(circle at 24% 18%, rgba(255,255,255,0.7) 0%, transparent 40%),
-        linear-gradient(180deg, #fffefb 0%, #f4ecdf 100%);
-    }
-    .sample-item {
-      position: absolute;
-      display: block;
-      object-fit: contain;
-      transform-origin: center center;
-      pointer-events: none;
-      user-select: none;
-    }
-    .sample-preview-empty {
-      display: grid;
-      place-items: center;
-      width: 100%;
-      height: 100%;
-      font-size: 13px;
-      color: #7b6858;
-    }
-    @media print {
-      body {
-        background: #ffffff;
-      }
-      .sample-card {
-        box-shadow: none;
+  const degrees = [];
+  const contactFaceTotals = [];
+  for (const tile of allTiles) {
+    let degree = 0;
+    let contactFaces = 0;
+    for (const other of allTiles) {
+      if (other === tile) continue;
+      const contactCount = countSideContacts(tile, other);
+      if (contactCount > 0) {
+        degree += 1;
+        contactFaces += contactCount;
       }
     }
-  </style>
-</head>
-<body>
-  ${pagesMarkup}
-</body>
-</html>`);
-  targetWindow.document.close();
-  targetWindow.focus();
+    degrees.push(degree);
+    contactFaceTotals.push(contactFaces);
+  }
+  const leafCount = degrees.filter((degree) => degree === 1).length;
+  const junctionCount = degrees.filter((degree) => degree >= 3).length;
+  const denseTileCount = contactFaceTotals.filter((count) => count >= 4).length;
+  const crowdedHubCount = contactFaceTotals.filter((count, idx) => count >= 4 && degrees[idx] >= 3).length;
+  const averageContactFaces = contactFaceTotals.reduce((sum, count) => sum + count, 0) / Math.max(contactFaceTotals.length, 1);
+
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+  const aspectRatio = Math.max(width, height) / Math.max(1, Math.min(width, height));
+  const boardHexLayout = getBoardHexLayout();
+  const spacingUnit = Math.max(boardHexLayout.dx, 1);
+  const elongationMetric = clamp((aspectRatio - 1) / 2.6, 0, 1);
+  const avgRadiusMetric = clamp(avgRadius / (spacingUnit * 2.45), 0, 1);
+  const diameterMetric = clamp(diameter / (spacingUnit * 6.1), 0, 1);
+  const extraLeavesMetric = clamp((leafCount - 2) / 4, 0, 1);
+  const junctionMetric = clamp(junctionCount / 2, 0, 1);
+  const denseTileMetric = clamp(denseTileCount / Math.max(2, allTiles.length * 0.45), 0, 1);
+  const crowdedHubMetric = clamp(crowdedHubCount / 2, 0, 1);
+  const contactDensityMetric = clamp((averageContactFaces - 2.35) / 1.75, 0, 1);
+  const spreadMetric = clamp(avgRadiusMetric * 0.55 + diameterMetric * 0.25 + elongationMetric * 0.35, 0, 1);
+  const hubinessMetric = clamp(crowdedHubMetric * 0.72 + denseTileMetric * 0.34 + contactDensityMetric * 0.28, 0, 1);
+  const leafinessMetric = clamp(extraLeavesMetric * 0.7 + junctionMetric * 0.2, 0, 1);
+  const branchMetric = clamp(junctionMetric * 0.34 + extraLeavesMetric * 0.76 - hubinessMetric * 0.28, 0, 1);
+  const compactnessMetric = clamp((Math.min(width, height) / Math.max(width, height)) * 0.7 + (1 - spreadMetric) * 0.3, 0, 1);
+  const corridorMetric = clamp(elongationMetric * 0.6 + diameterMetric * 0.25 + Math.max(0, 2 - junctionCount) * 0.12, 0, 1);
+  const clusterMetric = clamp(denseTileMetric * 0.56 + crowdedHubMetric * 0.58 + contactDensityMetric * 0.34, 0, 1);
+
+  return {
+    width,
+    height,
+    aspectRatio,
+    leafCount,
+    junctionCount,
+    spreadMetric,
+    branchMetric,
+    compactnessMetric,
+    corridorMetric,
+    clusterMetric,
+    hubinessMetric,
+    leafinessMetric,
+    denseTileCount,
+    crowdedHubCount,
+    averageContactFaces,
+    avgRadius,
+    maxRadius,
+    diameter,
+  };
 }
 
-async function exportAutoBuildSamplePdfs() {
-  if (state.wallEditMode) {
-    setStatus("Layout sample export is available on Build View only.", true);
-    return;
+function scoreAutoBuildCompletedLayout(candidate, tuning = autoBuildDevTuning, searchProfile = getAutoBuildSearchProfile(tuning)) {
+  const metrics = candidate.metrics || analyzeAutoBuildCompletedLayout([], null);
+  const spreadBias = clamp(tuning.layoutSpread, 0, 1);
+  const branchBias = clamp(tuning.branchiness, 0, 1);
+  const desiredSpread = 0.2 + spreadBias * 0.72;
+  const desiredBranch = 0.1 + branchBias * 0.82;
+  const spreadFit = 1 - Math.abs(metrics.spreadMetric - desiredSpread);
+  const branchFit = 1 - Math.abs(metrics.branchMetric - desiredBranch);
+  const baselineMetric = 0.6 * (1 - metrics.clusterMetric) + 0.25 * metrics.compactnessMetric + 0.15 * (1 - Math.abs(metrics.spreadMetric - 0.42));
+  const corridorBonus = spreadBias * metrics.corridorMetric * 0.9;
+  const branchBonus = branchBias * (metrics.branchMetric * 0.55 + metrics.leafinessMetric * 0.32);
+  const clusterPenalty = metrics.clusterMetric * (0.85 + spreadBias * 0.55 + branchBias * 0.95);
+  const hubPenalty = metrics.hubinessMetric * (0.35 + branchBias * 0.9);
+  const noveltyPenalty = candidate.isRecentShape ? searchProfile.recentShapePenalty : 0;
+  return (
+    spreadFit * 2.55
+    + branchFit * 2.3
+    + baselineMetric * 1.15
+    + corridorBonus
+    + branchBonus
+    - clusterPenalty
+    - hubPenalty
+    - noveltyPenalty
+  );
+}
+
+function chooseAutoBuildCompletedLayout(candidates, tuning = autoBuildDevTuning) {
+  if (!Array.isArray(candidates) || !candidates.length) return null;
+  const searchProfile = getAutoBuildSearchProfile(tuning);
+  const ranked = candidates
+    .map((candidate) => ({
+      ...candidate,
+      finalScore: scoreAutoBuildCompletedLayout(candidate, tuning, searchProfile),
+    }))
+    .sort((a, b) => (
+      (b.finalScore - a.finalScore)
+      || ((b.placementScoreTotal || 0) - (a.placementScoreTotal || 0))
+      || (a.isRecentShape - b.isRecentShape)
+    ));
+  if (ranked.length === 1 || searchProfile.finalChoicePoolSize <= 1) {
+    return ranked[0];
+  }
+  const bestScore = ranked[0].finalScore;
+  const eligible = ranked.filter((candidate, idx) => (
+    idx < searchProfile.finalChoicePoolSize
+    || candidate.finalScore >= bestScore - (0.16 + clamp(tuning.variety, 0, 1) * 0.45)
+  ));
+  const choicePool = eligible.slice(0, Math.max(1, searchProfile.finalChoicePoolSize));
+  return choicePool[Math.floor(Math.random() * choicePool.length)];
+}
+
+function getTileInstanceKey(tile) {
+  if (!tile) return "";
+  if (tile.tileSetId) return buildTileKey(tile.tileSetId, tile.tileId);
+  return String(tile.tileId || "");
+}
+
+async function loadAutoBuildTileRecord(def) {
+  const img = await loadImage(def.imageSrc);
+  const shape = getOpaqueBounds(img);
+  const alphaMask = getAlphaMask(img);
+  const faceGeometry = getFaceGeometry(img, SIDES);
+  return {
+    ...def,
+    img,
+    x: 0,
+    y: 0,
+    rotation: 0,
+    placed: false,
+    previewOnly: true,
+    dom: null,
+    bodyDom: null,
+    traySlot: null,
+    drag: null,
+    invalidReturnTimer: null,
+    shape,
+    alphaMask,
+    faceGeometry,
+    sideLength: faceGeometry.avgSideLength,
+    apothem: faceGeometry.avgOffset,
+    wallFaceSet: new Set(getStoredWallFaces(def.tileSetId, def.tileId)),
+    allowAsEndTile: getStoredAllowAsEndTile(def.tileSetId, def.tileId),
+  };
+}
+
+function renderAutoBuildPreview(entranceTile, regularTiles) {
+  clearBoard({ preserveEntranceFadeAnchor: true });
+
+  const entranceEl = createTileElement(entranceTile);
+  entranceTile.dom = entranceEl;
+  entranceTile.placed = true;
+  positionTile(entranceTile, entranceTile.x, entranceTile.y);
+  updateTileParent(entranceTile, board);
+  updateTileTransform(entranceTile);
+  setEntranceFadeAnchorFromTile(entranceTile);
+  placeReferenceAboveStart(entranceTile);
+  centerBoardViewOnEntranceX();
+  scheduleBoardHexGridRender();
+
+  for (const tile of regularTiles) {
+    const tileEl = createTileElement(tile);
+    tile.dom = tileEl;
+    tile.placed = true;
+    positionTile(tile, tile.x, tile.y);
+    updateTileParent(tile, board);
+    updateTileTransform(tile);
   }
 
-  const sampleCount = getBatchExportSampleCount();
-  if (autoBuildSampleCountInput) {
-    autoBuildSampleCountInput.value = String(sampleCount);
-  }
-  const descriptors = getAutoBuildSampleBatchDescriptors();
-  const openedWindows = openAutoBuildSampleExportWindows(descriptors);
-  if (!openedWindows) {
-    setStatus("Could not open sample export windows. Allow pop-ups and try again.", true);
-    return;
-  }
-
-  const layoutSnapshot = captureBuildViewLayout();
-  const autoBuildHistorySnapshot = cloneAutoBuildHistoryState();
-  const exportedAt = new Date().toLocaleString();
-  const tileSetLabel = getTileSetConfig(state.selectedTileSetId)?.label || "Dungeon";
-
-  if (autoBuildSampleExportBtn) autoBuildSampleExportBtn.disabled = true;
-
-  try {
-    for (const descriptor of openedWindows) {
-      restoreAutoBuildHistoryState({});
-      const snapshots = await generateBatchLayoutSnapshots({
-        engine: descriptor.engine,
-        archetype: descriptor.archetype,
-        count: sampleCount,
-        modeLabel: descriptor.modeLabel,
-      });
-      exportLayoutSnapshotsPdf({
-        targetWindow: descriptor.targetWindow,
-        snapshots,
-        title: descriptor.title,
-        filename: descriptor.filename,
-        engineLabel: descriptor.engine === AUTO_BUILD_ENGINE_ARCHETYPE
-          ? `Archetype: ${AUTO_BUILD_ARCHETYPE_LABELS[descriptor.archetype] || descriptor.archetype}`
-          : "Classic",
-        sampleCount,
-        exportedAt,
-        tileSetLabel,
-      });
-      await waitForNextFrame();
-    }
-    setStatus(`Layout sample export pages opened for Classic, Balanced, Compact, Branchy, and Corridor (${sampleCount} samples each). Use each page's print dialog to save the PDF files.`);
-  } catch (error) {
-    console.error(error);
-    for (const descriptor of openedWindows) {
-      writeAutoBuildSampleWindowPlaceholder(
-        descriptor.targetWindow,
-        descriptor.title,
-        `Export failed: ${error.message}`,
-      );
-    }
-    setStatus(`Layout sample export failed. ${error.message}`, true);
-  } finally {
-    restoreAutoBuildHistoryState(autoBuildHistorySnapshot);
-    restoreBuildViewLayout(layoutSnapshot);
-    if (autoBuildSampleExportBtn) autoBuildSampleExportBtn.disabled = false;
-  }
+  selectTile(null);
+  state.autoBuildPreviewPlacedCount = regularTiles.length;
+  updatePlacedProgress();
 }
 
 function startRound() {
@@ -3438,104 +3047,23 @@ function rerollTrayTiles() {
   setStatus("Tray tiles rerolled. Grid placements kept.");
 }
 
-function getSelectedAutoBuildEngine() {
-  return autoBuildTuning.engineMode === AUTO_BUILD_ENGINE_ARCHETYPE
-    ? AUTO_BUILD_ENGINE_ARCHETYPE
-    : AUTO_BUILD_ENGINE_CLASSIC;
-}
-
-function getForcedAutoBuildArchetype(tuning = autoBuildTuning) {
-  const forced = tuning.forceArchetype;
-  return forced && forced !== AUTO_BUILD_ARCHETYPE_RANDOM ? forced : null;
-}
-
-function pickWeightedAutoBuildArchetype(tuning = autoBuildTuning) {
-  const forced = getForcedAutoBuildArchetype(tuning);
-  if (forced) return forced;
-  const weights = [
-    { id: "balanced", weight: tuning.archetypeBalancedWeight },
-    { id: "compact", weight: tuning.archetypeCompactWeight },
-    { id: "branchy", weight: tuning.archetypeBranchyWeight },
-    { id: "corridor", weight: tuning.archetypeCorridorWeight },
-  ].filter((entry) => entry.weight > 0);
-  if (!weights.length) return "balanced";
-  const total = weights.reduce((sum, entry) => sum + entry.weight, 0);
-  let threshold = Math.random() * total;
-  for (const entry of weights) {
-    threshold -= entry.weight;
-    if (threshold <= 0) return entry.id;
-  }
-  return weights[weights.length - 1].id;
-}
-
-function buildAutoBuildStatusLabel(options = {}) {
-  if (options.archetypeId) {
-    const label = AUTO_BUILD_ARCHETYPE_LABELS[options.archetypeId] || options.archetypeId;
-    return options.forced ? `Archetype: ${label} (forced)` : `Archetype: ${label}`;
-  }
-  return "Classic";
-}
-
-function getAutoBuildTuningForArchetype(archetypeId, baseTuning = autoBuildTuning) {
-  const profile = AUTO_BUILD_ARCHETYPE_DEFAULTS.profiles[archetypeId]
-    || AUTO_BUILD_ARCHETYPE_DEFAULTS.profiles.balanced;
-  return {
-    ...baseTuning,
-    roundnessWeight: baseTuning.roundnessWeight * profile.roundnessWeightMultiplier,
-    contactWeight: baseTuning.contactWeight * profile.contactWeightMultiplier,
-    radialPenaltyWeight: baseTuning.radialPenaltyWeight * profile.radialPenaltyWeightMultiplier,
-    nearCenterPenaltyWeight: baseTuning.nearCenterPenaltyWeight * profile.nearCenterPenaltyWeightMultiplier,
-    farOutPenaltyWeight: baseTuning.farOutPenaltyWeight * profile.farOutPenaltyWeightMultiplier,
-    lineExtensionPenalty: baseTuning.lineExtensionPenalty * profile.lineExtensionPenaltyMultiplier,
-    localDensityPenalty: baseTuning.localDensityPenalty * profile.localDensityPenaltyMultiplier,
-    localDensityRadiusMultiplier: baseTuning.localDensityRadiusMultiplier * profile.localDensityRadiusMultiplierMultiplier,
-    targetRadiusBaseMultiplier: baseTuning.targetRadiusBaseMultiplier * profile.targetRadiusBaseMultiplierMultiplier,
-    targetRadiusAvgBonusMultiplier: baseTuning.targetRadiusAvgBonusMultiplier * profile.targetRadiusAvgBonusMultiplierMultiplier,
-    targetMinRadiusMultiplier: baseTuning.targetMinRadiusMultiplier * profile.targetMinRadiusMultiplierMultiplier,
-    targetMaxRadiusMultiplier: baseTuning.targetMaxRadiusMultiplier * profile.targetMaxRadiusMultiplierMultiplier,
-  };
-}
-
-function runClassicAutoBuild() {
-  autoBuildSelectedTiles({
-    tuning: autoBuildTuning,
-    statusLabel: buildAutoBuildStatusLabel(),
-  });
-}
-
-function runArchetypeAutoBuild() {
-  const forcedArchetype = getForcedAutoBuildArchetype();
-  const archetypeId = forcedArchetype || pickWeightedAutoBuildArchetype();
-  autoBuildSelectedTiles({
-    tuning: getAutoBuildTuningForArchetype(archetypeId),
-    statusLabel: buildAutoBuildStatusLabel({ archetypeId, forced: Boolean(forcedArchetype) }),
-    archetypeId,
-  });
-}
-
 function runAutoBuild() {
-  const engine = getSelectedAutoBuildEngine();
-  if (engine === AUTO_BUILD_ENGINE_ARCHETYPE) {
-    runArchetypeAutoBuild();
-    return;
-  }
-  runClassicAutoBuild();
+  state.autoBuildPreviewPlacedCount = null;
+  return autoBuildSelectedTiles();
 }
 
-function autoBuildSelectedTiles(options = {}) {
+async function autoBuildSelectedTiles(options = {}) {
   const showStatus = options.showStatus !== false;
   const spawnBoss = options.spawnBoss !== false;
+
   if (state.wallEditMode) {
     if (showStatus) setStatus("Auto build is unavailable in wall edit mode.", true);
     return { built: false, reason: "wall_edit_mode" };
   }
 
-  const tuning = options.tuning || autoBuildTuning;
-  const statusLabel = options.statusLabel || buildAutoBuildStatusLabel();
-  const shuffleEnabled = !tuning.deterministicMode;
-  const softCandidateLimit = shuffleEnabled
-    ? AUTO_BUILD_CANDIDATE_SOFT_LIMIT
-    : AUTO_BUILD_CANDIDATE_HARD_LIMIT;
+  const tuning = options.tuning || autoBuildDevTuning;
+  const searchProfile = getAutoBuildSearchProfile(tuning);
+  const softCandidateLimit = AUTO_BUILD_CANDIDATE_SOFT_LIMIT;
 
   const allRegularTiles = Array.from(state.tiles.values()).filter((tile) => !isEntranceTile(tile));
   if (allRegularTiles.length < 6) {
@@ -3638,15 +3166,14 @@ function autoBuildSelectedTiles(options = {}) {
     return result;
   };
 
-  const getRotationOptions = () => maybeShuffle(
+  const getRotationOptions = () => shuffle(
     Array.from({ length: 360 / ROTATION_STEP }, (_, idx) => idx * ROTATION_STEP),
-    shuffleEnabled,
   );
 
   const getPlacementCandidates = (tile, placedTiles, placedSignature) => {
     const candidates = [];
     const seen = new Set();
-    const anchors = maybeShuffle([...placedTiles], shuffleEnabled);
+    const anchors = shuffle([...placedTiles]);
     const registerCandidate = (x, y) => {
       if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) return;
       const snapped = snapTileCenterToHex(tile, x, y);
@@ -3674,11 +3201,11 @@ function autoBuildSelectedTiles(options = {}) {
     // Primary pass: derive candidate targets from face pairing, then let computeBestSnap
     // search nearby valid placements using existing app snap/contact logic.
     const tileDirs = getSideDirections(tile);
-    const tileDirOrder = maybeShuffle(Array.from({ length: tileDirs.length }, (_, idx) => idx), shuffleEnabled);
+    const tileDirOrder = shuffle(Array.from({ length: tileDirs.length }, (_, idx) => idx));
     primaryCandidateLoop:
     for (const anchorTile of anchors) {
       const anchorDirs = getSideDirections(anchorTile);
-      const anchorDirOrder = maybeShuffle(Array.from({ length: anchorDirs.length }, (_, idx) => idx), shuffleEnabled);
+      const anchorDirOrder = shuffle(Array.from({ length: anchorDirs.length }, (_, idx) => idx));
       for (const tileDirIdx of tileDirOrder) {
         if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) break primaryCandidateLoop;
         const aDir = tileDirs[tileDirIdx];
@@ -3749,30 +3276,14 @@ function autoBuildSelectedTiles(options = {}) {
     if (!candidates.length) {
       const cx = board.clientWidth / 2;
       const cy = board.clientHeight / 2;
-      if (shuffleEnabled) {
-        for (let i = 0; i < 120; i += 1) {
-          const rx = cx + (Math.random() - 0.5) * board.clientWidth * 0.95;
-          const ry = cy + (Math.random() - 0.5) * board.clientHeight * 0.95;
-          registerCandidate(rx, ry);
-        }
-      } else {
-        const maxRadius = Math.min(board.clientWidth, board.clientHeight) * 0.42;
-        for (let i = 0; i < 120; i += 1) {
-          const ring = Math.floor(i / 12) + 1;
-          const indexInRing = i % 12;
-          const angle = (Math.PI * 2 * indexInRing) / 12;
-          const radius = (ring / 10) * maxRadius;
-          registerCandidate(
-            cx + Math.cos(angle) * radius,
-            cy + Math.sin(angle) * radius,
-          );
-        }
+      for (let i = 0; i < 120; i += 1) {
+        const rx = cx + (Math.random() - 0.5) * board.clientWidth * 0.95;
+        const ry = cy + (Math.random() - 0.5) * board.clientHeight * 0.95;
+        registerCandidate(rx, ry);
       }
     }
 
-    const rankedCandidates = shuffleEnabled
-      ? maybeShuffle(candidates, true).slice(0, AUTO_BUILD_CANDIDATE_SOFT_LIMIT)
-      : [...candidates];
+    const rankedCandidates = shuffle(candidates).slice(0, AUTO_BUILD_CANDIDATE_SOFT_LIMIT);
     if (!rankedCandidates.length) return rankedCandidates;
 
     let centroidX = 0;
@@ -3798,11 +3309,11 @@ function autoBuildSelectedTiles(options = {}) {
     }
     avgPlacedRadius = placedTiles.length ? (avgPlacedRadius / placedTiles.length) : 0;
     const targetRadius = Math.max(
-      layout.dx * tuning.targetRadiusBaseMultiplier,
-      avgPlacedRadius + layout.dx * tuning.targetRadiusAvgBonusMultiplier,
+      layout.dx * searchProfile.targetRadiusBaseMultiplier,
+      avgPlacedRadius + layout.dx * searchProfile.targetRadiusAvgBonusMultiplier,
     );
-    const targetMinRadius = Math.max(layout.dx * 0.95, targetRadius * tuning.targetMinRadiusMultiplier);
-    const targetMaxRadius = targetRadius * tuning.targetMaxRadiusMultiplier;
+    const targetMinRadius = Math.max(layout.dx * 0.95, targetRadius * searchProfile.targetMinRadiusMultiplier);
+    const targetMaxRadius = targetRadius * searchProfile.targetMaxRadiusMultiplier;
 
     const getRecentHeading = () => {
       if (placedTiles.length < 3) return null;
@@ -3816,7 +3327,7 @@ function autoBuildSelectedTiles(options = {}) {
       return { x: vx / len, y: vy / len };
     };
     const recentHeading = getRecentHeading();
-    const localDensityRadius = layout.dx * tuning.localDensityRadiusMultiplier;
+    const localDensityRadius = layout.dx * searchProfile.localDensityRadiusMultiplier;
 
     for (const candidate of rankedCandidates) {
       const clearance = getCandidateClearanceMetrics(tile, placedTiles, candidate.x, candidate.y);
@@ -3842,7 +3353,7 @@ function autoBuildSelectedTiles(options = {}) {
           const dirY = dy / dLen;
           const dot = dirX * recentHeading.x + dirY * recentHeading.y;
           if (dot > 0.86) {
-            lineExtensionPenalty = (dot - 0.86) / (1 - 0.86) * tuning.lineExtensionPenalty;
+            lineExtensionPenalty = (dot - 0.86) / (1 - 0.86) * searchProfile.lineExtensionPenalty;
           }
         }
       }
@@ -3851,17 +3362,17 @@ function autoBuildSelectedTiles(options = {}) {
         const d = Math.hypot(candidate.x - placed.x, candidate.y - placed.y);
         if (d <= localDensityRadius) localNeighborCount += 1;
       }
-      const localDensityPenalty = Math.max(0, localNeighborCount - 2) * tuning.localDensityPenalty;
+      const localDensityPenalty = Math.max(0, localNeighborCount - 2) * searchProfile.localDensityPenalty;
 
       candidate.layoutScore =
-        roundness * tuning.roundnessWeight
-        + candidate.count * tuning.contactWeight
-        + clearance.minFaceDist * tuning.minFaceDistWeight
-        + clearance.minCenterDist * tuning.minCenterDistWeight
-        + clearance.avgCenterDist * tuning.avgCenterDistWeight
-        - radialPenalty * tuning.radialPenaltyWeight
-        - nearCenterPenalty * tuning.nearCenterPenaltyWeight
-        - farOutPenalty * tuning.farOutPenaltyWeight
+        roundness * searchProfile.roundnessWeight
+        + candidate.count * searchProfile.contactWeight
+        + clearance.minFaceDist * searchProfile.minFaceDistWeight
+        + clearance.minCenterDist * searchProfile.minCenterDistWeight
+        + clearance.avgCenterDist * searchProfile.avgCenterDistWeight
+        - radialPenalty * searchProfile.radialPenaltyWeight
+        - nearCenterPenalty * searchProfile.nearCenterPenaltyWeight
+        - farOutPenalty * searchProfile.farOutPenaltyWeight
         - lineExtensionPenalty
         - localDensityPenalty;
     }
@@ -3869,9 +3380,6 @@ function autoBuildSelectedTiles(options = {}) {
     rankedCandidates.sort(
       (a, b) => (b.layoutScore - a.layoutScore) || (b.count - a.count),
     );
-    if (!shuffleEnabled && rankedCandidates.length > AUTO_BUILD_CANDIDATE_SOFT_LIMIT) {
-      return rankedCandidates.slice(0, AUTO_BUILD_CANDIDATE_SOFT_LIMIT);
-    }
     return rankedCandidates;
   };
 
@@ -3881,11 +3389,11 @@ function autoBuildSelectedTiles(options = {}) {
       tile.placed = false;
     }
 
-    const tileOrder = maybeShuffle([...activeRegularTiles], shuffleEnabled);
+    const tileOrder = shuffle([...activeRegularTiles]);
     const placedTiles = [entrance];
 
-    const placeAtIndex = (index) => {
-      if (index >= tileOrder.length) return true;
+    const placeAtIndex = (index, placementScoreTotal) => {
+      if (index >= tileOrder.length) return { placementScoreTotal };
       const tile = tileOrder[index];
       const prevX = tile.x;
       const prevY = tile.y;
@@ -3899,24 +3407,25 @@ function autoBuildSelectedTiles(options = {}) {
         if (!candidates.length) continue;
 
         const bestScore = candidates[0].layoutScore;
-        const scoreFloor = bestScore - tuning.topBucketScoreDelta;
+        const scoreFloor = bestScore - searchProfile.topBucketScoreDelta;
         const topBucket = [];
         const remainder = [];
         for (let i = 0; i < candidates.length; i += 1) {
           const candidate = candidates[i];
-          if (i < tuning.topBucketSize || candidate.layoutScore >= scoreFloor) {
+          if (i < searchProfile.topBucketSize || candidate.layoutScore >= scoreFloor) {
             topBucket.push(candidate);
           } else {
             remainder.push(candidate);
           }
         }
-        const orderedCandidates = [...maybeShuffle(topBucket, shuffleEnabled), ...remainder];
+        const orderedCandidates = [...shuffle(topBucket), ...remainder];
 
         for (const candidate of orderedCandidates) {
           positionTile(tile, candidate.x, candidate.y);
           tile.placed = true;
           placedTiles.push(tile);
-          if (placeAtIndex(index + 1)) return true;
+          const result = placeAtIndex(index + 1, placementScoreTotal + candidate.layoutScore);
+          if (result) return result;
           placedTiles.pop();
           tile.placed = false;
         }
@@ -3925,40 +3434,56 @@ function autoBuildSelectedTiles(options = {}) {
       tile.rotation = prevRotation;
       tile.placed = prevPlaced;
       positionTile(tile, prevX, prevY);
-      return false;
+      return null;
     };
 
-    return placeAtIndex(0);
+    return placeAtIndex(0, 0);
   };
 
-  let built = false;
+  const completedLayouts = [];
+  const seenCompletedSignatures = new Set();
   let chosenSignature = "";
-  let noveltyRetryCount = 0;
-  for (let attempt = 0; attempt < AUTO_BUILD_MAX_ATTEMPTS; attempt += 1) {
-    if (tryBuildLayout()) {
+  const searchDeadline = performance.now() + searchProfile.completionTimeBudgetMs;
+  const maxCompletionAttempts = Math.min(AUTO_BUILD_MAX_ATTEMPTS, searchProfile.maxCompletionAttempts);
+  for (let attempt = 0; attempt < maxCompletionAttempts; attempt += 1) {
+    const buildResult = tryBuildLayout();
+    if (buildResult) {
       const signature = getAutoBuildLayoutSignature(activeRegularTiles, entrance);
-      const isRecentShape = recentShapeHistory.includes(signature);
+      if (seenCompletedSignatures.has(signature)) continue;
+      seenCompletedSignatures.add(signature);
+      completedLayouts.push({
+        signature,
+        isRecentShape: recentShapeHistory.includes(signature),
+        placementScoreTotal: buildResult.placementScoreTotal,
+        metrics: analyzeAutoBuildCompletedLayout(activeRegularTiles, entrance),
+        tileState: captureAutoBuildCandidateState(activeRegularTiles),
+      });
+      if (completedLayouts.length >= searchProfile.targetCompletedLayouts) break;
       if (
-        isRecentShape
-        && noveltyRetryCount < AUTO_BUILD_NOVELTY_RETRY_LIMIT
-        && attempt < AUTO_BUILD_MAX_ATTEMPTS - 1
+        completedLayouts.length >= searchProfile.minCompletedLayouts
+        && performance.now() >= searchDeadline
       ) {
-        noveltyRetryCount += 1;
-        continue;
+        break;
       }
-      built = true;
-      chosenSignature = signature;
+    }
+    if (
+      completedLayouts.length >= searchProfile.minCompletedLayouts
+      && performance.now() >= searchDeadline
+    ) {
       break;
     }
   }
 
-  if (!built) {
+  const chosenLayout = chooseAutoBuildCompletedLayout(completedLayouts, tuning);
+  if (!chosenLayout) {
     restoreOriginalState();
     if (showStatus) {
-      setStatus(`Auto build could not find a valid full layout (${statusLabel}). Try rerolling tiles and run again.`, true);
+      setStatus("Auto build could not find a valid full layout. Try rerolling tiles and run again.", true);
     }
-    return { built: false, reason: "no_valid_layout", statusLabel };
+    return { built: false, reason: "no_valid_layout" };
   }
+  chosenSignature = chosenLayout.signature;
+  applyAutoBuildCandidateState(activeRegularTiles, chosenLayout.tileState);
 
   for (const tile of activeRegularTiles) {
     clearInvalidReturnTimer(tile);
@@ -3973,14 +3498,8 @@ function autoBuildSelectedTiles(options = {}) {
   if (chosenSignature) {
     pushAutoBuildHistory(autoBuildHistoryKey, chosenSignature);
   }
-  if (noveltyRetryCount > 0) {
-    if (showStatus) {
-      setStatus(`Auto build complete (${statusLabel}): selected tiles placed with valid contact rules (${noveltyRetryCount} extra attempts for shape variety)${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
-    }
-  } else {
-    if (showStatus) {
-      setStatus(`Auto build complete (${statusLabel}): selected tiles placed with valid contact rules${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
-    }
+  if (showStatus) {
+    setStatus(`Auto build complete: selected tiles placed with valid contact rules${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
   }
   if (spawnBoss) {
     spawnRandomBossAtReferenceTopMagnet({
@@ -3991,12 +3510,12 @@ function autoBuildSelectedTiles(options = {}) {
   }
   return {
     built: true,
-    statusLabel,
     chosenSignature,
-    noveltyRetryCount,
+    candidateCount: completedLayouts.length,
     movedReferenceSide,
   };
 }
+
 
 function resetTiles() {
   if (state.wallEditMode) {
@@ -4050,6 +3569,7 @@ function clearBoard(options = {}) {
   if (!preserveEntranceFadeAnchor) {
     state.entranceFadeAnchor = null;
   }
+  state.autoBuildPreviewPlacedCount = null;
   state.renderedTraySlots = [];
   updateBoardZoomIndicator();
   getBoardContentLayer();
@@ -4681,19 +4201,73 @@ function rotateBossPileTop(tileSetId = state.selectedTileSetId) {
 }
 
 function pushBossBackToPile(src, tileSetId = state.selectedTileSetId) {
+  if (state.useAllBosses) {
+    const unified = ensureAllBossesPileOrder();
+    const filtered = unified.filter((entry) => entry !== src);
+    filtered.push(src);
+    state.allBossesPileOrder = filtered;
+    return;
+  }
   const order = ensureBossPileOrder(tileSetId);
   const filtered = order.filter((entry) => entry !== src);
   filtered.push(src);
   state.bossPileOrderByTileSet[tileSetId] = filtered;
 }
 
+function ensureAllBossesPileOrder() {
+  const allCanonical = [];
+  for (const ts of TILE_SET_REGISTRY) {
+    allCanonical.push(...getBossTileSources(ts.id));
+  }
+  const existing = Array.isArray(state.allBossesPileOrder) ? state.allBossesPileOrder : [];
+  const isFirstBuild = !existing.length;
+  const seen = new Set();
+  const normalized = [];
+  for (const src of existing) {
+    if (!allCanonical.includes(src)) continue;
+    if (seen.has(src)) continue;
+    seen.add(src);
+    normalized.push(src);
+  }
+  for (const src of allCanonical) {
+    if (seen.has(src)) continue;
+    seen.add(src);
+    normalized.push(src);
+  }
+  state.allBossesPileOrder = isFirstBuild ? shuffle(normalized) : normalized;
+  return normalized;
+}
+
+function rotateAllBossesPileTop() {
+  const order = ensureAllBossesPileOrder();
+  if (order.length < 2) return;
+  const top = order.pop();
+  order.unshift(top);
+  state.allBossesPileOrder = order;
+}
+
 function getAvailableBossSources(tileSetId = state.selectedTileSetId) {
   const placedBossSources = new Set(state.bossTokens.map((token) => token.src));
+  if (state.useAllBosses) {
+    return ensureAllBossesPileOrder().filter((src) => !placedBossSources.has(src));
+  }
   return ensureBossPileOrder(tileSetId).filter((src) => !placedBossSources.has(src));
 }
 
 function triggerBossRandomizeAnimation(tileSetId = state.selectedTileSetId) {
   if (!bossPile) return;
+  if (state.useAllBosses) {
+    const order = ensureAllBossesPileOrder();
+    if (order.length <= 1) return;
+    const shuffled = [...order];
+    const next = shuffle(shuffled);
+    const unchanged = next.every((src, idx) => src === shuffled[idx]);
+    if (unchanged) next.push(next.shift());
+    for (let i = 0; i < next.length; i += 1) shuffled[i] = next[i];
+    state.allBossesPileOrder = shuffled;
+    renderBossPile();
+    return;
+  }
   const order = ensureBossPileOrder(tileSetId);
   if (order.length <= 1) return;
   const shuffled = [...order];
@@ -4711,20 +4285,53 @@ function triggerBossRandomizeAnimation(tileSetId = state.selectedTileSetId) {
   renderBossPile();
 }
 
+function getTileSetIdForBossSrc(src) {
+  for (const ts of TILE_SET_REGISTRY) {
+    if (getBossTileSources(ts.id).includes(src)) return ts.id;
+  }
+  return state.selectedTileSetId;
+}
+
 function removeBossToken(token, { returnToPile = true } = {}) {
   if (!token) return;
   if (returnToPile) {
-    pushBossBackToPile(token.src, state.selectedTileSetId);
+    const targetTileSetId = state.useAllBosses
+      ? getTileSetIdForBossSrc(token.src)
+      : state.selectedTileSetId;
+    pushBossBackToPile(token.src, targetTileSetId);
   }
   state.bossTokens = state.bossTokens.filter((entry) => entry.id !== token.id);
   token.dom?.remove();
+}
+
+function hashString(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0) / 0xffffffff;
+}
+
+function generateAllBossesOffset(src, z, count) {
+  const t = count > 1 ? (z - 1) / (count - 1) : 0.5;
+  const rot = -20 + hashString(src + "rot") * 40;
+  const dx = -15 + hashString(src + "dx") * 30;
+  const dy = -4 + hashString(src + "dy") * 12;
+  const scale = 0.94 + t * 0.06;
+  return { dx, dy, rot, z, scale };
 }
 
 function renderBossPile() {
   if (!bossPile) return;
   bossPile.innerHTML = "";
   const placedBossSources = new Set(state.bossTokens.map((token) => token.src));
-  const order = ensureBossPileOrder(state.selectedTileSetId);
+  let order;
+  if (state.useAllBosses) {
+    order = ensureAllBossesPileOrder();
+  } else {
+    order = ensureBossPileOrder(state.selectedTileSetId);
+  }
   const sources = order.filter((src) => !placedBossSources.has(src));
   if (!sources.length) {
     bossPile.classList.add("is-empty");
@@ -4733,7 +4340,7 @@ function renderBossPile() {
   }
   bossPile.classList.remove("is-empty");
 
-  const offsets = [
+  const defaultOffsets = [
     { dx: -20, dy: 10, rot: -9, z: 1, scale: 0.98 },
     { dx: 16, dy: -6, rot: 5, z: 2, scale: 1.0 },
   ];
@@ -4742,14 +4349,18 @@ function renderBossPile() {
   for (let i = 0; i < ordered.length; i += 1) {
     const card = document.createElement("div");
     card.className = "boss-card";
-    const offset = offsets[i] || offsets[offsets.length - 1];
-    const cycleTargetOffset = offsets[0] || offset;
+    const offset = state.useAllBosses
+      ? generateAllBossesOffset(ordered[i], i + 1, ordered.length)
+      : (defaultOffsets[i] || defaultOffsets[defaultOffsets.length - 1]);
+    const cycleTargetOffset = state.useAllBosses
+      ? generateAllBossesOffset(ordered[0], 1, ordered.length)
+      : (defaultOffsets[0] || offset);
     card.style.setProperty("--dx", `${offset.dx}px`);
     card.style.setProperty("--dy", `${offset.dy}px`);
     card.style.setProperty("--rot", `${offset.rot}deg`);
     card.style.setProperty("--z", String(offset.z));
     card.style.setProperty("--scale", String(offset.scale));
-    const isTopStackCard = Number(offset.z) >= 2;
+    const isTopStackCard = i === ordered.length - 1;
     card.style.setProperty("--boss-shadow-y", isTopStackCard ? "4px" : "2px");
     card.style.setProperty("--boss-shadow-blur", isTopStackCard ? "7px" : "5px");
     card.style.setProperty("--boss-shadow-alpha", isTopStackCard ? "0.24" : "0.17");
@@ -4791,22 +4402,32 @@ function renderBossPile() {
       const topDy = card.style.getPropertyValue("--dy").trim();
       const topRot = card.style.getPropertyValue("--rot").trim();
       const topScale = card.style.getPropertyValue("--scale").trim();
-      const counterpart = card.parentElement?.querySelector(".boss-card:not(.boss-card-cycling-out)");
-      if (counterpart && counterpart !== card) {
-        if (topDx) counterpart.style.setProperty("--cycle-in-target-dx", topDx);
-        if (topDy) counterpart.style.setProperty("--cycle-in-target-dy", topDy);
-        if (topRot) counterpart.style.setProperty("--cycle-in-target-rot", topRot);
-        if (topScale) counterpart.style.setProperty("--cycle-in-target-scale", topScale);
-        counterpart.classList.add("boss-card-cycling-in");
+      if (!state.useAllBosses) {
+        const allCards = Array.from(card.parentElement?.querySelectorAll(".boss-card:not(.boss-card-cycling-out)") || []);
+        const counterpart = allCards.length >= 2 ? allCards[allCards.length - 2] : allCards[0];
+        if (counterpart && counterpart !== card) {
+          if (topDx) counterpart.style.setProperty("--cycle-in-target-dx", topDx);
+          if (topDy) counterpart.style.setProperty("--cycle-in-target-dy", topDy);
+          if (topRot) counterpart.style.setProperty("--cycle-in-target-rot", topRot);
+          if (topScale) counterpart.style.setProperty("--cycle-in-target-scale", topScale);
+          counterpart.classList.add("boss-card-cycling-in");
+        }
       }
       card.classList.add("boss-card-cycling-out");
       const midSwapDelay = Math.round(BOSS_PILE_CYCLE_ANIMATION_MS * 0.36);
       window.setTimeout(() => {
         if (!state.bossPileCycleInProgress) return;
         bossPile?.classList.add("is-cycle-mid");
+        if (state.useAllBosses) {
+          card.style.setProperty("z-index", "0", "important");
+        }
       }, midSwapDelay);
       window.setTimeout(() => {
-        rotateBossPileTop(state.selectedTileSetId);
+        if (state.useAllBosses) {
+          rotateAllBossesPileTop();
+        } else {
+          rotateBossPileTop(state.selectedTileSetId);
+        }
         renderBossPile();
         bossPile?.classList.remove("is-cycle-mid");
         bossPile?.classList.remove("is-cycling");
@@ -5742,8 +5363,10 @@ function beginBoardPan(event) {
 function createTileElement(tile) {
   const tileEl = document.createElement("div");
   tileEl.className = "tile";
+  if (tile.previewOnly) tileEl.classList.add("tile-preview-only");
   if (isEntranceTile(tile)) tileEl.classList.add("tile-entrance");
   tileEl.dataset.tileId = tile.tileId;
+  if (tile.tileSetId) tileEl.dataset.tileSetId = tile.tileSetId;
 
   const body = document.createElement("div");
   body.className = "tile-body";
@@ -5762,6 +5385,10 @@ function createTileElement(tile) {
   tileEl.appendChild(body);
   tile.bodyDom = body;
   tile.guideDom = guideOverlay;
+
+  if (tile.previewOnly) {
+    return tileEl;
+  }
 
   const controls = document.createElement("div");
   controls.className = "tile-controls";
@@ -7142,13 +6769,16 @@ function selectTile(id) {
 }
 
 function updatePlacedProgress() {
-  const placedCount = getPlacedRegularTileCount();
-  if (placedProgressEl) placedProgressEl.textContent = `Placed ${placedCount} / 6 tiles`;
+  const placedCount = state.autoBuildPreviewPlacedCount ?? getPlacedRegularTileCount();
+  const totalSlots = state.autoBuildPreviewPlacedCount != null && state.autoBuildPreviewPlacedCount > 6
+    ? state.autoBuildPreviewPlacedCount
+    : 6;
+  if (placedProgressEl) placedProgressEl.textContent = `Placed ${placedCount} / ${totalSlots} tiles`;
   updatePlacementFeedbackChecklist();
 }
 
 function updatePlacementFeedbackChecklist() {
-  const placedCount = getPlacedRegularTileCount();
+  const placedCount = state.autoBuildPreviewPlacedCount ?? getPlacedRegularTileCount();
   const tilesComplete = placedCount >= 6;
   const bossSelected = state.bossTokens.length > 0;
 
@@ -7447,6 +7077,51 @@ function getTileGuideLocalCenter(tile) {
   };
 }
 
+function getPlacedTileRotationState(tile, otherTiles) {
+  const contact = findBestContact(tile, otherTiles);
+  const touchingFaceIndices = getTouchingFaceIndices(tile, otherTiles);
+  const overlaps = hasAnyOverlap(tile, otherTiles);
+  return {
+    valid: contact.valid && !overlaps,
+    overlaps,
+    count: contact.count,
+    faceIndices: contact.faceIndices || [],
+    touchingFaceIndices,
+    contact,
+  };
+}
+
+function getPlacementFeedbackFaceIndices(result) {
+  const validFaceIndices = (result?.faceIndices || []).filter((v) => Number.isInteger(v));
+  const validSet = new Set(validFaceIndices);
+  const invalidFaceIndices = (result?.touchingFaceIndices || []).filter(
+    (v) => Number.isInteger(v) && !validSet.has(v),
+  );
+  return { validFaceIndices, invalidFaceIndices };
+}
+
+function applyPlacementFeedbackFromResult(tile, result) {
+  if (!result || (!result.overlaps && (result.touchingFaceIndices?.length || 0) === 0)) {
+    setPlacementFeedback(tile, null);
+    return;
+  }
+  const { validFaceIndices, invalidFaceIndices } = getPlacementFeedbackFaceIndices(result);
+  if (result.valid && !result.overlaps) {
+    setPlacementFeedback(tile, true, validFaceIndices, invalidFaceIndices);
+    return;
+  }
+  setPlacementFeedback(tile, false, [], result.touchingFaceIndices || []);
+}
+
+function getPlacedTileConnectedNeighbors(tile, otherTiles) {
+  return (Array.isArray(otherTiles) ? otherTiles : []).filter((other) => countSideContacts(tile, other) > 0);
+}
+
+function getInvalidPlacedTileRotationReason(result) {
+  if (result?.overlaps) return "Tiles cannot overlap.";
+  return getInvalidContactReason(result?.contact);
+}
+
 function rotateTile(tile, delta) {
   if (state.wallEditMode) {
     setStatus("Rotation is disabled in wall edit mode.", true);
@@ -7464,21 +7139,48 @@ function rotateTile(tile, delta) {
     const direction = delta < 0 ? -1 : 1;
     tile.rotation = normalizeAngle(tile.rotation + direction * 90);
   } else {
+    const direction = delta < 0 ? -1 : 1;
+    const previousRotation = tile.rotation;
+    const otherPlacedTiles = tile.placed ? getPlacedTilesExcluding(tile) : null;
+    const connectedNeighborsBefore = tile.placed
+      ? getPlacedTileConnectedNeighbors(tile, otherPlacedTiles)
+      : [];
     tile.rotation = normalizeAngle(tile.rotation + delta);
+    if (tile.placed && otherPlacedTiles) {
+      let result = getPlacedTileRotationState(tile, otherPlacedTiles);
+      if (!result.valid && connectedNeighborsBefore.length === 1) {
+        const step = ROTATION_STEP * direction;
+        let attempts = Math.max(1, Math.round(360 / ROTATION_STEP) - 1);
+        while (!result.valid && attempts > 0) {
+          tile.rotation = normalizeAngle(tile.rotation + step);
+          result = getPlacedTileRotationState(tile, otherPlacedTiles);
+          attempts -= 1;
+        }
+      }
+      updateTileTransform(tile);
+      applyPlacementFeedbackFromResult(tile, result);
+      if (!result.valid) {
+        tile.rotation = normalizeAngle(tile.rotation);
+        setStatus(
+          connectedNeighborsBefore.length >= 2
+            ? `Rotation made ${getTileDisplayLabel(tile.tileId)} invalid. ${getInvalidPlacedTileRotationReason(result)} Fix this tile manually.`
+            : `Rotation broke placement for ${getTileDisplayLabel(tile.tileId)}. ${getInvalidPlacedTileRotationReason(result)}`,
+          true,
+        );
+        return;
+      }
+      const autoAdvanced = tile.rotation !== normalizeAngle(previousRotation + delta);
+      setStatus(
+        autoAdvanced
+          ? `${getTileDisplayLabel(tile.tileId)} auto-rotated to ${tile.rotation}° to keep a valid placement. Contact points: ${result.count}.`
+          : `${getTileDisplayLabel(tile.tileId)} rotated to ${tile.rotation}°. Contact points: ${result.count}.`,
+      );
+      return;
+    }
   }
   updateTileTransform(tile);
   if (isEntranceTile(tile)) {
     scheduleBoardHexGridRender();
-  }
-
-  if (tile.placed && !isEntranceTile(tile)) {
-    const placedTiles = getPlacedTiles().filter((t) => t.tileId !== tile.tileId);
-    const result = findBestContact(tile, placedTiles);
-    if (!result.valid) {
-      setStatus(`Rotation broke placement for ${getTileDisplayLabel(tile.tileId)}. ${getInvalidContactReason(result)}`, true);
-    } else {
-      setStatus(`${getTileDisplayLabel(tile.tileId)} rotated to ${tile.rotation}°. Contact points: ${result.count}.`);
-    }
   }
 }
 
@@ -8015,6 +7717,9 @@ function getPlacedTilesExcluding(excludedTile) {
 }
 
 function getPlacedRegularTileCount() {
+  if (Number.isInteger(state.autoBuildPreviewPlacedCount)) {
+    return state.autoBuildPreviewPlacedCount;
+  }
   let count = 0;
   for (const tile of state.tiles.values()) {
     if (tile.placed && !isEntranceTile(tile)) count += 1;
@@ -8316,6 +8021,10 @@ function updateTileTransform(tile) {
   tile.dom.style.top = `${screenY}px`;
   tile.dom.style.width = explicitScreenWidth ? `${explicitScreenWidth}px` : "";
   tile.dom.style.height = explicitScreenHeight ? `${explicitScreenHeight}px` : "";
+  tile.dom.style.setProperty(
+    "--tile-control-scale",
+    ((isBoardTile || isBoardDrag || isCompactTrayDrag) ? zoom : 1).toFixed(3),
+  );
   tile.dom.style.transformOrigin = "50% 50%";
   tile.dom.style.transform =
     (!isBoardTile && !isBoardDrag && !isCompactTrayDrag && !isTrayDrag && scale !== 1)
@@ -8386,9 +8095,9 @@ function getOpaqueBounds(image) {
 
 function getAutoBuildHistoryKey(activeRegularTiles) {
   const ids = (activeRegularTiles || [])
-    .map((tile) => tile.tileId)
+    .map((tile) => getTileInstanceKey(tile))
     .sort();
-  return `${state.selectedTileSetId}|${ids.join(",")}`;
+  return `set:${state.selectedTileSetId}|${ids.join(",")}`;
 }
 
 function getAutoBuildHistoryForKey(key) {
@@ -8544,10 +8253,6 @@ function shuffle(arr) {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
-}
-
-function maybeShuffle(arr, enabled = true) {
-  return enabled ? shuffle(arr) : [...arr];
 }
 
 function clamp(value, min, max) {
