@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-06
+- Stopped versioning local working/reference folders by keeping `/gfx/`, `/slay info/`, and `/unused/` in `.gitignore` and removing their contents from Git tracking while leaving the directories on disk for local use.
 - Removed leftover dead code from the retired all-tiles grouped/separate layout flow: deleted unused multi-set preview/layout helpers and trimmed stale all-tiles history-key branches that no longer had any callers after the synthetic `all_tiles` refactor.
 - Fixed board-tile rotate controls drifting during zoom by scaling their offsets, gap, button size, and glyph positioning with the current board zoom so the controls stay visually locked to the tile corner.
 - Reworked placed-tile rotation validation so illegal rotations can no longer silently leave bad states behind: single-neighbor placed tiles now keep rotating in the chosen direction until the next valid orientation is found, while tiles connected to two or more neighbors stay in place and highlight red when a rotation breaks legality so the user can resolve the layout manually.
