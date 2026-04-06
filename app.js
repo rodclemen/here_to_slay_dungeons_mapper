@@ -268,6 +268,7 @@ if (bossSectionPanel?.parentElement) {
 }
 const toggleLeftDrawerBtn = document.getElementById("toggle-left-drawer-btn");
 const toggleRightDrawerBtn = document.getElementById("toggle-right-drawer-btn");
+const cornerLogo = document.getElementById("corner-logo");
 const statusEl = document.getElementById("status");
 const placedProgressEl = document.getElementById("placed-progress");
 const feedbackTilesRowEl = document.getElementById("feedback-tiles-row");
@@ -1461,6 +1462,11 @@ function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardS
 
   document.body.classList.toggle("left-drawer-collapsed", leftCollapsed);
   document.body.classList.toggle("right-drawer-collapsed", rightCollapsed);
+  if (cornerLogo) {
+    cornerLogo.src = leftCollapsed && rightCollapsed
+      ? "./Graphics/mapper_logo.png"
+      : "./Graphics/logo.png";
+  }
 
   if (leftCollapsed && !wasLeftCollapsed) {
     document.body.classList.add("left-drawer-closing");

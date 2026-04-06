@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-06
+- Swapped the fully-collapsed corner branding to `mapper_logo`: when both drawers are closed the app now uses `Graphics/mapper_logo.png` instead of the default logo, and the corner logo is anchored flush to the browser’s left edge in that state.
 - Added per-tile portal flags in Wall Editor: tiles can now be marked with a draggable red portal marker saved per tile set + tile, included in the wall-editor debug import/export data, and intended for Dreamscape/Nightmare portal tiles or similar special-case gameplay tags.
 - Added portal-spacing logic to Auto Build so portal-flagged tiles avoid direct portal-to-portal adjacency when possible; if no full layout can be completed under that restriction, the solver automatically retries with portal spacing relaxed and reports that fallback in the status text.
 - Added an `Advanced Tools` visibility toggle for portal markers so flagged tiles can be shown on normal board/tray tiles for verification without making the markers permanently visible outside Wall Editor.

@@ -144,6 +144,7 @@ body.tile-set-crossfading .app {
 }
 
 body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
+  left: 0;
   opacity: 1;
   visibility: visible;
   transition: opacity 220ms ease 220ms, visibility 0s linear 0s;
