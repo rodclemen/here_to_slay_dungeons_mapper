@@ -56,6 +56,7 @@ The core problem it solves: **seeing the dungeon before you build it**. Whether 
 - **Six dungeon tile sets** with matching UI themes that shift the entire interface
 - **Reserve tile swapping** — swap any active tile with a reserve tile without losing board state
 - **Boss selection and magnetic placement** — boss tokens snap to reference card positions
+- **Shareable layout links** — copy the current dungeon state into a URL
 - **Light and dark themes** per tile set, with automatic or manual switching
 - **Zero dependencies** — pure vanilla JavaScript, HTML, and CSS. No build step, no framework
 
@@ -84,6 +85,10 @@ Each round draws six tiles from nine. The remaining three sit in reserve. Toggle
 ### Boss Selection & Placement
 
 Each tile set includes two boss options. The boss pile in the side panel lets you cycle between them, hold-drag the top card onto the board, or spawn one randomly with the dice button or `B`. If you enable `Random Boss: All Sets` in Advanced Tools, random boss selection can pull from every ready tile set instead of only the current one. Boss tokens magnetically snap to predefined positions around the reference card — side slots and a top slot — with one-per-source enforcement so you never accidentally place duplicates.
+
+### Share Links
+
+Use `Copy Share Link` in Quick Actions to copy a URL that recreates the current layout when opened. The link captures the full current board state: the selected tile set, entrance tile state, placed-tile positions and rotations, tray/reserve ordering, reference-card position, boss placements, and board zoom/pan.
 
 ### Placement Feedback
 
@@ -300,7 +305,7 @@ Then open `http://localhost:8000` in your browser.
 - **Single-page architecture.** The entire app lives in one JS file. This is intentional for simplicity but means there's no module boundary enforcement.
 - **Entrance rotation locks** after the first regular tile is placed. This matches the intended gameplay flow but can surprise new users.
 - **Auto-build is bounded.** The generator retries up to 600 attempts and 120 novelty checks. In rare edge cases with unusual wall configurations, it may not find a layout.
-- **No persistent layout saving.** Board layouts are session-only. The app persists UI preferences and wall data, but not tile positions. PDF export is available for capturing a layout.
+- **No built-in save library yet.** Layouts can now be shared and restored through `Copy Share Link`, but the app still does not provide named local save slots or a layout browser.
 - **Bridge-tile disconnects are possible.** If you move a placed tile that was acting as a bridge between two parts of the dungeon, you can leave behind a disconnected island of tiles. The mapper does not currently prevent that state.
 - **Tile set readiness varies.** Not all six sets may have complete assets and wall data at any given time. The app audits readiness at startup and disables incomplete sets.
 - **Desktop-oriented.** The responsive layout adapts to smaller viewports, but the drag-and-drop interaction model is designed for mouse and pointer input.
@@ -309,13 +314,24 @@ Then open `http://localhost:8000` in your browser.
 
 ## Future Possibilities
 
-- Layout save and restore (JSON export/import of board state)
-- Shareable layout links
+- Saved layout library (named local saves or JSON import/export)
 - Touch-optimized interactions for tablet use
 - Community-submitted wall data for new tile sets
 - Layout gallery or history browser
 
 These are directions, not promises. The app does what it does well today.
+
+---
+
+## Unofficial Project / Asset Disclaimer
+
+This repository is an unofficial fan-made utility for *Here to Slay: DUNGEONS*. It is not affiliated with, endorsed by, sponsored by, or approved by Unstable Games.
+
+All *Here to Slay* and *Here to Slay: DUNGEONS* names, artwork, graphics, card images, tile images, boss images, logos, and other game-related assets included here remain the property of Unstable Games and/or their respective rights holders. I did not create those original game assets.
+
+This project was made without prior permission from Unstable Games. The code for the mapper is original to this project, but the game-related visual assets are not mine and are included only so the tool can function as a fan project.
+
+If you are a rights holder and want any asset removed or changed, please open an issue or contact me through GitHub and I will deal with it.
 
 ---
 

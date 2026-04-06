@@ -1,6 +1,10 @@
 # Changelog
 
 ## 2026-04-06
+- Added shareable layout links to Quick Actions: `Copy Share Link` now serializes the current build into a URL and restores it on load, including the selected tile set, entrance state, placed tile positions/rotations, tray/reserve ordering, reference-card placement, boss tokens, and board zoom/pan.
+- Fixed shared-layout restore so the reference card and boss tokens are rebuilt correctly from link data by adding a dedicated reference-marker placement path instead of falling through a missing helper during restore.
+- Updated `README.md` and the guide to document what shared links actually include, corrected the stale README limitation text that still said layouts were session-only, and added an explicit unofficial-project / game-asset ownership disclaimer covering non-affiliation, asset ownership, and no prior permission.
+- Session note: Added a “simple share link,” then immediately had to teach it that the entrance and boss also count as the layout.
 - Stopped versioning local working/reference folders by keeping `/gfx/`, `/slay info/`, and `/unused/` in `.gitignore` and removing their contents from Git tracking while leaving the directories on disk for local use.
 - Removed leftover dead code from the retired all-tiles grouped/separate layout flow: deleted unused multi-set preview/layout helpers and trimmed stale all-tiles history-key branches that no longer had any callers after the synthetic `all_tiles` refactor.
 - Fixed board-tile rotate controls drifting during zoom by scaling their offsets, gap, button size, and glyph positioning with the current board zoom so the controls stay visually locked to the tile corner.

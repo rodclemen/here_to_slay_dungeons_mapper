@@ -280,6 +280,7 @@ const exportPdfBtn = document.getElementById("export-pdf-btn");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetAllBtn = document.getElementById("reset-all-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
+const copyShareLinkBtn = document.getElementById("copy-share-link-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
 const toggleWallEditBtn = document.getElementById("toggle-wall-edit-btn");
 const clearTileWallsBtn = document.getElementById("clear-tile-walls-btn");
@@ -420,7 +421,10 @@ async function init() {
 
   state.referenceTileSrc = getReferenceTileSrc(state.selectedTileSetId);
   await applyTileSet(state.selectedTileSetId, false);
-  scheduleBoardHexGridRender();
+  const restoredSharedLayout = await restoreSharedLayoutFromUrl();
+  if (!restoredSharedLayout) {
+    scheduleBoardHexGridRender();
+  }
 }
 
 async function loadTiles(tileSetId = state.selectedTileSetId) {
@@ -858,6 +862,11 @@ function bindGlobalControls() {
   }
   if (resetTilesBtn) {
     resetTilesBtn.addEventListener("click", () => resetTiles());
+  }
+  if (copyShareLinkBtn) {
+    copyShareLinkBtn.addEventListener("click", () => {
+      copyShareLayoutLink();
+    });
   }
   if (exportPdfBtn) {
     exportPdfBtn.addEventListener("click", () => {
@@ -2356,6 +2365,189 @@ function captureBuildViewLayout() {
     bossTokens,
     tiles,
   };
+}
+
+function getShareQueryParam() {
+  return new URLSearchParams(window.location.search).get("layout") || "";
+}
+
+function roundShareNumber(value, decimals = 2) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  const factor = 10 ** decimals;
+  return Math.round(n * factor) / factor;
+}
+
+function encodeBase64Url(text) {
+  const bytes = new TextEncoder().encode(String(text || ""));
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeBase64Url(encoded) {
+  const normalized = String(encoded || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4 || 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+function captureShareLayoutPayload() {
+  const snapshot = captureBuildViewLayout();
+  return {
+    v: 1,
+    ts: snapshot.tileSetId,
+    z: roundShareNumber(snapshot.boardZoom, 3),
+    px: roundShareNumber(snapshot.boardPanX),
+    py: roundShareNumber(snapshot.boardPanY),
+    o: [...snapshot.regularTileOrder],
+    rm: snapshot.referenceMarker
+      ? {
+          x: roundShareNumber(snapshot.referenceMarker.x),
+          y: roundShareNumber(snapshot.referenceMarker.y),
+        }
+      : null,
+    t: (snapshot.tiles || []).map((tile) => ({
+      i: tile.tileId,
+      p: Boolean(tile.placed) ? 1 : 0,
+      x: roundShareNumber(tile.x),
+      y: roundShareNumber(tile.y),
+      r: normalizeAngle(Number(tile.rotation) || 0),
+    })),
+    b: (snapshot.bossTokens || []).map((token) => ({
+      s: token.src,
+      x: roundShareNumber(token.x),
+      y: roundShareNumber(token.y),
+      n: roundShareNumber(token.size),
+    })),
+  };
+}
+
+function buildShareLayoutSnapshot(payload) {
+  if (!payload || typeof payload !== "object" || payload.v !== 1) return null;
+  const tileSetId = String(payload.ts || "");
+  const tileSet = getTileSetConfig(tileSetId);
+  if (!tileSet) return null;
+
+  const regularTileOrder = normalizeRegularTileOrder(payload.o || [], tileSetId);
+  const validTileIds = new Set(buildTileDefs(tileSetId).map((def) => def.tileId));
+  const tiles = [];
+  for (const entry of payload.t || []) {
+    const tileId = migrateLegacyTileId(entry?.i);
+    if (!validTileIds.has(tileId)) continue;
+    tiles.push({
+      tileId,
+      placed: Boolean(entry?.p),
+      x: roundShareNumber(entry?.x),
+      y: roundShareNumber(entry?.y),
+      rotation: normalizeAngle(Number(entry?.r) || 0),
+    });
+  }
+  if (!tiles.length) return null;
+
+  const bossTokens = (payload.b || [])
+    .filter((entry) => typeof entry?.s === "string" && entry.s)
+    .map((entry) => ({
+      src: entry.s,
+      x: roundShareNumber(entry.x),
+      y: roundShareNumber(entry.y),
+      size: Math.max(1, roundShareNumber(entry.n) || TILE_SIZE),
+    }));
+
+  const referenceMarker =
+    payload.rm
+    && Number.isFinite(Number(payload.rm.x))
+    && Number.isFinite(Number(payload.rm.y))
+      ? {
+          x: roundShareNumber(payload.rm.x),
+          y: roundShareNumber(payload.rm.y),
+        }
+      : null;
+
+  return {
+    tileSetId,
+    boardPanX: roundShareNumber(payload.px),
+    boardPanY: roundShareNumber(payload.py),
+    boardZoom: Math.max(0.7, Math.min(1.8, Number(payload.z) || DEFAULT_BOARD_ZOOM)),
+    regularTileOrder,
+    reserveOrder: regularTileOrder.slice(TRAY_SLOT_COUNT),
+    referenceMarker,
+    bossTokens,
+    tiles,
+  };
+}
+
+function createShareLayoutUrl() {
+  if (state.wallEditMode || !state.tiles.size) return null;
+  const url = new URL(window.location.href);
+  url.searchParams.set("layout", encodeBase64Url(JSON.stringify(captureShareLayoutPayload())));
+  return url.toString();
+}
+
+async function copyShareLayoutLink() {
+  if (state.wallEditMode) {
+    setStatus("Share links are available on Build View only.", true);
+    return false;
+  }
+  const url = createShareLayoutUrl();
+  if (!url) {
+    setStatus("Could not create a share link for the current layout.", true);
+    return false;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    setStatus("Share link copied.");
+    return true;
+  } catch (error) {
+    console.warn("Could not copy share link.", error);
+    setStatus("Could not copy share link.", true);
+    return false;
+  }
+}
+
+async function restoreSharedLayoutFromUrl() {
+  const encoded = getShareQueryParam();
+  if (!encoded) return false;
+
+  let payload = null;
+  try {
+    payload = JSON.parse(decodeBase64Url(encoded));
+  } catch (error) {
+    console.warn("Could not decode shared layout from URL.", error);
+    setStatus("Shared layout link is invalid or corrupted.", true);
+    return false;
+  }
+
+  const snapshot = buildShareLayoutSnapshot(payload);
+  if (!snapshot) {
+    setStatus("Shared layout link is invalid or unsupported.", true);
+    return false;
+  }
+
+  const tileSet = getTileSetConfig(snapshot.tileSetId);
+  if (!tileSet || tileSet.status !== "ready") {
+    setStatus(`Shared layout tile set "${snapshot.tileSetId}" is unavailable on this build.`, true);
+    return false;
+  }
+
+  if (snapshot.tileSetId !== state.selectedTileSetId) {
+    await applyTileSet(snapshot.tileSetId, false);
+  }
+
+  const restored = restoreBuildViewLayout(snapshot);
+  if (restored) {
+    setStatus("Shared layout loaded from link.");
+  } else {
+    setStatus("Could not restore the shared layout.", true);
+  }
+  return restored;
 }
 
 function restoreBuildViewLayout(snapshot) {
@@ -5113,8 +5305,8 @@ function getReferenceTileSrc(tileSetId = state.selectedTileSetId) {
   return `./tiles/${tileSet.id}/${tileSet.id}_${tileSet.referenceCardId}.png`;
 }
 
-function placeReferenceAboveStart(startTile) {
-  if (!startTile || !state.referenceTileSrc) return;
+function placeReferenceMarkerAt(x, y) {
+  if (!state.referenceTileSrc) return null;
   if (state.referenceMarker?.dom?.parentElement) {
     state.referenceMarker.dom.parentElement.removeChild(state.referenceMarker.dom);
   }
@@ -5128,12 +5320,19 @@ function placeReferenceAboveStart(startTile) {
   img.addEventListener("dragstart", (event) => event.preventDefault());
   marker.appendChild(img);
 
-  const x = startTile.x;
-  const y = startTile.y - REFERENCE_OFFSET_Y;
+  state.referenceMarker = {
+    dom: marker,
+    x: Number(x) || 0,
+    y: Number(y) || 0,
+  };
   getBoardContentLayer().appendChild(marker);
-
-  state.referenceMarker = { dom: marker, x, y };
   updateReferenceMarkerTransform(state.referenceMarker);
+  return state.referenceMarker;
+}
+
+function placeReferenceAboveStart(startTile) {
+  if (!startTile) return null;
+  return placeReferenceMarkerAt(startTile.x, startTile.y - REFERENCE_OFFSET_Y);
 }
 
 function ensureReferenceCardVisibleAfterAutoBuild(placedRegularTiles, entranceTile) {
