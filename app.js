@@ -1,3 +1,45 @@
+import {
+  getMissingDefaultWallEntries,
+  getRegistryIssues,
+  getTileSetAssetPaths,
+  imageExists,
+  loadImage,
+  printTileSetReadinessReport,
+  resolveTileSetStatus,
+} from "./modules/assets.js";
+import {
+  buildCurrentLayoutExportItems,
+  buildShareLayoutSnapshot as buildShareLayoutSnapshotFromPayload,
+  captureShareLayoutPayload as buildShareLayoutPayload,
+  createShareLayoutUrl as buildShareLayoutUrl,
+  decodeBase64Url,
+  getShareQueryParam,
+} from "./modules/share-export.js";
+import {
+  clonePortalFlag as clonePortalFlagValue,
+  hasPortalFlag as hasPortalFlagValue,
+  loadEndTileOverrides as loadEndTileOverridesFromStorage,
+  loadGuidePointTemplateOverrides as loadGuidePointTemplateOverridesFromStorage,
+  loadPortalFlagOverrides as loadPortalFlagOverridesFromStorage,
+  loadWallOverrides as loadWallOverridesFromStorage,
+  sanitizeEndTileOverrides as sanitizeEndTileOverridesValue,
+  sanitizeGuidePointTemplateOverrides as sanitizeGuidePointTemplateOverridesValue,
+  sanitizeGuidePointTemplatePoints as sanitizeGuidePointTemplatePointsValue,
+  sanitizePortalFlagOverrides as sanitizePortalFlagOverridesValue,
+  sanitizePortalFlagPosition as sanitizePortalFlagPositionValue,
+  sanitizeWallOverrides as sanitizeWallOverridesValue,
+  saveJsonStorage,
+} from "./modules/wall-storage.js";
+import {
+  buildAllBossTileSources,
+  findBossTileSetIdForSrc,
+  generateAllBossesOffset as generateAllBossesOffsetValue,
+  getBossTileSources as getBossTileSourcesValue,
+  normalizeOrderedSources,
+  rotatePileTop,
+  shuffleDistinctOrder,
+} from "./modules/boss-pile.js";
+
 const SIDES = 16;
 const SQRT_3 = Math.sqrt(3);
 const ROTATION_STEP = 60;
@@ -436,13 +478,13 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
   const defs = buildTileDefs(tileSetId);
   state.tileDefs = defs;
   state.tiles.clear();
-  for (const def of defs) {
+  const preparedTiles = await Promise.all(defs.map(async (def) => {
     const img = await loadImage(def.imageSrc);
     const shape = getOpaqueBounds(img);
     const alphaMask = getAlphaMask(img);
     const faceGeometry = getFaceGeometry(img, SIDES);
 
-    state.tiles.set(def.tileId, {
+    return {
       ...def,
       img,
       x: 0,
@@ -463,7 +505,10 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
       wallFaceSet: new Set(getStoredWallFaces(tileSetId, def.tileId)),
       allowAsEndTile: getStoredAllowAsEndTile(tileSetId, def.tileId),
       portalFlag: getStoredPortalFlag(tileSetId, def.tileId),
-    });
+    };
+  }));
+  for (const tile of preparedTiles) {
+    state.tiles.set(tile.tileId, tile);
   }
 }
 
@@ -631,111 +676,31 @@ function buildDefaultWallFaceData() {
   return defaults;
 }
 
-function getTileSetAssetPaths(tileSet) {
-  const basePath = `./tiles/${tileSet.id}`;
-  const coreAssets = [
-    `${basePath}/${tileSet.id}_entrance.png`,
-    ...TILE_IDS.map((tileId) => `${basePath}/${tileSet.id}_${tileId}.png`),
-    `${basePath}/${tileSet.id}_${REFERENCE_CARD_ID}.png`,
-  ];
-  const bossAssets = (tileSet.bossIds || []).map(
-    (bossId) => `${basePath}/${tileSet.id}_boss_${bossId}.png`,
-  );
-  return { coreAssets, bossAssets };
-}
-
-function imageExists(src) {
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.onload = () => resolve(true);
-    image.onerror = () => resolve(false);
-    image.src = src;
-  });
-}
-
-function getMissingDefaultWallEntries(tileSet) {
-  const expectedTileIds = [ENTRANCE_TILE_ID, ...TILE_IDS];
-  const defaults = DEFAULT_WALL_FACE_DATA?.[tileSet.id];
-  if (!defaults || typeof defaults !== "object") return [...expectedTileIds];
-  return expectedTileIds.filter((tileId) => !Array.isArray(defaults[tileId]));
-}
-
-function resolveTileSetStatus(tileSet, { coreMissing, bossMissing, missingWallEntries }) {
-  const hasCoreMissing = coreMissing.length > 0;
-  const hasBossMissing = bossMissing.length > 0;
-  const hasWallMissing = missingWallEntries.length > 0;
-  const allCoreMissing = coreMissing.length >= 11;
-  const hasDeclaredBosses = Array.isArray(tileSet?.bossIds) && tileSet.bossIds.length > 0;
-
-  if (!hasCoreMissing && !hasBossMissing && !hasWallMissing) return "ready";
-  if (allCoreMissing && (!hasDeclaredBosses || hasBossMissing)) return "not_implemented";
-  if (hasCoreMissing || hasBossMissing) return "assets_missing";
-  if (hasWallMissing) return "wall_data_missing";
-  return "assets_missing";
-}
-
-function printTileSetReadinessReport(report) {
-  console.group("Here to Slay DUNGEONS - Tile Set Readiness");
-  for (const entry of report) {
-    console.group(`[${entry.tileSetId}] ${entry.tileSetLabel}`);
-    console.info("status:", entry.status);
-    if (entry.missingAssets.length) {
-      console.warn("missing assets:");
-      entry.missingAssets.forEach((asset) => console.warn(`- ${asset}`));
-    } else {
-      console.info("missing assets: none");
-    }
-    if (entry.missingWallEntries.length) {
-      console.warn("missing wall entries:");
-      entry.missingWallEntries.forEach((wallEntry) => console.warn(`- ${wallEntry}`));
-    } else {
-      console.info("missing wall entries: none");
-    }
-    if (entry.registryIssues.length) {
-      console.warn("registry issues:");
-      entry.registryIssues.forEach((issue) => console.warn(`- ${issue}`));
-    } else {
-      console.info("registry issues: none");
-    }
-    console.groupEnd();
+async function auditTileSetReadiness() {
+  const seenIds = new Set();
+  const registryIssuesByTileSetId = new Map();
+  for (const tileSet of TILE_SET_REGISTRY) {
+    registryIssuesByTileSetId.set(tileSet.id, getRegistryIssues(tileSet, seenIds));
+    seenIds.add(tileSet.id);
   }
 
-  const readyTileSets = report.filter((entry) => entry.status === "ready").map((entry) => entry.tileSetId);
-  const nonReadyTileSets = report.filter((entry) => entry.status !== "ready").map((entry) => entry.tileSetId);
-  console.group("Readiness Summary");
-  console.info("ready sets:", readyTileSets.length ? readyTileSets.join(", ") : "none");
-  console.info("non-ready sets:", nonReadyTileSets.length ? nonReadyTileSets.join(", ") : "none");
-  console.info("legacy migration counters:", state.legacyMigrationStats);
-  console.groupEnd();
-  console.groupEnd();
-}
-
-function getRegistryIssues(tileSet, seenIds) {
-  const issues = [];
-  if (!tileSet?.id) issues.push("missing id");
-  if (!tileSet?.label) issues.push("missing label");
-  if (!tileSet?.gameSetId) issues.push("missing gameSetId");
-  if (!tileSet?.uiThemeId) issues.push("missing uiThemeId");
-  if (!tileSet?.entranceTileId) issues.push("missing entranceTileId");
-  if (!Array.isArray(tileSet?.tileIds) || tileSet.tileIds.length !== 9) issues.push("invalid tileIds");
-  if (!tileSet?.referenceCardId) issues.push("missing referenceCardId");
-  if (!Array.isArray(tileSet?.bossIds)) issues.push("invalid bossIds");
-  if (seenIds.has(tileSet.id)) issues.push("duplicate tileSetId");
-  return issues;
-}
-
-async function auditTileSetReadiness() {
-  const report = [];
-  const seenIds = new Set();
-  for (const tileSet of TILE_SET_REGISTRY) {
-    const registryIssues = getRegistryIssues(tileSet, seenIds);
-    seenIds.add(tileSet.id);
-    const { coreAssets, bossAssets } = getTileSetAssetPaths(tileSet);
-    const coreChecks = await Promise.all(coreAssets.map((src) => imageExists(src)));
-    const bossChecks = await Promise.all(bossAssets.map((src) => imageExists(src)));
+  const report = await Promise.all(TILE_SET_REGISTRY.map(async (tileSet) => {
+    const registryIssues = registryIssuesByTileSetId.get(tileSet.id) || [];
+    const { coreAssets, bossAssets } = getTileSetAssetPaths(tileSet, {
+      tileIds: TILE_IDS,
+      referenceCardId: REFERENCE_CARD_ID,
+    });
+    const [coreChecks, bossChecks] = await Promise.all([
+      Promise.all(coreAssets.map((src) => imageExists(src))),
+      Promise.all(bossAssets.map((src) => imageExists(src))),
+    ]);
     const coreMissing = coreAssets.filter((_, idx) => !coreChecks[idx]);
     const bossMissing = bossAssets.filter((_, idx) => !bossChecks[idx]);
-    const missingWallEntries = getMissingDefaultWallEntries(tileSet);
+    const missingWallEntries = getMissingDefaultWallEntries(
+      tileSet,
+      DEFAULT_WALL_FACE_DATA,
+      [ENTRANCE_TILE_ID, ...TILE_IDS],
+    );
     let status = resolveTileSetStatus(tileSet, { coreMissing, bossMissing, missingWallEntries });
     // Defensive guard: required core assets and default wall entries are mandatory for "ready".
     if (status === "ready" && (coreMissing.length > 0 || missingWallEntries.length > 0)) {
@@ -752,10 +717,10 @@ async function auditTileSetReadiness() {
       missingWallEntries: missingWallEntries.map((tileId) => buildTileKey(tileSet.id, tileId)),
     };
     state.readinessByTileSet[tileSet.id] = entry;
-    report.push(entry);
-  }
+    return entry;
+  }));
 
-  printTileSetReadinessReport(report);
+  printTileSetReadinessReport(report, state.legacyMigrationStats);
   return report;
 }
 
@@ -2388,128 +2353,25 @@ function captureBuildViewLayout() {
   };
 }
 
-function getShareQueryParam() {
-  return new URLSearchParams(window.location.search).get("layout") || "";
-}
-
-function roundShareNumber(value, decimals = 2) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
-  const factor = 10 ** decimals;
-  return Math.round(n * factor) / factor;
-}
-
-function encodeBase64Url(text) {
-  const bytes = new TextEncoder().encode(String(text || ""));
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function decodeBase64Url(encoded) {
-  const normalized = String(encoded || "").replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized + "=".repeat((4 - (normalized.length % 4 || 4)) % 4);
-  const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return new TextDecoder().decode(bytes);
-}
-
 function captureShareLayoutPayload() {
-  const snapshot = captureBuildViewLayout();
-  return {
-    v: 1,
-    ts: snapshot.tileSetId,
-    z: roundShareNumber(snapshot.boardZoom, 3),
-    px: roundShareNumber(snapshot.boardPanX),
-    py: roundShareNumber(snapshot.boardPanY),
-    o: [...snapshot.regularTileOrder],
-    rm: snapshot.referenceMarker
-      ? {
-          x: roundShareNumber(snapshot.referenceMarker.x),
-          y: roundShareNumber(snapshot.referenceMarker.y),
-        }
-      : null,
-    t: (snapshot.tiles || []).map((tile) => ({
-      i: tile.tileId,
-      p: Boolean(tile.placed) ? 1 : 0,
-      x: roundShareNumber(tile.x),
-      y: roundShareNumber(tile.y),
-      r: normalizeAngle(Number(tile.rotation) || 0),
-    })),
-    b: (snapshot.bossTokens || []).map((token) => ({
-      s: token.src,
-      x: roundShareNumber(token.x),
-      y: roundShareNumber(token.y),
-      n: roundShareNumber(token.size),
-    })),
-  };
+  return buildShareLayoutPayload(captureBuildViewLayout(), normalizeAngle);
 }
 
 function buildShareLayoutSnapshot(payload) {
-  if (!payload || typeof payload !== "object" || payload.v !== 1) return null;
-  const tileSetId = String(payload.ts || "");
-  const tileSet = getTileSetConfig(tileSetId);
-  if (!tileSet) return null;
-
-  const regularTileOrder = normalizeRegularTileOrder(payload.o || [], tileSetId);
-  const validTileIds = new Set(buildTileDefs(tileSetId).map((def) => def.tileId));
-  const tiles = [];
-  for (const entry of payload.t || []) {
-    const tileId = migrateLegacyTileId(entry?.i);
-    if (!validTileIds.has(tileId)) continue;
-    tiles.push({
-      tileId,
-      placed: Boolean(entry?.p),
-      x: roundShareNumber(entry?.x),
-      y: roundShareNumber(entry?.y),
-      rotation: normalizeAngle(Number(entry?.r) || 0),
-    });
-  }
-  if (!tiles.length) return null;
-
-  const bossTokens = (payload.b || [])
-    .filter((entry) => typeof entry?.s === "string" && entry.s)
-    .map((entry) => ({
-      src: entry.s,
-      x: roundShareNumber(entry.x),
-      y: roundShareNumber(entry.y),
-      size: Math.max(1, roundShareNumber(entry.n) || TILE_SIZE),
-    }));
-
-  const referenceMarker =
-    payload.rm
-    && Number.isFinite(Number(payload.rm.x))
-    && Number.isFinite(Number(payload.rm.y))
-      ? {
-          x: roundShareNumber(payload.rm.x),
-          y: roundShareNumber(payload.rm.y),
-        }
-      : null;
-
-  return {
-    tileSetId,
-    boardPanX: roundShareNumber(payload.px),
-    boardPanY: roundShareNumber(payload.py),
-    boardZoom: Math.max(0.7, Math.min(1.8, Number(payload.z) || DEFAULT_BOARD_ZOOM)),
-    regularTileOrder,
-    reserveOrder: regularTileOrder.slice(TRAY_SLOT_COUNT),
-    referenceMarker,
-    bossTokens,
-    tiles,
-  };
+  return buildShareLayoutSnapshotFromPayload(payload, {
+    getTileSetConfig,
+    normalizeRegularTileOrder,
+    buildTileDefs,
+    migrateLegacyTileId,
+    normalizeAngle,
+    defaultBoardZoom: DEFAULT_BOARD_ZOOM,
+    traySlotCount: TRAY_SLOT_COUNT,
+  });
 }
 
 function createShareLayoutUrl() {
   if (state.wallEditMode || !state.tiles.size) return null;
-  const url = new URL(window.location.href);
-  url.searchParams.set("layout", encodeBase64Url(JSON.stringify(captureShareLayoutPayload())));
-  return url.toString();
+  return buildShareLayoutUrl(window.location.href, captureShareLayoutPayload());
 }
 
 async function copyShareLayoutLink() {
@@ -2630,44 +2492,18 @@ function restoreBuildViewLayout(snapshot) {
 }
 
 function getCurrentLayoutExportItems(options = {}) {
-  const includeReference = options.includeReference !== false;
-  const includeBoss = options.includeBoss !== false;
-  const placedTiles = getPlacedTiles();
-  const tileItems = placedTiles.map((tile) => ({
-    kind: isEntranceTile(tile) ? "entrance" : "tile",
-    tileId: tile.tileId,
-    src: tile.imageSrc,
-    x: tile.x,
-    y: tile.y,
-    width: isEntranceTile(tile) ? (TILE_SIZE - 3) : TILE_SIZE,
-    height: TILE_SIZE,
-    rotation: normalizeAngle(tile.rotation || 0),
-  }));
-  const referenceItems = includeReference && state.referenceMarker && state.referenceTileSrc
-    ? [{
-        kind: "reference",
-        tileId: REFERENCE_CARD_ID,
-        src: state.referenceTileSrc,
-        x: state.referenceMarker.x,
-        y: state.referenceMarker.y,
-        width: TILE_SIZE,
-        height: TILE_SIZE,
-        rotation: 0,
-      }]
-    : [];
-  const bossItems = includeBoss
-    ? state.bossTokens.map((token) => ({
-        kind: "boss",
-        tileId: token.id,
-        src: token.src,
-        x: token.x,
-        y: token.y,
-        width: token.size || TILE_SIZE,
-        height: token.size || TILE_SIZE,
-        rotation: 0,
-      }))
-    : [];
-  return [...tileItems, ...referenceItems, ...bossItems];
+  return buildCurrentLayoutExportItems({
+    placedTiles: getPlacedTiles(),
+    includeReference: options.includeReference !== false,
+    includeBoss: options.includeBoss !== false,
+    isEntranceTile,
+    tileSize: TILE_SIZE,
+    referenceCardId: REFERENCE_CARD_ID,
+    referenceMarker: state.referenceMarker,
+    referenceTileSrc: state.referenceTileSrc,
+    bossTokens: state.bossTokens,
+    normalizeAngle,
+  });
 }
 
 function exportCurrentLayoutPdf() {
@@ -4396,9 +4232,7 @@ function rerenderTrayAndReserve() {
 }
 
 function getBossTileSources(tileSetId = state.selectedTileSetId) {
-  const tileSet = getTileSetConfig(tileSetId);
-  const bossIds = Array.isArray(tileSet.bossIds) ? tileSet.bossIds : [];
-  return bossIds.map((bossId) => `./tiles/${tileSet.id}/${tileSet.id}_boss_${bossId}.png`);
+  return getBossTileSourcesValue(tileSetId, getTileSetConfig);
 }
 
 function ensureBossPileOrder(tileSetId = state.selectedTileSetId) {
@@ -4406,31 +4240,14 @@ function ensureBossPileOrder(tileSetId = state.selectedTileSetId) {
   const existing = Array.isArray(state.bossPileOrderByTileSet[tileSetId])
     ? state.bossPileOrderByTileSet[tileSetId]
     : [];
-  const seen = new Set();
-  const normalized = [];
-
-  for (const src of existing) {
-    if (!canonical.includes(src)) continue;
-    if (seen.has(src)) continue;
-    seen.add(src);
-    normalized.push(src);
-  }
-  for (const src of canonical) {
-    if (seen.has(src)) continue;
-    seen.add(src);
-    normalized.push(src);
-  }
-
+  const normalized = normalizeOrderedSources(canonical, existing);
   state.bossPileOrderByTileSet[tileSetId] = normalized;
   return normalized;
 }
 
 function rotateBossPileTop(tileSetId = state.selectedTileSetId) {
   const order = ensureBossPileOrder(tileSetId);
-  if (order.length < 2) return;
-  const top = order.pop();
-  order.unshift(top);
-  state.bossPileOrderByTileSet[tileSetId] = order;
+  state.bossPileOrderByTileSet[tileSetId] = rotatePileTop(order);
 }
 
 function pushBossBackToPile(src, tileSetId = state.selectedTileSetId) {
@@ -4448,35 +4265,17 @@ function pushBossBackToPile(src, tileSetId = state.selectedTileSetId) {
 }
 
 function ensureAllBossesPileOrder() {
-  const allCanonical = [];
-  for (const ts of TILE_SET_REGISTRY) {
-    allCanonical.push(...getBossTileSources(ts.id));
-  }
+  const allCanonical = buildAllBossTileSources(TILE_SET_REGISTRY, getBossTileSources);
   const existing = Array.isArray(state.allBossesPileOrder) ? state.allBossesPileOrder : [];
   const isFirstBuild = !existing.length;
-  const seen = new Set();
-  const normalized = [];
-  for (const src of existing) {
-    if (!allCanonical.includes(src)) continue;
-    if (seen.has(src)) continue;
-    seen.add(src);
-    normalized.push(src);
-  }
-  for (const src of allCanonical) {
-    if (seen.has(src)) continue;
-    seen.add(src);
-    normalized.push(src);
-  }
+  const normalized = normalizeOrderedSources(allCanonical, existing);
   state.allBossesPileOrder = isFirstBuild ? shuffle(normalized) : normalized;
   return normalized;
 }
 
 function rotateAllBossesPileTop() {
   const order = ensureAllBossesPileOrder();
-  if (order.length < 2) return;
-  const top = order.pop();
-  order.unshift(top);
-  state.allBossesPileOrder = order;
+  state.allBossesPileOrder = rotatePileTop(order);
 }
 
 function getAvailableBossSources(tileSetId = state.selectedTileSetId) {
@@ -4492,37 +4291,18 @@ function triggerBossRandomizeAnimation(tileSetId = state.selectedTileSetId) {
   if (state.useAllBosses) {
     const order = ensureAllBossesPileOrder();
     if (order.length <= 1) return;
-    const shuffled = [...order];
-    const next = shuffle(shuffled);
-    const unchanged = next.every((src, idx) => src === shuffled[idx]);
-    if (unchanged) next.push(next.shift());
-    for (let i = 0; i < next.length; i += 1) shuffled[i] = next[i];
-    state.allBossesPileOrder = shuffled;
+    state.allBossesPileOrder = shuffleDistinctOrder(order, shuffle);
     renderBossPile();
     return;
   }
   const order = ensureBossPileOrder(tileSetId);
   if (order.length <= 1) return;
-  const shuffled = [...order];
-  if (shuffled.length === 2) {
-    [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
-  } else {
-    const next = shuffle(shuffled);
-    const unchanged = next.every((src, idx) => src === shuffled[idx]);
-    if (unchanged) {
-      next.push(next.shift());
-    }
-    for (let i = 0; i < next.length; i += 1) shuffled[i] = next[i];
-  }
-  state.bossPileOrderByTileSet[tileSetId] = shuffled;
+  state.bossPileOrderByTileSet[tileSetId] = shuffleDistinctOrder(order, shuffle, { swapPair: true });
   renderBossPile();
 }
 
 function getTileSetIdForBossSrc(src) {
-  for (const ts of TILE_SET_REGISTRY) {
-    if (getBossTileSources(ts.id).includes(src)) return ts.id;
-  }
-  return state.selectedTileSetId;
+  return findBossTileSetIdForSrc(src, TILE_SET_REGISTRY, getBossTileSources, state.selectedTileSetId);
 }
 
 function removeBossToken(token, { returnToPile = true } = {}) {
@@ -4537,22 +4317,8 @@ function removeBossToken(token, { returnToPile = true } = {}) {
   token.dom?.remove();
 }
 
-function hashString(str) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i += 1) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0) / 0xffffffff;
-}
-
 function generateAllBossesOffset(src, z, count) {
-  const t = count > 1 ? (z - 1) / (count - 1) : 0.5;
-  const rot = -20 + hashString(src + "rot") * 40;
-  const dx = -15 + hashString(src + "dx") * 30;
-  const dy = -4 + hashString(src + "dy") * 12;
-  const scale = 0.94 + t * 0.06;
-  return { dx, dy, rot, z, scale };
+  return generateAllBossesOffsetValue(src, z, count);
 }
 
 function renderBossPile() {
@@ -6363,67 +6129,64 @@ function refreshWallGuideDom(guideDom, wallFaceSet) {
   }
 }
 
+function getWallStorageDeps() {
+  return {
+    tileSetRegistry: TILE_SET_REGISTRY,
+    buildTileDefs,
+  };
+}
+
+function getPortalFlagDeps() {
+  return {
+    tileSize: TILE_SIZE,
+    clamp,
+  };
+}
+
 function loadWallOverrides() {
-  try {
-    const raw = localStorage.getItem(WALL_OVERRIDES_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return {};
-    return sanitizeWallOverrides(migrateLegacyWallOverrides(parsed));
-  } catch (error) {
-    console.warn("Could not load wall overrides from storage.", error);
-    return {};
-  }
+  return loadWallOverridesFromStorage(
+    WALL_OVERRIDES_STORAGE_KEY,
+    migrateLegacyWallOverrides,
+    getWallStorageDeps(),
+  );
 }
 
 function loadEndTileOverrides() {
-  try {
-    const raw = localStorage.getItem(END_TILE_OVERRIDES_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return {};
-    return sanitizeEndTileOverrides(parsed);
-  } catch (error) {
-    console.warn("Could not load end-tile overrides from storage.", error);
-    return {};
-  }
+  return loadEndTileOverridesFromStorage(
+    END_TILE_OVERRIDES_STORAGE_KEY,
+    getWallStorageDeps(),
+  );
 }
 
 function loadPortalFlagOverrides() {
-  try {
-    const raw = localStorage.getItem(PORTAL_FLAG_OVERRIDES_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return {};
-    return sanitizePortalFlagOverrides(parsed);
-  } catch (error) {
-    console.warn("Could not load portal flag overrides from storage.", error);
-    return {};
-  }
+  return loadPortalFlagOverridesFromStorage(PORTAL_FLAG_OVERRIDES_STORAGE_KEY, {
+    ...getWallStorageDeps(),
+    portalDeps: getPortalFlagDeps(),
+  });
 }
 
 function saveWallOverrides() {
-  try {
-    localStorage.setItem(WALL_OVERRIDES_STORAGE_KEY, JSON.stringify(state.wallOverrides));
-  } catch (error) {
-    console.warn("Could not save wall overrides to storage.", error);
-  }
+  saveJsonStorage(
+    WALL_OVERRIDES_STORAGE_KEY,
+    state.wallOverrides,
+    "Could not save wall overrides to storage.",
+  );
 }
 
 function saveEndTileOverrides() {
-  try {
-    localStorage.setItem(END_TILE_OVERRIDES_STORAGE_KEY, JSON.stringify(state.endTileOverrides));
-  } catch (error) {
-    console.warn("Could not save end-tile overrides to storage.", error);
-  }
+  saveJsonStorage(
+    END_TILE_OVERRIDES_STORAGE_KEY,
+    state.endTileOverrides,
+    "Could not save end-tile overrides to storage.",
+  );
 }
 
 function savePortalFlagOverrides() {
-  try {
-    localStorage.setItem(PORTAL_FLAG_OVERRIDES_STORAGE_KEY, JSON.stringify(state.portalFlagOverrides));
-  } catch (error) {
-    console.warn("Could not save portal flag overrides to storage.", error);
-  }
+  saveJsonStorage(
+    PORTAL_FLAG_OVERRIDES_STORAGE_KEY,
+    state.portalFlagOverrides,
+    "Could not save portal flag overrides to storage.",
+  );
 }
 
 function getStoredWallFaces(tileSetId, tileId) {
@@ -6441,24 +6204,15 @@ function getStoredAllowAsEndTile(tileSetId, tileId) {
 }
 
 function sanitizePortalFlagPosition(input) {
-  if (!input || typeof input !== "object") return null;
-  const x = Number(input.x);
-  const y = Number(input.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  const limit = TILE_SIZE * 0.5 - 8;
-  return {
-    x: clamp(x, -limit, limit),
-    y: clamp(y, -limit, limit),
-  };
+  return sanitizePortalFlagPositionValue(input, getPortalFlagDeps());
 }
 
 function clonePortalFlag(flag) {
-  const sanitized = sanitizePortalFlagPosition(flag);
-  return sanitized ? { ...sanitized } : null;
+  return clonePortalFlagValue(flag, getPortalFlagDeps());
 }
 
 function hasPortalFlag(tile) {
-  return Boolean(clonePortalFlag(tile?.portalFlag));
+  return hasPortalFlagValue(tile, getPortalFlagDeps());
 }
 
 function getStoredPortalFlag(tileSetId, tileId) {
@@ -6523,62 +6277,18 @@ async function importWallOverridesBackup(file) {
 }
 
 function sanitizeWallOverrides(input) {
-  if (!input || typeof input !== "object") return {};
-  const clean = {};
-  for (const tileSet of TILE_SET_REGISTRY) {
-    const tileSetValue = input[tileSet.id];
-    if (!tileSetValue || typeof tileSetValue !== "object") continue;
-    const tileSetOut = {};
-    const defs = buildTileDefs(tileSet.id);
-    for (const def of defs) {
-      const arr = tileSetValue[def.tileId];
-      if (!Array.isArray(arr)) continue;
-      const uniq = [...new Set(
-        arr
-          .filter((n) => Number.isInteger(n) && n >= 0 && n < 64)
-          .map((n) => Number(n)),
-      )].sort((a, b) => a - b);
-      tileSetOut[def.tileId] = uniq;
-    }
-    if (Object.keys(tileSetOut).length) clean[tileSet.id] = tileSetOut;
-  }
-  return clean;
+  return sanitizeWallOverridesValue(input, getWallStorageDeps());
 }
 
 function sanitizeEndTileOverrides(input) {
-  if (!input || typeof input !== "object") return {};
-  const clean = {};
-  for (const tileSet of TILE_SET_REGISTRY) {
-    const tileSetValue = input[tileSet.id];
-    if (!tileSetValue || typeof tileSetValue !== "object") continue;
-    const tileSetOut = {};
-    const defs = buildTileDefs(tileSet.id);
-    for (const def of defs) {
-      const value = tileSetValue[def.tileId];
-      if (typeof value !== "boolean") continue;
-      tileSetOut[def.tileId] = value;
-    }
-    if (Object.keys(tileSetOut).length) clean[tileSet.id] = tileSetOut;
-  }
-  return clean;
+  return sanitizeEndTileOverridesValue(input, getWallStorageDeps());
 }
 
 function sanitizePortalFlagOverrides(input) {
-  if (!input || typeof input !== "object") return {};
-  const clean = {};
-  for (const tileSet of TILE_SET_REGISTRY) {
-    const tileSetValue = input[tileSet.id];
-    if (!tileSetValue || typeof tileSetValue !== "object") continue;
-    const tileSetOut = {};
-    const defs = buildTileDefs(tileSet.id);
-    for (const def of defs) {
-      const value = sanitizePortalFlagPosition(tileSetValue[def.tileId]);
-      if (!value) continue;
-      tileSetOut[def.tileId] = value;
-    }
-    if (Object.keys(tileSetOut).length) clean[tileSet.id] = tileSetOut;
-  }
-  return clean;
+  return sanitizePortalFlagOverridesValue(input, {
+    ...getWallStorageDeps(),
+    portalDeps: getPortalFlagDeps(),
+  });
 }
 
 function persistTileWallFaces(tileSetId, tileId, faceSet) {
@@ -6671,47 +6381,23 @@ function clearAllTileGeometryCaches() {
 }
 
 function sanitizeGuidePointTemplatePoints(points) {
-  if (!Array.isArray(points) || points.length < 8) return null;
-  const sanitized = [];
-  for (const point of points) {
-    const x = Number(point?.x);
-    const y = Number(point?.y);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    sanitized.push({ x, y });
-  }
-  return sanitized;
+  return sanitizeGuidePointTemplatePointsValue(points);
 }
 
 function sanitizeGuidePointTemplateOverrides(raw) {
-  if (!raw || typeof raw !== "object") return {};
-  const sanitized = {};
-  const regular = sanitizeGuidePointTemplatePoints(raw.regular);
-  const entrance = sanitizeGuidePointTemplatePoints(raw.entrance);
-  if (regular) sanitized.regular = regular;
-  if (entrance) sanitized.entrance = entrance;
-  return sanitized;
+  return sanitizeGuidePointTemplateOverridesValue(raw);
 }
 
 function loadGuidePointTemplateOverrides() {
-  try {
-    const raw = localStorage.getItem(GUIDE_POINT_TEMPLATES_STORAGE_KEY);
-    if (!raw) return {};
-    return sanitizeGuidePointTemplateOverrides(JSON.parse(raw));
-  } catch (error) {
-    console.warn("Could not load guide point templates from storage.", error);
-    return {};
-  }
+  return loadGuidePointTemplateOverridesFromStorage(GUIDE_POINT_TEMPLATES_STORAGE_KEY);
 }
 
 function saveGuidePointTemplateOverrides() {
-  try {
-    localStorage.setItem(
-      GUIDE_POINT_TEMPLATES_STORAGE_KEY,
-      JSON.stringify(state.guidePointTemplateOverrides || {}),
-    );
-  } catch (error) {
-    console.warn("Could not save guide point templates to storage.", error);
-  }
+  saveJsonStorage(
+    GUIDE_POINT_TEMPLATES_STORAGE_KEY,
+    state.guidePointTemplateOverrides || {},
+    "Could not save guide point templates to storage.",
+  );
 }
 
 function getGuidePointTemplateType(tile) {
@@ -7275,6 +6961,11 @@ function beginDrag(tile, event) {
   const compactDragGrowAnchorX = leftDrawer.getBoundingClientRect().right;
   const pointerOffsetX = event.clientX - (tileRect.left + tileRect.width / 2);
   const pointerOffsetY = event.clientY - (tileRect.top + tileRect.height / 2);
+  const placedTilesExcludingSelf = getPlacedTilesExcluding(tile);
+  const buildDragPlacementLayoutKey = (tiles) => tiles
+    .map((entry) => `${entry.tileId}@${normalizeAngle(entry.rotation || 0)}:${entry.x.toFixed(2)},${entry.y.toFixed(2)}`)
+    .sort()
+    .join("|");
 
   tile.drag = {
     offsetX: pointerOffsetX,
@@ -7296,7 +6987,13 @@ function beginDrag(tile, event) {
     compactDragProgress: 0,
     compactStartWidth: tileRect.width * COMPACT_DRAG_START_SIZE_BOOST,
     compactStartHeight: tileRect.height * COMPACT_DRAG_START_SIZE_BOOST,
-    placedTilesExcludingSelf: getPlacedTilesExcluding(tile),
+    placedTilesExcludingSelf,
+    feedbackRafId: null,
+    feedbackCache: new Map(),
+    feedbackLayoutKey: buildDragPlacementLayoutKey(placedTilesExcludingSelf),
+    feedbackInsideBoard: false,
+    feedbackCandidateX: null,
+    feedbackCandidateY: null,
   };
 
   // Enter drag visual state immediately on press/hold, before pointer movement.
@@ -7321,9 +7018,22 @@ function beginDrag(tile, event) {
       document.body.classList.remove("tile-drag-active");
     }
     stopDragEdgeAutoPan(tile.drag);
+    if (tile.drag?.feedbackRafId != null) {
+      cancelAnimationFrame(tile.drag.feedbackRafId);
+      tile.drag.feedbackRafId = null;
+    }
     window.removeEventListener("pointermove", handleMove);
     window.removeEventListener("pointerup", handleUp);
     window.removeEventListener("pointercancel", handleUp);
+  };
+
+  const scheduleFeedbackUpdate = () => {
+    if (!tile.drag || tile.drag.feedbackRafId != null) return;
+    tile.drag.feedbackRafId = requestAnimationFrame(() => {
+      if (!tile.drag) return;
+      tile.drag.feedbackRafId = null;
+      updatePlacementFeedback(tile);
+    });
   };
 
   const handleMove = (moveEvent) => {
@@ -7361,6 +7071,9 @@ function beginDrag(tile, event) {
       const clampedBoardX = clamp(boardX, 0, board.clientWidth);
       const clampedBoardY = clamp(boardY, 0, board.clientHeight);
       const snapped = snapTileCenterToHex(tile, clampedBoardX, clampedBoardY);
+      tile.drag.feedbackInsideBoard = true;
+      tile.drag.feedbackCandidateX = snapped.x;
+      tile.drag.feedbackCandidateY = snapped.y;
       const boardOffsetX = boardOriginX - workspaceRect.left;
       const boardOffsetY = boardOriginY - workspaceRect.top;
       positionTile(
@@ -7369,11 +7082,14 @@ function beginDrag(tile, event) {
         snapped.y * zoom + boardOffsetY,
       );
     } else {
+      tile.drag.feedbackInsideBoard = false;
+      tile.drag.feedbackCandidateX = null;
+      tile.drag.feedbackCandidateY = null;
       positionTile(tile, x, y);
     }
 
     updateTileTransform(tile);
-    updatePlacementFeedback(tile, moveEvent.clientX, moveEvent.clientY, boardRect, workspaceRect);
+    scheduleFeedbackUpdate();
   };
 
   const handleUp = (upEvent) => {
@@ -7539,14 +7255,13 @@ function getTileGuideLocalCenter(tile) {
 
 function getPlacedTileRotationState(tile, otherTiles) {
   const contact = findBestContact(tile, otherTiles);
-  const touchingFaceIndices = getTouchingFaceIndices(tile, otherTiles);
   const overlaps = hasAnyOverlap(tile, otherTiles);
   return {
     valid: contact.valid && !overlaps,
     overlaps,
     count: contact.count,
     faceIndices: contact.faceIndices || [],
-    touchingFaceIndices,
+    touchingFaceIndices: contact.touchingFaceIndices || [],
     contact,
   };
 }
@@ -7646,8 +7361,12 @@ function rotateTile(tile, delta) {
 
 function findBestContact(tile, otherTiles, options = {}) {
   const enforceEndTileRule = Boolean(options?.enforceEndTileRule);
+  const enforcePortalSpacing = Boolean(options?.enforcePortalSpacing);
   let best = { count: 0, other: null, match: null };
   const matchedTileFaceIdx = new Set();
+  const touchingFaceIdx = new Set();
+  const connectedPortalNeighbors = [];
+  const tileHasPortal = enforcePortalSpacing && hasPortalFlag(tile);
 
   for (const other of otherTiles) {
     const match = getContactMatchDetails(tile, other);
@@ -7660,6 +7379,12 @@ function findBestContact(tile, otherTiles, options = {}) {
     }
     for (const pair of match.matchedPairs || []) {
       matchedTileFaceIdx.add(pair.i);
+    }
+    for (const faceIdx of match.touchingFaceIndices || []) {
+      touchingFaceIdx.add(faceIdx);
+    }
+    if (tileHasPortal && hasPortalFlag(other) && match.count > 0) {
+      connectedPortalNeighbors.push(other);
     }
   }
 
@@ -7674,9 +7399,11 @@ function findBestContact(tile, otherTiles, options = {}) {
     other: best.other,
     match: best.match,
     faceIndices: Array.from(matchedTileFaceIdx),
+    touchingFaceIndices: Array.from(touchingFaceIdx),
     connectedFaceCount,
     isEndTileCandidate,
     endTileDisallowed,
+    connectedPortalNeighbors,
     hasWeakConnectedNeighbor: false,
     hasLinkedFaceException: false,
     touchesBlockedAB,
@@ -7690,17 +7417,6 @@ function getInvalidContactReason(result) {
   return "Need at least 2 connected faces total (4 points).";
 }
 
-function getConnectedPortalNeighbors(tile, otherTiles) {
-  if (!hasPortalFlag(tile)) return [];
-  const connected = [];
-  for (const other of otherTiles || []) {
-    if (!hasPortalFlag(other)) continue;
-    const match = getContactMatchDetails(tile, other);
-    if (match.count > 0) connected.push(other);
-  }
-  return connected;
-}
-
 function countSideContacts(a, b) {
   return getContactMatchDetails(a, b).count;
 }
@@ -7709,6 +7425,7 @@ function getContactMatchDetails(a, b) {
   const aFaces = getContactFaces(a);
   const bFaces = getContactFaces(b);
   const threshold = Math.min(a.sideLength, b.sideLength) * CONTACT_DISTANCE_RATIO;
+  const touchingFaceIndices = new Set();
 
   const blockedTouchRadius = BLOCKED_POINT_TOUCH_RADIUS;
   if (isTouchingTileStartBlockedPoints(a, b, blockedTouchRadius) || isTouchingTileStartBlockedPoints(b, a, blockedTouchRadius)) {
@@ -7717,6 +7434,7 @@ function getContactMatchDetails(a, b) {
       matchedPairs: [],
       aFaces,
       bFaces,
+      touchingFaceIndices: [],
     };
   }
 
@@ -7737,6 +7455,7 @@ function getContactMatchDetails(a, b) {
 
       const midpointDistance = Math.hypot(af.mx - bf.mx, af.my - bf.my);
       if (midpointDistance > threshold) continue;
+      touchingFaceIndices.add(i);
 
       const ci = aContinuity.indexMap.get(i);
       const cj = bContinuity.indexMap.get(j);
@@ -7762,6 +7481,7 @@ function getContactMatchDetails(a, b) {
     matchedPairs,
     aFaces,
     bFaces,
+    touchingFaceIndices: Array.from(touchingFaceIndices),
   };
 }
 
@@ -7910,11 +7630,8 @@ function evaluatePlacementAt(tile, otherTiles, x, y, options = {}) {
   const oldY = tile.y;
   positionTile(tile, x, y);
   const contact = findBestContact(tile, otherTiles, options);
-  const connectedPortalNeighbors = options.enforcePortalSpacing
-    ? getConnectedPortalNeighbors(tile, otherTiles)
-    : [];
+  const connectedPortalNeighbors = contact.connectedPortalNeighbors || [];
   const portalConflict = connectedPortalNeighbors.length > 0;
-  const touchingFaceIndices = getTouchingFaceIndices(tile, otherTiles);
   const overlaps = hasAnyOverlap(tile, otherTiles);
   positionTile(tile, oldX, oldY);
   return {
@@ -7922,33 +7639,10 @@ function evaluatePlacementAt(tile, otherTiles, x, y, options = {}) {
     count: contact.count,
     overlaps,
     faceIndices: contact.faceIndices || [],
-    touchingFaceIndices,
+    touchingFaceIndices: contact.touchingFaceIndices || [],
     portalConflict,
     portalConflictTileIds: connectedPortalNeighbors.map((other) => other.tileId),
   };
-}
-
-function getTouchingFaceIndices(tile, otherTiles) {
-  const touching = new Set();
-  const aFaces = getContactFaces(tile);
-  for (const other of otherTiles) {
-    const bFaces = getContactFaces(other);
-    const threshold = Math.min(tile.sideLength, other.sideLength) * CONTACT_DISTANCE_RATIO;
-    for (let i = 0; i < aFaces.length; i += 1) {
-      const af = aFaces[i];
-      for (let j = 0; j < bFaces.length; j += 1) {
-        const bf = bFaces[j];
-        const normalDot = af.nx * bf.nx + af.ny * bf.ny;
-        if (normalDot > OPPOSITE_NORMAL_THRESHOLD) continue;
-        const tangentDot = Math.abs(af.tx * bf.tx + af.ty * bf.ty);
-        if (tangentDot < FACE_TANGENT_ALIGNMENT) continue;
-        const midpointDistance = Math.hypot(af.mx - bf.mx, af.my - bf.my);
-        if (midpointDistance > threshold) continue;
-        touching.add(i);
-      }
-    }
-  }
-  return Array.from(touching);
 }
 
 function getMatchAlignmentCorrection(match) {
@@ -8522,15 +8216,6 @@ function normalizeAngle(value) {
   return normalized < 0 ? normalized + 360 : normalized;
 }
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Could not load ${src}`));
-    image.src = src;
-  });
-}
-
 function getOpaqueBounds(image) {
   const canvas = document.createElement("canvas");
   canvas.width = image.width;
@@ -8886,36 +8571,55 @@ function pointOnPolygonEdge(p, poly) {
   return false;
 }
 
+function getCachedDragPlacementResult(tile, placedTiles, candidateX, candidateY) {
+  const drag = tile.drag;
+  if (!drag?.feedbackCache) {
+    return evaluatePlacementAt(tile, placedTiles, candidateX, candidateY);
+  }
+  const key = [
+    drag.feedbackLayoutKey || "",
+    tile.tileId,
+    normalizeAngle(tile.rotation || 0),
+    Number(candidateX).toFixed(2),
+    Number(candidateY).toFixed(2),
+  ].join("|");
+  const cached = drag.feedbackCache.get(key);
+  if (cached) return cached;
+  const result = evaluatePlacementAt(tile, placedTiles, candidateX, candidateY);
+  drag.feedbackCache.set(key, result);
+  if (drag.feedbackCache.size > 240) {
+    drag.feedbackCache.clear();
+    drag.feedbackCache.set(key, result);
+  }
+  return result;
+}
 
-
-function updatePlacementFeedback(tile, pointerClientX, pointerClientY, boardRect, workspaceRect) {
+function updatePlacementFeedback(tile) {
   if (isEntranceTile(tile)) {
     setPlacementFeedback(tile, null);
     return;
   }
 
-  const isInsideBoard = isPointOverBoardSurface(pointerClientX, pointerClientY, boardRect);
-
-  if (!isInsideBoard) {
+  const drag = tile.drag;
+  if (!drag?.feedbackInsideBoard) {
     setPlacementFeedback(tile, null);
     return;
   }
 
-  const placedTiles = getPlacedTiles().filter((t) => t.tileId !== tile.tileId);
+  const placedTiles = drag.placedTilesExcludingSelf || getPlacedTilesExcluding(tile);
   if (placedTiles.length === 0) {
     setPlacementFeedback(tile, null);
     return;
   }
 
-  const boardOffsetX = (boardRect.left + board.clientLeft) - workspaceRect.left;
-  const boardOffsetY = (boardRect.top + board.clientTop) - workspaceRect.top;
-  const zoom = getBoardZoom();
-  const candidateX =
-    isOnBoardLayer(tile.dom.parentElement) ? tile.x : (tile.x - boardOffsetX) / zoom;
-  const candidateY =
-    isOnBoardLayer(tile.dom.parentElement) ? tile.y : (tile.y - boardOffsetY) / zoom;
+  const candidateX = drag.feedbackCandidateX;
+  const candidateY = drag.feedbackCandidateY;
+  if (!Number.isFinite(candidateX) || !Number.isFinite(candidateY)) {
+    setPlacementFeedback(tile, null);
+    return;
+  }
 
-  const result = evaluatePlacementAt(tile, placedTiles, candidateX, candidateY);
+  const result = getCachedDragPlacementResult(tile, placedTiles, candidateX, candidateY);
   if (!result.overlaps && result.touchingFaceIndices.length === 0) {
     setPlacementFeedback(tile, null);
     return;

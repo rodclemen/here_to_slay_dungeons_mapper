@@ -1,6 +1,10 @@
 # Changelog
 
 ## 2026-04-06
+- Optimized hot paths before the refactor: drag-placement feedback now coalesces to one `requestAnimationFrame` update with per-drag snapped-position caching instead of re-running full placement analysis on every raw pointer move, and tile image loading/readiness checks now run in parallel so startup and tile-set switching spend less time waiting on serialized asset work.
+- Started breaking `app.js` into focused browser modules without adding a build step: extracted asset/readiness helpers into `modules/assets.js`, share/export serialization into `modules/share-export.js`, wall-editor storage and sanitization into `modules/wall-storage.js`, and boss-pile source/order helpers into `modules/boss-pile.js`, leaving the stateful UI flows in `app.js` while removing a large chunk of pure utility logic from the main file.
+- Refreshed tracked project artwork alongside the refactor by committing updated `Graphics/about_banner.png`, `Graphics/getting_started.png`, and `Graphics/mapper_logo.png` assets so the repo now includes the latest guide and collapsed-logo imagery already in local use.
+- Session note: Took a “quick cleanup pass” at a 9k-line file and somehow left with four modules and fewer excuses.
 - Swapped the fully-collapsed corner branding to `mapper_logo`: when both drawers are closed the app now uses `Graphics/mapper_logo.png` instead of the default logo, and the corner logo is anchored flush to the browser’s left edge in that state.
 - Added per-tile portal flags in Wall Editor: tiles can now be marked with a draggable red portal marker saved per tile set + tile, included in the wall-editor debug import/export data, and intended for Dreamscape/Nightmare portal tiles or similar special-case gameplay tags.
 - Added portal-spacing logic to Auto Build so portal-flagged tiles avoid direct portal-to-portal adjacency when possible; if no full layout can be completed under that restriction, the solver automatically retries with portal spacing relaxed and reports that fallback in the status text.
