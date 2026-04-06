@@ -39,6 +39,57 @@ import {
   rotatePileTop,
   shuffleDistinctOrder,
 } from "./modules/boss-pile.js";
+import {
+  createBoardHexLayout,
+  getBoardDropPositionFromPointer as getBoardDropPositionFromPointerValue,
+  quantizeBoardZoom as quantizeBoardZoomValue,
+  snapBoardPointToHex as snapBoardPointToHexValue,
+  worldToBoardScreen,
+} from "./modules/board-math.js";
+import {
+  computeDragEdgeAutoPan,
+  isPointInsideRect,
+  isPointOverBoardSurface as isPointOverBoardSurfaceValue,
+} from "./modules/board-interaction.js";
+import {
+  boundsOverlap,
+  clamp,
+  dist,
+  getPolygonBounds,
+  normalizeAngle,
+  pointInPolygonStrict,
+  polygonsOverlap,
+  shuffle,
+} from "./modules/geometry-utils.js";
+import {
+  computeBoardHexThemeMetrics,
+  hexPath,
+} from "./modules/board-visuals.js";
+import {
+  buildInsetPolygon as buildInsetPolygonValue,
+  getSideDirections as getSideDirectionsValue,
+  getTilePoseGeometry as getTilePoseGeometryValue,
+  hasAnyOverlap as hasAnyOverlapValue,
+} from "./modules/tile-pose.js";
+import {
+  applyNormalTileGuideAdjustments,
+  buildGuideNormals,
+  cloneGuidePoints,
+  shouldUseTemplateGuidePoints,
+} from "./modules/tile-guides.js";
+import {
+  countSideContacts as countSideContactsValue,
+  findBestContact as findBestContactValue,
+  getContactMatchDetails as getContactMatchDetailsValue,
+  getMatchAlignmentCorrection as getMatchAlignmentCorrectionValue,
+  getSideSamples as getSideSamplesValue,
+  isWorldPointOnOpaquePixel as isWorldPointOnOpaquePixelValue,
+} from "./modules/contact-analysis.js";
+import {
+  getAlphaMask as getAlphaMaskValue,
+  getFaceGeometry as getFaceGeometryValue,
+  getOpaqueBounds as getOpaqueBoundsValue,
+} from "./modules/tile-assets.js";
 
 const SIDES = 16;
 const SQRT_3 = Math.sqrt(3);
@@ -352,7 +403,6 @@ let boardContentLayer = null;
 let boardHexSvg = null;
 let boardHexGroup = null;
 let boardHexLastRenderKey = "";
-const boardHexPathCache = new Map();
 const boardHexPathPool = [];
 const diceSpinTimers = new WeakMap();
 const tileGuidePointsCache = new WeakMap();
@@ -2125,11 +2175,11 @@ function getBoardRawZoom() {
 }
 
 function worldToBoardScreenX(x, zoom = getBoardZoom()) {
-  return x * zoom;
+  return worldToBoardScreen(x, zoom);
 }
 
 function worldToBoardScreenY(y, zoom = getBoardZoom()) {
-  return y * zoom;
+  return worldToBoardScreen(y, zoom);
 }
 
 function syncBoardSceneTransforms() {
@@ -2143,8 +2193,12 @@ function syncBoardSceneTransforms() {
 }
 
 function quantizeBoardZoom(zoom) {
-  const clamped = clamp(zoom, 0.7, 1.8);
-  return Math.round(clamped / BOARD_ZOOM_STEP) * BOARD_ZOOM_STEP;
+  return quantizeBoardZoomValue(zoom, {
+    clamp,
+    min: 0.7,
+    max: 1.8,
+    step: BOARD_ZOOM_STEP,
+  });
 }
 
 function applyBoardZoom(zoom, options = {}) {
@@ -3693,46 +3747,9 @@ function getBoardHexThemeMetrics() {
   }
 
   const cssVars = getComputedStyle(document.body);
-  const isDarkTheme = isDarkUiTheme(state.selectedUiThemeId);
-  const parseRgbTripletVar = (name, fallback) => {
-    const raw = cssVars.getPropertyValue(name).trim();
-    if (!raw) return fallback;
-    const parts = raw.split(",").map((part) => Number.parseInt(part.trim(), 10));
-    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return fallback;
-    return { r: parts[0], g: parts[1], b: parts[2] };
-  };
-  const parseNumberVar = (name, fallback) => {
-    const raw = cssVars.getPropertyValue(name).trim();
-    if (!raw) return fallback;
-    const value = Number.parseFloat(raw);
-    return Number.isFinite(value) ? value : fallback;
-  };
-  const strokeColor = cssVars.getPropertyValue("--hex-stroke").trim() || "rgba(216, 198, 180, 0.45)";
-  const borderRgb = parseRgbTripletVar("--hex-border-rgb", { r: 196, g: 206, b: 213 });
-  const darkestTargetHexes = isDarkTheme
-    ? parseNumberVar("--hex-dark-target-hexes", 9)
-    : 4;
-  const lightRgb = parseRgbTripletVar("--hex-center-rgb", { r: 255, g: 248, b: 240 });
-  const darkEndpoint = isDarkTheme
-    ? {
-        r: Math.round(lightRgb.r * 0.62),
-        g: Math.round(lightRgb.g * 0.62),
-        b: Math.round(lightRgb.b * 0.62),
-      }
-    : {
-        r: Math.round(borderRgb.r + (lightRgb.r - borderRgb.r) * 0.4),
-        g: Math.round(borderRgb.g + (lightRgb.g - borderRgb.g) * 0.4),
-        b: Math.round(borderRgb.b + (lightRgb.b - borderRgb.b) * 0.4),
-      };
-
-  const value = {
-    isDarkTheme,
-    strokeColor,
-    borderRgb,
-    darkestTargetHexes,
-    lightRgb,
-    darkEndpoint,
-  };
+  const value = computeBoardHexThemeMetrics(cssVars, {
+    isDarkTheme: isDarkUiTheme(state.selectedUiThemeId),
+  });
   boardHexThemeCache = { key: cacheKey, value };
   return value;
 }
@@ -3872,7 +3889,7 @@ function renderBoardHexGrid() {
         group.appendChild(path);
       }
       path.removeAttribute("display");
-      path.setAttribute("d", hexPath(screenX, screenY, screenRadius));
+      path.setAttribute("d", hexPath(screenX, screenY, screenRadius, SQRT_3));
       path.setAttribute("fill", `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`);
       pathIndex += 1;
     }
@@ -3884,96 +3901,29 @@ function renderBoardHexGrid() {
 }
 
 function getBoardHexLayout(width = Math.floor(board.clientWidth), height = Math.floor(board.clientHeight)) {
-  const w = Math.max(0, Math.floor(width));
-  const h = Math.max(0, Math.floor(height));
-  if (boardHexLayoutCache?.w === w && boardHexLayoutCache?.h === h) {
+  const targetWidth = Math.max(0, Math.floor(width));
+  const targetHeight = Math.max(0, Math.floor(height));
+  if (boardHexLayoutCache?.w === targetWidth && boardHexLayoutCache?.h === targetHeight) {
     return boardHexLayoutCache.layout;
   }
-  const padding = Math.max(16, Math.min(28, Math.floor(Math.min(w, h) * 0.045)));
-  const targetCols = Math.max(6, Math.floor((w - padding * 2) / 64));
-  const fallbackRadius = Math.max(14, Math.min(34, (w - padding * 2) / (targetCols * 1.5 + 0.5)));
-  let radius = fallbackRadius;
-  const maxRadiusByWidth = Math.max(10, (w - padding * 2) / 9.5);
-  const maxRadiusByHeight = Math.max(10, (h - padding * 2) / 6.5);
-  radius = Math.max(12, Math.min(radius, 34, maxRadiusByWidth, maxRadiusByHeight)) * BOARD_SCALE * BOARD_ITEM_SCALE;
-  const hexHeight = SQRT_3 * radius;
-  const dx = 1.5 * radius;
-  const dy = hexHeight;
-  const layout = {
-    padding,
-    radius,
-    hexHeight,
-    dx,
-    dy,
-    minX: padding + radius,
-    maxX: w - padding - radius,
-    minY: padding + hexHeight / 2,
-    maxY: h - padding - hexHeight / 2,
-  };
+  const { w, h, layout } = createBoardHexLayout({
+    width: targetWidth,
+    height: targetHeight,
+    boardScale: BOARD_SCALE,
+    boardItemScale: BOARD_ITEM_SCALE,
+    sqrt3: SQRT_3,
+  });
   boardHexLayoutCache = { w, h, layout };
   return layout;
 }
 
 function snapBoardPointToHex(x, y) {
-  const layout = getBoardHexLayout();
-  if (
-    !Number.isFinite(layout.minX)
-    || layout.minX > layout.maxX
-    || layout.minY > layout.maxY
-  ) {
-    return { x, y };
-  }
-
-  const panX = state.boardPanX;
-  const panY = state.boardPanY;
-  const bx = x - panX;
-  const by = y - panY;
-  const approxCol = Math.round((bx - layout.minX) / layout.dx);
-
-  let best = { x, y, d2: Number.POSITIVE_INFINITY };
-  for (let dc = -2; dc <= 2; dc += 1) {
-    const col = approxCol + dc;
-    const cxBase = layout.minX + col * layout.dx;
-    const yOffset = ((col % 2) + 2) % 2 ? (layout.hexHeight / 2) : 0;
-    const approxRow = Math.round((by - (layout.minY + yOffset)) / layout.dy);
-    for (let dr = -2; dr <= 2; dr += 1) {
-      const row = approxRow + dr;
-      const cyBase = layout.minY + yOffset + row * layout.dy;
-      const cx = cxBase + panX;
-      const cy = cyBase + panY;
-      const dx = cx - x;
-      const dy = cy - y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < best.d2) best = { x: cx, y: cy, d2 };
-    }
-  }
-  return {
-    x: quantizeSnapCoord(best.x),
-    y: quantizeSnapCoord(best.y),
-  };
-}
-
-function hexPath(cx, cy, radius) {
-  const key = Number(radius.toFixed(4));
-  let template = boardHexPathCache.get(key);
-  if (!template) {
-    const halfH = (SQRT_3 * radius) / 2;
-    template = [
-      [radius, 0],
-      [radius / 2, halfH],
-      [-radius / 2, halfH],
-      [-radius, 0],
-      [-radius / 2, -halfH],
-      [radius / 2, -halfH],
-    ];
-    boardHexPathCache.set(key, template);
-  }
-  return `M ${cx + template[0][0]} ${cy + template[0][1]}`
-    + ` L ${cx + template[1][0]} ${cy + template[1][1]}`
-    + ` L ${cx + template[2][0]} ${cy + template[2][1]}`
-    + ` L ${cx + template[3][0]} ${cy + template[3][1]}`
-    + ` L ${cx + template[4][0]} ${cy + template[4][1]}`
-    + ` L ${cx + template[5][0]} ${cy + template[5][1]} Z`;
+  return snapBoardPointToHexValue(x, y, {
+    layout: getBoardHexLayout(),
+    panX: state.boardPanX,
+    panY: state.boardPanY,
+    quantizeSnapCoord,
+  });
 }
 
 function createTraySlotGuideElement() {
@@ -3998,7 +3948,7 @@ function createTraySlotGuideElement() {
   svg.setAttribute("aria-hidden", "true");
   for (const [cx, cy] of centers) {
     const path = document.createElementNS(BOARD_HEX_SVG_NS, "path");
-    path.setAttribute("d", hexPath(cx, cy, radius));
+    path.setAttribute("d", hexPath(cx, cy, radius, SQRT_3));
     svg.appendChild(path);
   }
   return svg;
@@ -4465,72 +4415,33 @@ function isClickInTopRightCloseHit(event, containerEl) {
 
 function isPointInsideElement(clientX, clientY, element) {
   if (!element) return false;
-  const rect = element.getBoundingClientRect();
-  return (
-    clientX >= rect.left
-    && clientX <= rect.right
-    && clientY >= rect.top
-    && clientY <= rect.bottom
-  );
+  return isPointInsideRect(clientX, clientY, element.getBoundingClientRect());
 }
 
 function isPointOverBoardSurface(clientX, clientY, boardRect = board.getBoundingClientRect()) {
-  const insideBoardRect =
-    clientX >= boardRect.left
-    && clientX <= boardRect.right
-    && clientY >= boardRect.top
-    && clientY <= boardRect.bottom;
-  if (!insideBoardRect) return false;
-
-  const topEl = document.elementFromPoint(clientX, clientY);
-  if (!topEl) return false;
-  return topEl === board || board.contains(topEl);
-}
-
-function getEdgeAutoPanAxisDelta(pointer, min, max, zone, maxSpeed) {
-  if (pointer < min + zone) {
-    const t = clamp((min + zone - pointer) / zone, 0, 1);
-    return maxSpeed * t * t;
-  }
-  if (pointer > max - zone) {
-    const t = clamp((pointer - (max - zone)) / zone, 0, 1);
-    return -(maxSpeed * t * t);
-  }
-  return 0;
+  return isPointOverBoardSurfaceValue(clientX, clientY, {
+    boardRect,
+    boardEl: board,
+    topEl: document.elementFromPoint(clientX, clientY),
+  });
 }
 
 function applyDragEdgeAutoPan(clientX, clientY, boardRect, dragPanState) {
   if (!dragPanState) return;
-  if (!isPointOverBoardSurface(clientX, clientY, boardRect)) {
-    dragPanState.lastTs = null;
-    return;
-  }
-
-  const now = performance.now();
-  const prevTs = Number.isFinite(dragPanState.lastTs) ? dragPanState.lastTs : now;
-  const dt = clamp(now - prevTs, 0, 32);
-  dragPanState.lastTs = now;
-
-  const vx = getEdgeAutoPanAxisDelta(
+  const { dx, dy, lastTs } = computeDragEdgeAutoPan({
     clientX,
-    boardRect.left,
-    boardRect.right,
-    DRAG_EDGE_AUTO_PAN_ZONE,
-    DRAG_EDGE_AUTO_PAN_MAX_SPEED,
-  );
-  const vy = getEdgeAutoPanAxisDelta(
     clientY,
-    boardRect.top,
-    boardRect.bottom,
-    DRAG_EDGE_AUTO_PAN_ZONE,
-    DRAG_EDGE_AUTO_PAN_MAX_SPEED,
-  );
-  if (Math.abs(vx) < 1e-3 && Math.abs(vy) < 1e-3) return;
-
-  const frameScale = dt / 16.667;
-  const zoom = getBoardZoom();
-  const dx = (vx * frameScale) / zoom;
-  const dy = (vy * frameScale) / zoom;
+    boardRect,
+    lastTs: dragPanState.lastTs,
+    now: performance.now(),
+    zone: DRAG_EDGE_AUTO_PAN_ZONE,
+    maxSpeed: DRAG_EDGE_AUTO_PAN_MAX_SPEED,
+    zoom: getBoardZoom(),
+    clamp,
+    isPointerOverBoard: isPointOverBoardSurface(clientX, clientY, boardRect),
+  });
+  dragPanState.lastTs = lastTs;
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return;
   translateBoardContent(dx, dy);
 }
 
@@ -4688,16 +4599,26 @@ async function spawnRandomBossAtReferenceTopMagnet(options = {}) {
 }
 
 function getBoardDropPositionFromPointer(clientX, clientY, boardRect, zoom = getBoardZoom()) {
-  const boardOriginX = boardRect.left + board.clientLeft;
-  const boardOriginY = boardRect.top + board.clientTop;
-  const rawX = clamp((clientX - boardOriginX) / zoom, 0, board.clientWidth);
-  const rawY = clamp((clientY - boardOriginY) / zoom, 0, board.clientHeight);
-  const magnet = getBossReferenceMagnetBoardPosition(rawX, rawY);
-  if (!magnet) return { x: rawX, y: rawY };
-  return {
-    x: clamp(magnet.x, 0, board.clientWidth),
-    y: clamp(magnet.y, 0, board.clientHeight),
-  };
+  const rough = getBoardDropPositionFromPointerValue(clientX, clientY, {
+    boardRect,
+    clientLeft: board.clientLeft,
+    clientTop: board.clientTop,
+    zoom,
+    boardWidth: board.clientWidth,
+    boardHeight: board.clientHeight,
+    clamp,
+  });
+  const magnet = getBossReferenceMagnetBoardPosition(rough.x, rough.y);
+  return getBoardDropPositionFromPointerValue(clientX, clientY, {
+    boardRect,
+    clientLeft: board.clientLeft,
+    clientTop: board.clientTop,
+    zoom,
+    boardWidth: board.clientWidth,
+    boardHeight: board.clientHeight,
+    clamp,
+    magnet,
+  });
 }
 
 function beginBossSpawnDrag(event, src, onDragStart = null) {
@@ -5825,7 +5746,7 @@ function getGuideFacePoints(tile) {
     return next;
   }
 
-  if (shouldUseTemplateGuidePoints(tile)) {
+  if (shouldUseTemplateGuidePoints(tile, isEntranceTile)) {
     const templatePoints = getTemplateGuidePointsForTile(tile);
     if (templatePoints?.length) {
       tileGuidePointsCache.set(tile, templatePoints);
@@ -5964,12 +5885,6 @@ function getGuideFacePoints(tile) {
   return resolved;
 }
 
-function shouldUseTemplateGuidePoints(tile) {
-  if (!tile || isEntranceTile(tile)) return false;
-  if (tile.tileSetId !== "overgrown") return false;
-  return ["tile_04", "tile_05", "tile_06", "tile_07", "tile_08", "tile_09"].includes(tile.tileId);
-}
-
 function getTemplateGuidePointsForTile(tile) {
   const templateTileId = "tile_01";
   const sameSetTile = state.tiles.get(templateTileId);
@@ -5983,136 +5898,6 @@ function getTemplateGuidePointsForTile(tile) {
   }
 
   return null;
-}
-
-function applyNormalTileGuideAdjustments(points) {
-
-  let bottomIdx = 0;
-  for (let i = 1; i < points.length; i += 1) {
-    if (points[i].y > points[bottomIdx].y) bottomIdx = i;
-  }
-
-  const clockwiseIdx = (bottomIdx + 1) % points.length;
-  const counterClockwiseIdx = (bottomIdx - 1 + points.length) % points.length;
-  const furtherLeftIdx = (bottomIdx - 2 + points.length) % points.length;
-  points[clockwiseIdx].x -= 1;
-  points[counterClockwiseIdx].x -= 5;
-  points[furtherLeftIdx].x -= 6;
-  points[furtherLeftIdx].y += 8;
-
-  // Insert one extra debug point at the next-left location, then nudge it up.
-  const insertIdx = (bottomIdx - 3 + points.length) % points.length;
-  const prevIdx = (insertIdx - 1 + points.length) % points.length;
-  const pA = points[prevIdx];
-  const pB = points[insertIdx];
-  points.splice(insertIdx, 0, {
-    x: (pA.x + pB.x) / 2,
-    y: (pA.y + pB.y) / 2 - 15,
-  });
-
-
-  if (points[0]) {
-    points[0].x -= 12;
-    points[0].y += 13;
-  }
-  if (points[1]) {
-    points[1].x += 5;
-    points[1].y += 13;
-  }
-  if (points[2]) {
-    points[2].x -= 2;
-    points[2].y += 2;
-  }
-  if (points[3]) {
-    points[3].x -= 2;
-  }
-  if (points[16]) {
-    points[16].x += 6;
-    points[16].y -= 13;
-  }
-
-  // Mirror points 2/3/4 to 15/14/13 across the horizontal centerline.
-  const mirroredPairs = [
-    [2, 15],
-    [3, 14],
-    [4, 13],
-  ];
-  for (const [srcIdx, dstIdx] of mirroredPairs) {
-    if (!points[srcIdx] || !points[dstIdx]) continue;
-    points[dstIdx].x = points[srcIdx].x;
-    points[dstIdx].y = -points[srcIdx].y;
-  }
-
-  if (points[14]) {
-    points[14].x -= 2;
-  }
-  if (points[15]) {
-    points[15].x -= 1;
-  }
-
-  // Mirror specific debug points across the Y axis.
-  const yAxisMirrorMap = [
-    [3, 6],
-    [2, 7],
-    [1, 8],
-    [0, 9],
-    [16, 10],
-    [15, 11],
-    [14, 12],
-  ];
-  for (const [srcIdx, dstIdx] of yAxisMirrorMap) {
-    if (!points[srcIdx] || !points[dstIdx]) continue;
-    points[dstIdx].x = -points[srcIdx].x;
-    points[dstIdx].y = points[srcIdx].y;
-  }
-
-  if (points[12] && points[13]) {
-    points.splice(13, 0, {
-      x: (points[12].x + points[13].x) / 2,
-      y: (points[12].y + points[13].y) / 2,
-    });
-  }
-
-  if (points[5] && points[13]) {
-    points[5].x += 1;
-    points[13].x = points[5].x;
-    points[13].y = -points[5].y;
-  }
-
-  // Keep these explicitly mirrored on the Y axis.
-  if (points[3] && points[6]) {
-    points[6].x = -points[3].x;
-    points[6].y = points[3].y;
-  }
-  if (points[2] && points[7]) {
-    points[7].x = -points[2].x;
-    points[7].y = points[2].y;
-  }
-
-  return points;
-}
-
-function buildGuideNormals(points) {
-  const normals = [];
-  const count = points.length;
-
-  for (let i = 0; i < count; i += 1) {
-    const prev = points[(i - 1 + count) % count];
-    const curr = points[i];
-    const next = points[(i + 1) % count];
-    const tx = next.x - prev.x;
-    const ty = next.y - prev.y;
-    const len = Math.hypot(tx, ty) || 1;
-    let nx = ty / len;
-    let ny = -tx / len;
-    if (curr.x * nx + curr.y * ny < 0) {
-      nx = -nx;
-      ny = -ny;
-    }
-    normals.push({ nx, ny });
-  }
-
-  return normals;
 }
 
 function refreshTileWallGuide(tile) {
@@ -6355,10 +6140,6 @@ function getActiveTileForWallEditing() {
   const tile = id ? state.tiles.get(id) : null;
   if (!tile) return null;
   return { tileSetId: state.selectedTileSetId, tile };
-}
-
-function cloneGuidePoints(points) {
-  return Array.isArray(points) ? points.map((point) => ({ x: point.x, y: point.y })) : null;
 }
 
 function getWallFaceSignature(tile) {
@@ -7360,54 +7141,13 @@ function rotateTile(tile, delta) {
 }
 
 function findBestContact(tile, otherTiles, options = {}) {
-  const enforceEndTileRule = Boolean(options?.enforceEndTileRule);
-  const enforcePortalSpacing = Boolean(options?.enforcePortalSpacing);
-  let best = { count: 0, other: null, match: null };
-  const matchedTileFaceIdx = new Set();
-  const touchingFaceIdx = new Set();
-  const connectedPortalNeighbors = [];
-  const tileHasPortal = enforcePortalSpacing && hasPortalFlag(tile);
-
-  for (const other of otherTiles) {
-    const match = getContactMatchDetails(tile, other);
-    if (match.count > best.count) {
-      best = {
-        count: match.count,
-        other,
-        match,
-      };
-    }
-    for (const pair of match.matchedPairs || []) {
-      matchedTileFaceIdx.add(pair.i);
-    }
-    for (const faceIdx of match.touchingFaceIndices || []) {
-      touchingFaceIdx.add(faceIdx);
-    }
-    if (tileHasPortal && hasPortalFlag(other) && match.count > 0) {
-      connectedPortalNeighbors.push(other);
-    }
-  }
-
-  const touchesBlockedAB = isTouchingMoltenEntranceBlockedPoints(tile);
-  const connectedFaceCount = matchedTileFaceIdx.size;
-  const totalCount = connectedFaceCount * 2;
-  const isEndTileCandidate = connectedFaceCount > 0 && connectedFaceCount <= END_TILE_MAX_CONNECTED_FACES;
-  const endTileDisallowed = enforceEndTileRule && isEndTileCandidate && !Boolean(tile.allowAsEndTile);
-  return {
-    valid: totalCount >= MIN_CONTACT_POINTS && !touchesBlockedAB && !endTileDisallowed,
-    count: totalCount,
-    other: best.other,
-    match: best.match,
-    faceIndices: Array.from(matchedTileFaceIdx),
-    touchingFaceIndices: Array.from(touchingFaceIdx),
-    connectedFaceCount,
-    isEndTileCandidate,
-    endTileDisallowed,
-    connectedPortalNeighbors,
-    hasWeakConnectedNeighbor: false,
-    hasLinkedFaceException: false,
-    touchesBlockedAB,
-  };
+  return findBestContactValue(tile, otherTiles, options, {
+    enforceEndTileMaxConnectedFaces: END_TILE_MAX_CONNECTED_FACES,
+    minContactPoints: MIN_CONTACT_POINTS,
+    hasPortalFlag,
+    isTouchingMoltenEntranceBlockedPoints,
+    getContactMatchDetails: (a, b) => getContactMatchDetails(a, b),
+  });
 }
 
 function getInvalidContactReason(result) {
@@ -7418,153 +7158,27 @@ function getInvalidContactReason(result) {
 }
 
 function countSideContacts(a, b) {
-  return getContactMatchDetails(a, b).count;
+  return countSideContactsValue(a, b, {
+    getContactFaces,
+    contactDistanceRatio: CONTACT_DISTANCE_RATIO,
+    isTouchingTileStartBlockedPoints,
+    blockedPointTouchRadius: BLOCKED_POINT_TOUCH_RADIUS,
+    isBlockedContactFace,
+    oppositeNormalThreshold: OPPOSITE_NORMAL_THRESHOLD,
+    faceTangentAlignment: FACE_TANGENT_ALIGNMENT,
+  });
 }
 
 function getContactMatchDetails(a, b) {
-  const aFaces = getContactFaces(a);
-  const bFaces = getContactFaces(b);
-  const threshold = Math.min(a.sideLength, b.sideLength) * CONTACT_DISTANCE_RATIO;
-  const touchingFaceIndices = new Set();
-
-  const blockedTouchRadius = BLOCKED_POINT_TOUCH_RADIUS;
-  if (isTouchingTileStartBlockedPoints(a, b, blockedTouchRadius) || isTouchingTileStartBlockedPoints(b, a, blockedTouchRadius)) {
-    return {
-      count: 0,
-      matchedPairs: [],
-      aFaces,
-      bFaces,
-      touchingFaceIndices: [],
-    };
-  }
-
-  const aContinuity = getContinuityFaceIndexMap(aFaces);
-  const bContinuity = getContinuityFaceIndexMap(bFaces);
-  const candidates = [];
-  for (let i = 0; i < aFaces.length; i += 1) {
-    for (let j = 0; j < bFaces.length; j += 1) {
-      const af = aFaces[i];
-      const bf = bFaces[j];
-      if (af.isWall || bf.isWall) continue;
-      if (isBlockedContactFace(a, af) || isBlockedContactFace(b, bf)) continue;
-      const normalDot = af.nx * bf.nx + af.ny * bf.ny;
-      if (normalDot > OPPOSITE_NORMAL_THRESHOLD) continue;
-
-      const tangentDot = Math.abs(af.tx * bf.tx + af.ty * bf.ty);
-      if (tangentDot < FACE_TANGENT_ALIGNMENT) continue;
-
-      const midpointDistance = Math.hypot(af.mx - bf.mx, af.my - bf.my);
-      if (midpointDistance > threshold) continue;
-      touchingFaceIndices.add(i);
-
-      const ci = aContinuity.indexMap.get(i);
-      const cj = bContinuity.indexMap.get(j);
-      if (ci == null || cj == null) continue;
-      candidates.push({
-        i: ci,
-        j: cj,
-        ai: i,
-        bj: j,
-        midpointDistance,
-        normalDot,
-      });
-    }
-  }
-
-  candidates.sort((x, y) => x.midpointDistance - y.midpointDistance || x.normalDot - y.normalDot);
-
-  const matchedPairs = getBestOrderedMatchedPairs(candidates, aContinuity.count, bContinuity.count);
-  const matchedFaces = matchedPairs.length;
-
-  return {
-    count: matchedFaces * 2,
-    matchedPairs,
-    aFaces,
-    bFaces,
-    touchingFaceIndices: Array.from(touchingFaceIndices),
-  };
-}
-
-function getBestOrderedMatchedPairs(candidates, aCount, bCount) {
-  if (!candidates.length) return [];
-
-  const byPair = new Map();
-  for (const c of candidates) {
-    const key = `${c.i}:${c.j}`;
-    const prev = byPair.get(key);
-    if (!prev || c.midpointDistance < prev.midpointDistance) {
-      byPair.set(key, c);
-    }
-  }
-
-  const mod = (n, size) => ((n % size) + size) % size;
-  let bestChain = [];
-  let bestDistance = Infinity;
-
-  const uniquePairs = Array.from(byPair.values());
-  for (const start of uniquePairs) {
-    for (const bStep of [1, -1]) {
-      const projected = uniquePairs
-        .map((pair) => {
-          const da = mod(pair.i - start.i, aCount);
-          const db = bStep === 1
-            ? mod(pair.j - start.j, bCount)
-            : mod(start.j - pair.j, bCount);
-          return { ...pair, da, db };
-        })
-        .sort((a, b) => a.da - b.da || a.db - b.db || a.midpointDistance - b.midpointDistance);
-
-      const n = projected.length;
-      const dpLen = new Array(n).fill(1);
-      const dpDist = projected.map((p) => p.midpointDistance);
-      const prev = new Array(n).fill(-1);
-
-      for (let i = 0; i < n; i += 1) {
-        for (let j = 0; j < i; j += 1) {
-          if (projected[j].da < projected[i].da && projected[j].db < projected[i].db) {
-            const nextLen = dpLen[j] + 1;
-            const nextDist = dpDist[j] + projected[i].midpointDistance;
-            if (nextLen > dpLen[i] || (nextLen === dpLen[i] && nextDist < dpDist[i])) {
-              dpLen[i] = nextLen;
-              dpDist[i] = nextDist;
-              prev[i] = j;
-            }
-          }
-        }
-      }
-
-      let endIdx = 0;
-      for (let i = 1; i < n; i += 1) {
-        if (dpLen[i] > dpLen[endIdx] || (dpLen[i] === dpLen[endIdx] && dpDist[i] < dpDist[endIdx])) {
-          endIdx = i;
-        }
-      }
-
-      const chain = [];
-      for (let i = endIdx; i >= 0; i = prev[i]) {
-        chain.unshift(projected[i]);
-        if (prev[i] === -1) break;
-      }
-
-      if (chain.length > bestChain.length || (chain.length === bestChain.length && dpDist[endIdx] < bestDistance)) {
-        bestChain = chain;
-        bestDistance = dpDist[endIdx];
-      }
-    }
-  }
-
-  return bestChain.map((pair) => ({ i: pair.ai, j: pair.bj }));
-}
-
-function getContinuityFaceIndexMap(faces) {
-  const indexMap = new Map();
-  let count = 0;
-  for (let i = 0; i < faces.length; i += 1) {
-    if (faces[i].isWall) continue;
-    indexMap.set(i, count);
-    count += 1;
-  }
-  return { indexMap, count };
+  return getContactMatchDetailsValue(a, b, {
+    getContactFaces,
+    contactDistanceRatio: CONTACT_DISTANCE_RATIO,
+    isTouchingTileStartBlockedPoints,
+    blockedPointTouchRadius: BLOCKED_POINT_TOUCH_RADIUS,
+    isBlockedContactFace,
+    oppositeNormalThreshold: OPPOSITE_NORMAL_THRESHOLD,
+    faceTangentAlignment: FACE_TANGENT_ALIGNMENT,
+  });
 }
 
 function computeBestSnap(
@@ -7646,161 +7260,35 @@ function evaluatePlacementAt(tile, otherTiles, x, y, options = {}) {
 }
 
 function getMatchAlignmentCorrection(match) {
-  if (!match?.matchedPairs?.length) return null;
-  let dx = 0;
-  let dy = 0;
-  for (const pair of match.matchedPairs) {
-    const a = match.aFaces[pair.i];
-    const b = match.bFaces[pair.j];
-    dx += b.mx - a.mx;
-    dy += b.my - a.my;
-  }
-
-  const count = match.matchedPairs.length;
-  let avgDx = dx / count;
-  let avgDy = dy / count;
-  const mag = Math.hypot(avgDx, avgDy);
-  if (mag > 1e-6) {
-    avgDx -= (avgDx / mag) * SNAP_POINT_GAP;
-    avgDy -= (avgDy / mag) * SNAP_POINT_GAP;
-  }
-  return {
-    dx: avgDx,
-    dy: avgDy,
-  };
+  return getMatchAlignmentCorrectionValue(match, SNAP_POINT_GAP);
 }
 
 function getSideSamples(tile) {
-  return getContactFaces(tile).map((f) => ({
-    px: f.mx,
-    py: f.my,
-    nx: f.nx,
-    ny: f.ny,
-  }));
+  return getSideSamplesValue(tile, getContactFaces);
 }
 
 function buildInsetPolygon(tile, poly, insetPx = OVERLAP_POLYGON_INSET_PX) {
-  if (!Number.isFinite(insetPx) || insetPx <= 0) return poly;
-  return (poly || []).map((point) => {
-    const dx = point.x - tile.x;
-    const dy = point.y - tile.y;
-    const len = Math.hypot(dx, dy);
-    if (len <= insetPx || len < 1e-6) {
-      return {
-        x: tile.x + dx * 0.5,
-        y: tile.y + dy * 0.5,
-      };
-    }
-    const scale = (len - insetPx) / len;
-    return {
-      x: tile.x + dx * scale,
-      y: tile.y + dy * scale,
-    };
-  });
+  return buildInsetPolygonValue(tile, poly, insetPx);
 }
 
 function getTilePoseGeometry(tile) {
-  if (!tile) {
-    return {
-      world: [],
-      faces: [],
-      overlapPolygon: [],
-      overlapBounds: null,
-    };
-  }
-
-  let cache = tilePoseGeometryCache.get(tile);
-  if (!cache) {
-    cache = new Map();
-    tilePoseGeometryCache.set(tile, cache);
-  }
-
-  const key = [
-    tile.x.toFixed(3),
-    tile.y.toFixed(3),
-    normalizeAngle(tile.rotation).toFixed(3),
-    getWallFaceSignature(tile),
-  ].join("|");
-  const cached = cache.get(key);
-  if (cached) return cached;
-
-  if (cache.size >= TILE_POSE_GEOMETRY_CACHE_LIMIT) {
-    cache.clear();
-  }
-
-  const points = getGuideFacePoints(tile);
-  const rotationRad = (tile.rotation * Math.PI) / 180;
-  const cos = Math.cos(rotationRad);
-  const sin = Math.sin(rotationRad);
-  const world = points.map((p) => ({
-    x: tile.x + p.x * cos - p.y * sin,
-    y: tile.y + p.x * sin + p.y * cos,
-  }));
-
-  const faces = [];
-  for (let i = 0; i < world.length; i += 1) {
-    const a = world[i];
-    const b = world[(i + 1) % world.length];
-    const ex = b.x - a.x;
-    const ey = b.y - a.y;
-    const len = Math.hypot(ex, ey) || 1;
-    const tx = ex / len;
-    const ty = ey / len;
-    let nx = ty;
-    let ny = -tx;
-    const mx = (a.x + b.x) / 2;
-    const my = (a.y + b.y) / 2;
-
-    if ((mx - tile.x) * nx + (my - tile.y) * ny < 0) {
-      nx = -nx;
-      ny = -ny;
-    }
-
-    const offset = (mx - tile.x) * nx + (my - tile.y) * ny;
-    faces.push({
-      mx,
-      my,
-      nx,
-      ny,
-      tx,
-      ty,
-      len,
-      offset,
-      startIdx: i,
-      endIdx: (i + 1) % world.length,
-      isWall: tile.wallFaceSet?.has(i) ?? false,
-    });
-  }
-
-  const overlapPolygon = buildInsetPolygon(tile, world);
-  const entry = {
-    world,
-    faces,
-    overlapPolygon,
-    overlapBounds: getPolygonBounds(overlapPolygon),
-  };
-  cache.set(key, entry);
-  return entry;
+  return getTilePoseGeometryValue(tile, {
+    tilePoseGeometryCache,
+    cacheLimit: TILE_POSE_GEOMETRY_CACHE_LIMIT,
+    normalizeAngle,
+    getGuideFacePoints,
+    getWallFaceSignature,
+    insetPx: OVERLAP_POLYGON_INSET_PX,
+    getPolygonBounds,
+  });
 }
 
 function getSideDirections(tile) {
-  if (!tile) return [];
-  let cache = tileSideDirectionsCache.get(tile);
-  if (!cache) {
-    cache = new Map();
-    tileSideDirectionsCache.set(tile, cache);
-  }
-  const key = normalizeAngle(tile.rotation).toFixed(3);
-  const cached = cache.get(key);
-  if (cached) return cached;
-
-  const next = getContactFaces(tile).map((f) => ({
-    nx: f.nx,
-    ny: f.ny,
-    offset: f.offset,
-  }));
-  cache.set(key, next);
-  return next;
+  return getSideDirectionsValue(tile, {
+    tileSideDirectionsCache,
+    normalizeAngle,
+    getContactFaces,
+  });
 }
 
 function getContactFaces(tile) {
@@ -7836,37 +7324,11 @@ function isTouchingMoltenEntranceBlockedPoints(tile) {
 }
 
 function isWorldPointOnOpaquePixel(tile, wx, wy, radius = 0, minAlpha = 24) {
-  if (!tile?.img || !tile.alphaMask) return false;
-  const theta = (tile.rotation * Math.PI) / 180;
-  const cos = Math.cos(theta);
-  const sin = Math.sin(theta);
-  const dx = wx - tile.x;
-  const dy = wy - tile.y;
-
-  // Inverse-rotate from world space into tile-local space.
-  const lx = dx * cos + dy * sin;
-  const ly = -dx * sin + dy * cos;
-
-  const iw = tile.alphaMask.width || 0;
-  const ih = tile.alphaMask.height || 0;
-  if (!iw || !ih) return false;
-
-  const pxCenter = ((lx / TILE_SIZE) + 0.5) * iw;
-  const pyCenter = ((ly / TILE_SIZE) + 0.5) * ih;
-  const sampleRadius = Math.max(0, Math.ceil((radius / TILE_SIZE) * Math.max(iw, ih)));
-
-  const x0 = Math.max(0, Math.floor(pxCenter - sampleRadius));
-  const x1 = Math.min(iw - 1, Math.ceil(pxCenter + sampleRadius));
-  const y0 = Math.max(0, Math.floor(pyCenter - sampleRadius));
-  const y1 = Math.min(ih - 1, Math.ceil(pyCenter + sampleRadius));
-
-  for (let y = y0; y <= y1; y += 1) {
-    for (let x = x0; x <= x1; x += 1) {
-      const alpha = tile.alphaMask.alpha[y * iw + x];
-      if (alpha >= minAlpha) return true;
-    }
-  }
-  return false;
+  return isWorldPointOnOpaquePixelValue(tile, wx, wy, {
+    tileSize: TILE_SIZE,
+    radius,
+    minAlpha,
+  });
 }
 
 function getPlacedTiles() {
@@ -8211,48 +7673,8 @@ function setStatus(message, warn = false) {
   statusEl.classList.toggle("warn", warn);
 }
 
-function normalizeAngle(value) {
-  const normalized = value % 360;
-  return normalized < 0 ? normalized + 360 : normalized;
-}
-
 function getOpaqueBounds(image) {
-  const canvas = document.createElement("canvas");
-  canvas.width = image.width;
-  canvas.height = image.height;
-
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(image, 0, 0);
-
-  const { data, width, height } = ctx.getImageData(0, 0, image.width, image.height);
-
-  let minX = width;
-  let minY = height;
-  let maxX = 0;
-  let maxY = 0;
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const alpha = data[(y * width + x) * 4 + 3];
-      if (alpha < 24) continue;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-  }
-
-  const boundWidth = maxX - minX;
-  const boundHeight = maxY - minY;
-  const radius = (Math.max(boundWidth, boundHeight) / image.width) * (TILE_SIZE / 2);
-
-  return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    radius: Math.max(radius, TILE_SIZE * 0.3),
-  };
+  return getOpaqueBoundsValue(image, TILE_SIZE);
 }
 
 function getAutoBuildHistoryKey(activeRegularTiles) {
@@ -8318,151 +7740,20 @@ function getAutoBuildLayoutSignature(regularTiles, entranceTile) {
 }
 
 function getAlphaMask(image) {
-  const canvas = document.createElement("canvas");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(image, 0, 0);
-  const { data, width, height } = ctx.getImageData(0, 0, image.width, image.height);
-  const alpha = new Uint8Array(width * height);
-  for (let i = 0; i < alpha.length; i += 1) {
-    alpha[i] = data[i * 4 + 3];
-  }
-  return { width, height, alpha };
+  return getAlphaMaskValue(image);
 }
 
 function getFaceGeometry(image, sideCount) {
-  const canvas = document.createElement("canvas");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(image, 0, 0);
-  const { data, width, height } = ctx.getImageData(0, 0, image.width, image.height);
-
-  const cx = width / 2;
-  const cy = height / 2;
-  const maxRadius = Math.hypot(width, height);
-  const step = (Math.PI * 2) / sideCount;
-  const scaleX = TILE_SIZE / width;
-  const scaleY = TILE_SIZE / height;
-
-  const points = [];
-  for (let i = 0; i < sideCount; i += 1) {
-    const angle = (i + 0.5) * step;
-    const radius = traceOpaqueRadius(data, width, height, cx, cy, angle, maxRadius);
-    points.push({
-      x: Math.cos(angle) * radius * scaleX,
-      y: Math.sin(angle) * radius * scaleY,
-    });
-  }
-
-  const normals = [];
-  let sideSum = 0;
-  let offsetSum = 0;
-
-  for (let i = 0; i < sideCount; i += 1) {
-    const prev = points[(i - 1 + sideCount) % sideCount];
-    const curr = points[i];
-    const next = points[(i + 1) % sideCount];
-    const tx = next.x - prev.x;
-    const ty = next.y - prev.y;
-    const tLen = Math.hypot(tx, ty) || 1;
-    let nx = ty / tLen;
-    let ny = -tx / tLen;
-
-    if (curr.x * nx + curr.y * ny < 0) {
-      nx = -nx;
-      ny = -ny;
-    }
-
-    normals.push({ nx, ny });
-    sideSum += Math.hypot(next.x - curr.x, next.y - curr.y);
-    offsetSum += curr.x * nx + curr.y * ny;
-  }
-
-  return {
-    points,
-    normals,
-    avgSideLength: sideSum / sideCount,
-    avgOffset: offsetSum / sideCount,
-  };
-}
-
-function traceOpaqueRadius(data, width, height, cx, cy, angle, maxRadius) {
-  const dx = Math.cos(angle);
-  const dy = Math.sin(angle);
-  let lastOpaque = 0;
-
-  for (let r = 0; r <= maxRadius; r += 0.5) {
-    const x = Math.round(cx + dx * r);
-    const y = Math.round(cy + dy * r);
-    if (x < 0 || y < 0 || x >= width || y >= height) break;
-    const alpha = data[(y * width + x) * 4 + 3];
-    if (alpha >= 24) {
-      lastOpaque = r;
-    } else if (r > 0) {
-      break;
-    }
-  }
-
-  return lastOpaque;
-}
-
-function shuffle(arr) {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function dist(a, b) {
-  const dx = a.px - b.px;
-  const dy = a.py - b.py;
-  return Math.hypot(dx, dy);
+  return getFaceGeometryValue(image, sideCount, TILE_SIZE);
 }
 
 function hasAnyOverlap(tile, otherTiles) {
-  const tileGeometry = getTilePoseGeometry(tile);
-  const tilePoly = tileGeometry.overlapPolygon;
-  const tileBounds = tileGeometry.overlapBounds;
-  for (const other of otherTiles) {
-    const otherGeometry = getTilePoseGeometry(other);
-    const otherPoly = otherGeometry.overlapPolygon;
-    const otherBounds = otherGeometry.overlapBounds;
-    if (!boundsOverlap(tileBounds, otherBounds)) continue;
-    if (pointInPolygonStrict({ x: tile.x, y: tile.y }, otherPoly)) return true;
-    if (pointInPolygonStrict({ x: other.x, y: other.y }, tilePoly)) return true;
-    if (polygonsOverlap(tilePoly, otherPoly)) return true;
-  }
-  return false;
-}
-
-function getPolygonBounds(poly) {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (const point of poly || []) {
-    if (point.x < minX) minX = point.x;
-    if (point.x > maxX) maxX = point.x;
-    if (point.y < minY) minY = point.y;
-    if (point.y > maxY) maxY = point.y;
-  }
-  return { minX, minY, maxX, maxY };
-}
-
-function boundsOverlap(a, b) {
-  if (!a || !b) return false;
-  return a.minX < b.maxX
-    && a.maxX > b.minX
-    && a.minY < b.maxY
-    && a.maxY > b.minY;
+  return hasAnyOverlapValue(tile, otherTiles, {
+    getTilePoseGeometry,
+    boundsOverlap,
+    pointInPolygonStrict,
+    polygonsOverlap,
+  });
 }
 
 function tilesAlphaOverlap(a, b) {
@@ -8506,69 +7797,6 @@ function getOverlapWorldPolygon(tile, insetPx = OVERLAP_POLYGON_INSET_PX) {
     return getTilePoseGeometry(tile).overlapPolygon;
   }
   return buildInsetPolygon(tile, getWorldPolygon(tile), insetPx);
-}
-
-function polygonsOverlap(polyA, polyB) {
-  for (let i = 0; i < polyA.length; i += 1) {
-    const a1 = polyA[i];
-    const a2 = polyA[(i + 1) % polyA.length];
-    for (let j = 0; j < polyB.length; j += 1) {
-      const b1 = polyB[j];
-      const b2 = polyB[(j + 1) % polyB.length];
-      if (segmentsIntersectStrict(a1, a2, b1, b2)) return true;
-    }
-  }
-
-  if (pointInPolygonStrict(polyA[0], polyB)) return true;
-  if (pointInPolygonStrict(polyB[0], polyA)) return true;
-  return false;
-}
-
-function segmentsIntersectStrict(a, b, c, d) {
-  const o1 = orient(a, b, c);
-  const o2 = orient(a, b, d);
-  const o3 = orient(c, d, a);
-  const o4 = orient(c, d, b);
-  const eps = 1e-6;
-
-  const s1 = Math.sign(Math.abs(o1) < eps ? 0 : o1);
-  const s2 = Math.sign(Math.abs(o2) < eps ? 0 : o2);
-  const s3 = Math.sign(Math.abs(o3) < eps ? 0 : o3);
-  const s4 = Math.sign(Math.abs(o4) < eps ? 0 : o4);
-
-  // Strict crossing only; shared endpoints/collinear touch doesn't count as overlap.
-  return s1 !== s2 && s3 !== s4 && s1 !== 0 && s2 !== 0 && s3 !== 0 && s4 !== 0;
-}
-
-function orient(a, b, c) {
-  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-}
-
-function pointInPolygonStrict(p, poly) {
-  if (pointOnPolygonEdge(p, poly)) return false;
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
-    const pi = poly[i];
-    const pj = poly[j];
-    const intersects =
-      ((pi.y > p.y) !== (pj.y > p.y)) &&
-      p.x < ((pj.x - pi.x) * (p.y - pi.y)) / ((pj.y - pi.y) || 1e-9) + pi.x;
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}
-
-function pointOnPolygonEdge(p, poly) {
-  const eps = 1e-6;
-  for (let i = 0; i < poly.length; i += 1) {
-    const a = poly[i];
-    const b = poly[(i + 1) % poly.length];
-    const cross = orient(a, b, p);
-    if (Math.abs(cross) > eps) continue;
-    const dot = (p.x - a.x) * (p.x - b.x) + (p.y - a.y) * (p.y - b.y);
-    if (dot <= eps) return true;
-  }
-  return false;
 }
 
 function getCachedDragPlacementResult(tile, placedTiles, candidateX, candidateY) {

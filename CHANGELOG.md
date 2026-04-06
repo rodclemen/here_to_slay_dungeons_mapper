@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-06
+- Continued the `app.js` split into browser-native modules without introducing a build step: extracted board math, board interaction helpers, board visual helpers, shared geometry utilities, guide-point helpers, tile pose/overlap helpers, tile asset geometry extraction, and contact-analysis logic into focused files under `modules/`, leaving `app.js` with less pure math and more of the remaining stateful app flow.
 - Optimized hot paths before the refactor: drag-placement feedback now coalesces to one `requestAnimationFrame` update with per-drag snapped-position caching instead of re-running full placement analysis on every raw pointer move, and tile image loading/readiness checks now run in parallel so startup and tile-set switching spend less time waiting on serialized asset work.
 - Started breaking `app.js` into focused browser modules without adding a build step: extracted asset/readiness helpers into `modules/assets.js`, share/export serialization into `modules/share-export.js`, wall-editor storage and sanitization into `modules/wall-storage.js`, and boss-pile source/order helpers into `modules/boss-pile.js`, leaving the stateful UI flows in `app.js` while removing a large chunk of pure utility logic from the main file.
 - Refreshed tracked project artwork alongside the refactor by committing updated `Graphics/about_banner.png`, `Graphics/getting_started.png`, and `Graphics/mapper_logo.png` assets so the repo now includes the latest guide and collapsed-logo imagery already in local use.
