@@ -18,6 +18,7 @@ const ENTRANCE_BLOCKED_FACE_INDICES = new Set([11, 12]);
 const BLOCKED_POINT_TOUCH_RADIUS = 4;
 const WALL_OVERRIDES_STORAGE_KEY = "hts_wall_overrides_v1";
 const END_TILE_OVERRIDES_STORAGE_KEY = "hts_end_tile_overrides_v1";
+const PORTAL_FLAG_OVERRIDES_STORAGE_KEY = "hts_portal_flag_overrides_v1";
 const GUIDE_POINT_TEMPLATES_STORAGE_KEY = "hts_guide_point_templates_v1";
 const DEFAULT_GUIDE_POINT_TEMPLATES = {
   regular: [
@@ -288,6 +289,7 @@ const exportWallDataBtn = document.getElementById("export-wall-data-btn");
 const importWallDataBtn = document.getElementById("import-wall-data-btn");
 const importWallDataInput = document.getElementById("import-wall-data-input");
 const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
+const togglePortalFlagsCheckbox = document.getElementById("toggle-portal-flags-checkbox");
 const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-contact-checkbox");
 const toggleFaceFeedbackCheckbox = document.getElementById("toggle-face-feedback-checkbox");
 const toggleAllBossesCheckbox = document.getElementById("toggle-all-bosses-checkbox");
@@ -328,9 +330,11 @@ const state = {
   tileDefs: [],
   showGuideLabels: false,
   showWallFaces: false,
+  showPortalFlags: false,
   wallEditMode: false,
   wallOverrides: loadWallOverrides(),
   endTileOverrides: loadEndTileOverrides(),
+  portalFlagOverrides: loadPortalFlagOverrides(),
   guidePointTemplateOverrides: loadGuidePointTemplateOverrides(),
   wallEditorTileRefs: new Map(),
   wallEditorActiveTileSetId: null,
@@ -457,6 +461,7 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
       apothem: faceGeometry.avgOffset,
       wallFaceSet: new Set(getStoredWallFaces(tileSetId, def.tileId)),
       allowAsEndTile: getStoredAllowAsEndTile(tileSetId, def.tileId),
+      portalFlag: getStoredPortalFlag(tileSetId, def.tileId),
     });
   }
 }
@@ -885,6 +890,16 @@ function bindGlobalControls() {
     toggleWallsCheckbox.addEventListener("change", () => {
       state.showWallFaces = toggleWallsCheckbox.checked;
       document.body.classList.toggle("show-wall-faces", state.showWallFaces);
+    });
+  }
+  if (togglePortalFlagsCheckbox) {
+    togglePortalFlagsCheckbox.checked = state.showPortalFlags;
+    togglePortalFlagsCheckbox.addEventListener("change", () => {
+      state.showPortalFlags = togglePortalFlagsCheckbox.checked;
+      document.body.classList.toggle("show-portal-flags", state.showPortalFlags);
+      for (const tile of state.tiles.values()) {
+        syncTilePortalFlag(tile);
+      }
     });
   }
   if (toggleIgnoreContactCheckbox) {
@@ -3153,6 +3168,7 @@ async function loadAutoBuildTileRecord(def) {
     apothem: faceGeometry.avgOffset,
     wallFaceSet: new Set(getStoredWallFaces(def.tileSetId, def.tileId)),
     allowAsEndTile: getStoredAllowAsEndTile(def.tileSetId, def.tileId),
+    portalFlag: getStoredPortalFlag(def.tileSetId, def.tileId),
   };
 }
 
@@ -3350,7 +3366,8 @@ async function autoBuildSelectedTiles(options = {}) {
     placedSignature,
   ) => {
     const enforceEnd = options?.enforceEndTileRule ? 1 : 0;
-    const key = `${placedSignature}|${tile.tileId}|${tile.rotation}|${roundForCache(x)},${roundForCache(y)}|e:${enforceEnd}`;
+    const enforcePortal = options?.enforcePortalSpacing ? 1 : 0;
+    const key = `${placedSignature}|${tile.tileId}|${tile.rotation}|${roundForCache(x)},${roundForCache(y)}|e:${enforceEnd}|p:${enforcePortal}`;
     const cached = placementEvalCache.get(key);
     if (cached) return cached;
     const result = evaluatePlacementAt(tile, placedTiles, x, y, options);
@@ -3362,7 +3379,11 @@ async function autoBuildSelectedTiles(options = {}) {
     Array.from({ length: 360 / ROTATION_STEP }, (_, idx) => idx * ROTATION_STEP),
   );
 
-  const getPlacementCandidates = (tile, placedTiles, placedSignature) => {
+  const getPlacementCandidates = (tile, placedTiles, placedSignature, options = {}) => {
+    const placementOptions = {
+      enforceEndTileRule: true,
+      enforcePortalSpacing: Boolean(options.enforcePortalSpacing),
+    };
     const candidates = [];
     const seen = new Set();
     const anchors = shuffle([...placedTiles]);
@@ -3379,7 +3400,7 @@ async function autoBuildSelectedTiles(options = {}) {
         placedTiles,
         candidateX,
         candidateY,
-        { enforceEndTileRule: true },
+        placementOptions,
         placedSignature,
       );
       if (!placement.valid || placement.overlaps) return;
@@ -3416,13 +3437,13 @@ async function autoBuildSelectedTiles(options = {}) {
             Math.max(SNAP_SEARCH_RADIUS * 8, 224),
             true,
             {
-              enforceEndTileRule: true,
+              ...placementOptions,
               evalFn: (cx, cy) => evaluatePlacementAtCached(
                 tile,
                 placedTiles,
                 cx,
                 cy,
-                { enforceEndTileRule: true },
+                placementOptions,
                 placedSignature,
               ),
             },
@@ -3575,7 +3596,8 @@ async function autoBuildSelectedTiles(options = {}) {
     return rankedCandidates;
   };
 
-  const tryBuildLayout = () => {
+  const tryBuildLayout = (options = {}) => {
+    placementEvalCache.clear();
     for (const tile of activeRegularTiles) {
       clearInvalidReturnTimer(tile);
       tile.placed = false;
@@ -3595,7 +3617,7 @@ async function autoBuildSelectedTiles(options = {}) {
 
       for (const rotation of getRotationOptions()) {
         tile.rotation = normalizeAngle(rotation);
-        const candidates = getPlacementCandidates(tile, placedTiles, placedSignature);
+        const candidates = getPlacementCandidates(tile, placedTiles, placedSignature, options);
         if (!candidates.length) continue;
 
         const bestScore = candidates[0].layoutScore;
@@ -3632,25 +3654,32 @@ async function autoBuildSelectedTiles(options = {}) {
     return placeAtIndex(0, 0);
   };
 
-  const completedLayouts = [];
-  const seenCompletedSignatures = new Set();
-  let chosenSignature = "";
-  const searchDeadline = performance.now() + searchProfile.completionTimeBudgetMs;
-  const maxCompletionAttempts = Math.min(AUTO_BUILD_MAX_ATTEMPTS, searchProfile.maxCompletionAttempts);
-  for (let attempt = 0; attempt < maxCompletionAttempts; attempt += 1) {
-    const buildResult = tryBuildLayout();
-    if (buildResult) {
-      const signature = getAutoBuildLayoutSignature(activeRegularTiles, entrance);
-      if (seenCompletedSignatures.has(signature)) continue;
-      seenCompletedSignatures.add(signature);
-      completedLayouts.push({
-        signature,
-        isRecentShape: recentShapeHistory.includes(signature),
-        placementScoreTotal: buildResult.placementScoreTotal,
-        metrics: analyzeAutoBuildCompletedLayout(activeRegularTiles, entrance),
-        tileState: captureAutoBuildCandidateState(activeRegularTiles),
-      });
-      if (completedLayouts.length >= searchProfile.targetCompletedLayouts) break;
+  const collectCompletedLayouts = (options = {}) => {
+    const completedLayouts = [];
+    const seenCompletedSignatures = new Set();
+    const searchDeadline = performance.now() + searchProfile.completionTimeBudgetMs;
+    const maxCompletionAttempts = Math.min(AUTO_BUILD_MAX_ATTEMPTS, searchProfile.maxCompletionAttempts);
+    for (let attempt = 0; attempt < maxCompletionAttempts; attempt += 1) {
+      const buildResult = tryBuildLayout(options);
+      if (buildResult) {
+        const signature = getAutoBuildLayoutSignature(activeRegularTiles, entrance);
+        if (seenCompletedSignatures.has(signature)) continue;
+        seenCompletedSignatures.add(signature);
+        completedLayouts.push({
+          signature,
+          isRecentShape: recentShapeHistory.includes(signature),
+          placementScoreTotal: buildResult.placementScoreTotal,
+          metrics: analyzeAutoBuildCompletedLayout(activeRegularTiles, entrance),
+          tileState: captureAutoBuildCandidateState(activeRegularTiles),
+        });
+        if (completedLayouts.length >= searchProfile.targetCompletedLayouts) break;
+        if (
+          completedLayouts.length >= searchProfile.minCompletedLayouts
+          && performance.now() >= searchDeadline
+        ) {
+          break;
+        }
+      }
       if (
         completedLayouts.length >= searchProfile.minCompletedLayouts
         && performance.now() >= searchDeadline
@@ -3658,15 +3687,18 @@ async function autoBuildSelectedTiles(options = {}) {
         break;
       }
     }
-    if (
-      completedLayouts.length >= searchProfile.minCompletedLayouts
-      && performance.now() >= searchDeadline
-    ) {
-      break;
-    }
-  }
+    return completedLayouts;
+  };
 
-  const chosenLayout = chooseAutoBuildCompletedLayout(completedLayouts, tuning);
+  const hasPortalTiles = activeRegularTiles.some((tile) => hasPortalFlag(tile));
+  let portalSpacingRelaxed = false;
+  let completedLayouts = collectCompletedLayouts({ enforcePortalSpacing: hasPortalTiles });
+  let chosenLayout = chooseAutoBuildCompletedLayout(completedLayouts, tuning);
+  if (!chosenLayout && hasPortalTiles) {
+    completedLayouts = collectCompletedLayouts({ enforcePortalSpacing: false });
+    chosenLayout = chooseAutoBuildCompletedLayout(completedLayouts, tuning);
+    portalSpacingRelaxed = Boolean(chosenLayout);
+  }
   if (!chosenLayout) {
     restoreOriginalState();
     if (showStatus) {
@@ -3674,7 +3706,7 @@ async function autoBuildSelectedTiles(options = {}) {
     }
     return { built: false, reason: "no_valid_layout" };
   }
-  chosenSignature = chosenLayout.signature;
+  const chosenSignature = chosenLayout.signature;
   applyAutoBuildCandidateState(activeRegularTiles, chosenLayout.tileState);
 
   for (const tile of activeRegularTiles) {
@@ -3691,7 +3723,10 @@ async function autoBuildSelectedTiles(options = {}) {
     pushAutoBuildHistory(autoBuildHistoryKey, chosenSignature);
   }
   if (showStatus) {
-    setStatus(`Auto build complete: selected tiles placed with valid contact rules${movedReferenceSide ? ". Reference card moved to side for visibility." : ""}.`);
+    const statusParts = ["Auto build complete: selected tiles placed with valid contact rules"];
+    if (movedReferenceSide) statusParts.push("Reference card moved to side for visibility");
+    if (portalSpacingRelaxed) statusParts.push("Portal spacing was relaxed to finish the layout");
+    setStatus(`${statusParts.join(". ")}.`);
   }
   if (spawnBoss) {
     spawnRandomBossAtReferenceTopMagnet({
@@ -5581,9 +5616,10 @@ function createTileElement(tile) {
   body.appendChild(createPlacementOverlay(tile));
   const guideOverlay = createTileGuideOverlay(tile);
   body.appendChild(guideOverlay);
-  tileEl.appendChild(body);
   tile.bodyDom = body;
   tile.guideDom = guideOverlay;
+  syncTilePortalFlag(tile);
+  tileEl.appendChild(body);
 
   if (tile.previewOnly) {
     return tileEl;
@@ -6347,6 +6383,19 @@ function loadEndTileOverrides() {
   }
 }
 
+function loadPortalFlagOverrides() {
+  try {
+    const raw = localStorage.getItem(PORTAL_FLAG_OVERRIDES_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return sanitizePortalFlagOverrides(parsed);
+  } catch (error) {
+    console.warn("Could not load portal flag overrides from storage.", error);
+    return {};
+  }
+}
+
 function saveWallOverrides() {
   try {
     localStorage.setItem(WALL_OVERRIDES_STORAGE_KEY, JSON.stringify(state.wallOverrides));
@@ -6360,6 +6409,14 @@ function saveEndTileOverrides() {
     localStorage.setItem(END_TILE_OVERRIDES_STORAGE_KEY, JSON.stringify(state.endTileOverrides));
   } catch (error) {
     console.warn("Could not save end-tile overrides to storage.", error);
+  }
+}
+
+function savePortalFlagOverrides() {
+  try {
+    localStorage.setItem(PORTAL_FLAG_OVERRIDES_STORAGE_KEY, JSON.stringify(state.portalFlagOverrides));
+  } catch (error) {
+    console.warn("Could not save portal flag overrides to storage.", error);
   }
 }
 
@@ -6377,6 +6434,32 @@ function getStoredAllowAsEndTile(tileSetId, tileId) {
   return true;
 }
 
+function sanitizePortalFlagPosition(input) {
+  if (!input || typeof input !== "object") return null;
+  const x = Number(input.x);
+  const y = Number(input.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const limit = TILE_SIZE * 0.5 - 8;
+  return {
+    x: clamp(x, -limit, limit),
+    y: clamp(y, -limit, limit),
+  };
+}
+
+function clonePortalFlag(flag) {
+  const sanitized = sanitizePortalFlagPosition(flag);
+  return sanitized ? { ...sanitized } : null;
+}
+
+function hasPortalFlag(tile) {
+  return Boolean(clonePortalFlag(tile?.portalFlag));
+}
+
+function getStoredPortalFlag(tileSetId, tileId) {
+  const tileSetOverrides = state.portalFlagOverrides?.[tileSetId];
+  return clonePortalFlag(tileSetOverrides?.[tileId] ?? null);
+}
+
 function exportWallOverridesBackup() {
   try {
     const payload = {
@@ -6384,6 +6467,7 @@ function exportWallOverridesBackup() {
       exportedAt: new Date().toISOString(),
       wallOverrides: state.wallOverrides,
       endTileOverrides: state.endTileOverrides,
+      portalFlagOverrides: state.portalFlagOverrides,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -6410,10 +6494,14 @@ async function importWallOverridesBackup(file) {
     const sanitized = sanitizeWallOverrides(migrateLegacyWallOverrides(raw));
     const endTileRaw = parsed?.endTileOverrides ?? {};
     const endTileSanitized = sanitizeEndTileOverrides(endTileRaw);
+    const portalFlagRaw = parsed?.portalFlagOverrides ?? {};
+    const portalFlagSanitized = sanitizePortalFlagOverrides(portalFlagRaw);
     state.wallOverrides = sanitized;
     state.endTileOverrides = endTileSanitized;
+    state.portalFlagOverrides = portalFlagSanitized;
     saveWallOverrides();
     saveEndTileOverrides();
+    savePortalFlagOverrides();
     syncSelectedTileSetWallsFromOverrides();
     if (state.wallEditMode) {
       await renderWallEditorPage();
@@ -6469,6 +6557,24 @@ function sanitizeEndTileOverrides(input) {
   return clean;
 }
 
+function sanitizePortalFlagOverrides(input) {
+  if (!input || typeof input !== "object") return {};
+  const clean = {};
+  for (const tileSet of TILE_SET_REGISTRY) {
+    const tileSetValue = input[tileSet.id];
+    if (!tileSetValue || typeof tileSetValue !== "object") continue;
+    const tileSetOut = {};
+    const defs = buildTileDefs(tileSet.id);
+    for (const def of defs) {
+      const value = sanitizePortalFlagPosition(tileSetValue[def.tileId]);
+      if (!value) continue;
+      tileSetOut[def.tileId] = value;
+    }
+    if (Object.keys(tileSetOut).length) clean[tileSet.id] = tileSetOut;
+  }
+  return clean;
+}
+
 function persistTileWallFaces(tileSetId, tileId, faceSet) {
   if (!state.wallOverrides[tileSetId]) state.wallOverrides[tileSetId] = {};
   const sorted = Array.from(faceSet).sort((a, b) => a - b);
@@ -6495,6 +6601,28 @@ function persistAllowAsEndTile(tileSetId, tileId, allowed) {
   if (tileSetId === state.selectedTileSetId) {
     const activeTile = state.tiles.get(tileId);
     if (activeTile) activeTile.allowAsEndTile = Boolean(allowed);
+  }
+}
+
+function persistPortalFlag(tileSetId, tileId, flag) {
+  const next = clonePortalFlag(flag);
+  if (next) {
+    if (!state.portalFlagOverrides[tileSetId]) state.portalFlagOverrides[tileSetId] = {};
+    state.portalFlagOverrides[tileSetId][tileId] = next;
+  } else if (state.portalFlagOverrides[tileSetId]) {
+    delete state.portalFlagOverrides[tileSetId][tileId];
+    if (!Object.keys(state.portalFlagOverrides[tileSetId]).length) {
+      delete state.portalFlagOverrides[tileSetId];
+    }
+  }
+  savePortalFlagOverrides();
+
+  if (tileSetId === state.selectedTileSetId) {
+    const activeTile = state.tiles.get(tileId);
+    if (activeTile) {
+      activeTile.portalFlag = clonePortalFlag(next);
+      syncTilePortalFlag(activeTile);
+    }
   }
 }
 
@@ -6706,6 +6834,95 @@ function beginGuidePointHandleDrag(tile, pointIndex, event) {
   window.addEventListener("pointercancel", handleUp);
 }
 
+function updateWallEditorPortalFlagTransform(tile) {
+  if (!tile?.portalFlagDom) return;
+  const portalFlag = clonePortalFlag(tile.portalFlag);
+  if (!portalFlag) return;
+  const left = 50 + (portalFlag.x / TILE_SIZE) * 100;
+  const top = 50 + (portalFlag.y / TILE_SIZE) * 100;
+  tile.portalFlagDom.style.left = `${left.toFixed(2)}%`;
+  tile.portalFlagDom.style.top = `${top.toFixed(2)}%`;
+}
+
+function createPortalFlagElement() {
+  const flag = document.createElement("div");
+  flag.className = "tile-portal-flag";
+  return flag;
+}
+
+function syncTilePortalFlag(tile, options = {}) {
+  if (!tile?.bodyDom) return;
+  const portalFlag = clonePortalFlag(tile.portalFlag);
+  if (!portalFlag) {
+    if (tile.portalFlagDom?.parentElement === tile.bodyDom) {
+      tile.bodyDom.removeChild(tile.portalFlagDom);
+    }
+    tile.portalFlagDom = null;
+    return;
+  }
+
+  if (!tile.portalFlagDom) {
+    const flag = createPortalFlagElement();
+    if (options.interactive) {
+      flag.classList.add("tile-portal-flag-interactive");
+      flag.title = "Portal flag. Drag to reposition.";
+      flag.addEventListener("pointerdown", (event) => beginWallEditorPortalFlagDrag(tile, event));
+    }
+    tile.portalFlagDom = flag;
+  }
+  if (tile.portalFlagDom.parentElement !== tile.bodyDom) {
+    tile.bodyDom.appendChild(tile.portalFlagDom);
+  }
+  updateWallEditorPortalFlagTransform(tile);
+}
+
+function syncWallEditorPortalFlag(tile) {
+  syncTilePortalFlag(tile, { interactive: true });
+}
+
+function beginWallEditorPortalFlagDrag(tile, event) {
+  if (event.button !== 0) return;
+  const bodyRect = tile.bodyDom?.getBoundingClientRect();
+  if (!bodyRect) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  setActiveWallEditorTile(tile.tileSetId, tile.tileId);
+
+  const applyPointerPosition = (clientX, clientY) => {
+    const localX = clamp(clientX - bodyRect.left, 0, bodyRect.width);
+    const localY = clamp(clientY - bodyRect.top, 0, bodyRect.height);
+    tile.portalFlag = sanitizePortalFlagPosition({
+      x: ((localX / bodyRect.width) - 0.5) * TILE_SIZE,
+      y: ((localY / bodyRect.height) - 0.5) * TILE_SIZE,
+    });
+    syncWallEditorPortalFlag(tile);
+  };
+
+  const cleanup = () => {
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+    window.removeEventListener("pointercancel", handleUp);
+  };
+
+  const handleMove = (moveEvent) => {
+    applyPointerPosition(moveEvent.clientX, moveEvent.clientY);
+  };
+
+  const handleUp = () => {
+    cleanup();
+    persistPortalFlag(tile.tileSetId, tile.tileId, tile.portalFlag);
+    setStatus(
+      `${getTileSetConfig(tile.tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag moved.`,
+    );
+  };
+
+  applyPointerPosition(event.clientX, event.clientY);
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+  window.addEventListener("pointercancel", handleUp);
+}
+
 function getWallEditorGroupById(groupId) {
   return WALL_EDITOR_GROUPS.find((group) => group.id === groupId) || WALL_EDITOR_GROUPS[0];
 }
@@ -6721,7 +6938,7 @@ async function renderWallEditorPage() {
   wallEditorPage.innerHTML = "";
   const intro = document.createElement("div");
   intro.className = "wall-editor-intro";
-  intro.textContent = "Wall Editor: click face segments to toggle wall ON/OFF. Drag point handles on Entrance or Tile 01 to edit the shared guide templates. Use End Tile toggle to allow/disallow endpoint placement. Saved per tile set + tile.";
+  intro.textContent = "Wall Editor: click face segments to toggle wall ON/OFF. Drag point handles on Entrance or Tile 01 to edit the shared guide templates. Use End Tile toggle to allow/disallow endpoint placement. Use Portal Flag to mark portal tiles and drag the red flag to its spot on the art. Saved per tile set + tile.";
   wallEditorPage.appendChild(intro);
 
   const toolbar = document.createElement("div");
@@ -6827,6 +7044,7 @@ async function buildWallEditorTileSetPanel(tileSet) {
         faceGeometry,
         wallFaceSet: new Set(getStoredWallFaces(tileSet.id, def.tileId)),
         allowAsEndTile: getStoredAllowAsEndTile(tileSet.id, def.tileId),
+        portalFlag: getStoredPortalFlag(tileSet.id, def.tileId),
       };
       const tileEl = createWallEditorTileElement(tileSet.id, tile);
       tray.appendChild(tileEl);
@@ -6875,6 +7093,7 @@ function createWallEditorTileElement(tileSetId, tile) {
   tile.bodyDom = body;
   tile.guideDom = guideOverlay;
   tileEl.appendChild(body);
+  syncWallEditorPortalFlag(tile);
 
   const endToggle = document.createElement("button");
   endToggle.type = "button";
@@ -6903,9 +7122,43 @@ function createWallEditorTileElement(tileSetId, tile) {
   syncEndToggle();
   tileEl.appendChild(endToggle);
 
+  const portalToggle = document.createElement("button");
+  portalToggle.type = "button";
+  portalToggle.className = "wall-portal-flag-toggle";
+  const syncPortalToggle = () => {
+    const enabled = hasPortalFlag(tile);
+    portalToggle.classList.toggle("is-on", enabled);
+    portalToggle.setAttribute("aria-pressed", String(enabled));
+    portalToggle.textContent = enabled ? "Portal Flag: ON" : "Portal Flag: OFF";
+  };
+  portalToggle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  portalToggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    assignActive();
+    tile.portalFlag = hasPortalFlag(tile) ? null : { x: 0, y: 0 };
+    persistPortalFlag(tileSetId, tile.tileId, tile.portalFlag);
+    syncWallEditorPortalFlag(tile);
+    syncPortalToggle();
+    setStatus(
+      hasPortalFlag(tile)
+        ? `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: ON. Drag the red flag to position it.`
+        : `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: OFF.`,
+    );
+  });
+  syncPortalToggle();
+  tileEl.appendChild(portalToggle);
+
   const assignActive = () => setActiveWallEditorTile(tileSetId, tile.tileId);
   tileEl.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    if (event.target.closest(".tile-portal-flag")) {
+      assignActive();
+      return;
+    }
     const faceHit = event.target.closest(".tile-guide-face-hit");
     assignActive();
     if (!faceHit) return;
@@ -6943,8 +7196,10 @@ function syncSelectedTileSetWallsFromOverrides() {
   for (const tile of state.tiles.values()) {
     tile.wallFaceSet = new Set(getStoredWallFaces(state.selectedTileSetId, tile.tileId));
     tile.allowAsEndTile = getStoredAllowAsEndTile(state.selectedTileSetId, tile.tileId);
+    tile.portalFlag = getStoredPortalFlag(state.selectedTileSetId, tile.tileId);
     clearTileGeometryCache(tile);
     refreshTileWallGuide(tile);
+    syncTilePortalFlag(tile);
   }
 }
 
@@ -7429,6 +7684,17 @@ function getInvalidContactReason(result) {
   return "Need at least 2 connected faces total (4 points).";
 }
 
+function getConnectedPortalNeighbors(tile, otherTiles) {
+  if (!hasPortalFlag(tile)) return [];
+  const connected = [];
+  for (const other of otherTiles || []) {
+    if (!hasPortalFlag(other)) continue;
+    const match = getContactMatchDetails(tile, other);
+    if (match.count > 0) connected.push(other);
+  }
+  return connected;
+}
+
 function countSideContacts(a, b) {
   return getContactMatchDetails(a, b).count;
 }
@@ -7638,15 +7904,21 @@ function evaluatePlacementAt(tile, otherTiles, x, y, options = {}) {
   const oldY = tile.y;
   positionTile(tile, x, y);
   const contact = findBestContact(tile, otherTiles, options);
+  const connectedPortalNeighbors = options.enforcePortalSpacing
+    ? getConnectedPortalNeighbors(tile, otherTiles)
+    : [];
+  const portalConflict = connectedPortalNeighbors.length > 0;
   const touchingFaceIndices = getTouchingFaceIndices(tile, otherTiles);
   const overlaps = hasAnyOverlap(tile, otherTiles);
   positionTile(tile, oldX, oldY);
   return {
-    valid: contact.valid,
+    valid: contact.valid && !portalConflict,
     count: contact.count,
     overlaps,
     faceIndices: contact.faceIndices || [],
     touchingFaceIndices,
+    portalConflict,
+    portalConflictTileIds: connectedPortalNeighbors.map((other) => other.tileId),
   };
 }
 

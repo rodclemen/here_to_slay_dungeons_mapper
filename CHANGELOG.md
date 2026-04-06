@@ -1,6 +1,10 @@
 # Changelog
 
 ## 2026-04-06
+- Added per-tile portal flags in Wall Editor: tiles can now be marked with a draggable red portal marker saved per tile set + tile, included in the wall-editor debug import/export data, and intended for Dreamscape/Nightmare portal tiles or similar special-case gameplay tags.
+- Added portal-spacing logic to Auto Build so portal-flagged tiles avoid direct portal-to-portal adjacency when possible; if no full layout can be completed under that restriction, the solver automatically retries with portal spacing relaxed and reports that fallback in the status text.
+- Added an `Advanced Tools` visibility toggle for portal markers so flagged tiles can be shown on normal board/tray tiles for verification without making the markers permanently visible outside Wall Editor.
+- Session note: Added one tiny red flag and accidentally promoted it to a full-blown tile metadata system.
 - Added shareable layout links to Quick Actions: `Copy Share Link` now serializes the current build into a URL and restores it on load, including the selected tile set, entrance state, placed tile positions/rotations, tray/reserve ordering, reference-card placement, boss tokens, and board zoom/pan.
 - Fixed shared-layout restore so the reference card and boss tokens are rebuilt correctly from link data by adding a dedicated reference-marker placement path instead of falling through a missing helper during restore.
 - Updated `README.md` and the guide to document what shared links actually include, corrected the stale README limitation text that still said layouts were session-only, and added an explicit unofficial-project / game-asset ownership disclaimer covering non-affiliation, asset ownership, and no prior permission.
