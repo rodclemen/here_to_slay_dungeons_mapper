@@ -17,6 +17,7 @@
 - Updated the Wall Edit section in `README.md` to better explain endpoint tiles, non-adjacent portal handling, and shared `Tile 01` guide points in plain language.
 - Added `docs/custom-tileset-plan.md`, a step-by-step implementation plan for future custom tileset support covering zip package structure, IndexedDB storage, merged runtime registry work, named custom dropdown entries, wall-editor data import/export, delete support, and later documentation/share-link handling.
 - Session note: Discovered that “just one more small Wall Editor tweak” is how a perfectly normal afternoon becomes a product roadmap.
+- Replaced the Wall Editor portal marker with the new `icons/portal.png` asset instead of the old CSS-built flag, updated the README and in-app Wall Editor text to call it a portal marker rather than a red flag, added a bright yellow glow plus white outline for readability, and reduced the filter stack while dragging so the marker no longer ghosts badly during repositioning.
 
 ## 2026-04-06
 - Continued the `app.js` split into browser-native modules without introducing a build step: extracted board math, board interaction helpers, board visual helpers, shared geometry utilities, guide-point helpers, tile pose/overlap helpers, tile asset geometry extraction, and contact-analysis logic into focused files under `modules/`, leaving `app.js` with less pure math and more of the remaining stateful app flow.

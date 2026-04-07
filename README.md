@@ -153,7 +153,7 @@ How to edit a tile:
 1. Click any tile to make it the active tile.
 2. Click a highlighted face segment on the tile to toggle that face between wall and non-wall.
 3. Use `End Tile: ON/OFF` to decide whether that tile is allowed to be used as a dungeon endpoint during auto-build.
-4. Use `Portal Flag: ON/OFF` to add or remove portal metadata for that tile. This is not directional data; it simply marks the tile as a portal tile so auto-build can avoid portal-to-portal adjacency. When enabled, drag the red flag to the correct spot on the tile art.
+4. Use `Portal Flag: ON/OFF` to add or remove portal metadata for that tile. This is not directional data; it simply marks the tile as a portal tile so auto-build can avoid portal-to-portal adjacency. When enabled, drag the portal marker to the correct spot on the tile art.
 
 Guide template editing:
 

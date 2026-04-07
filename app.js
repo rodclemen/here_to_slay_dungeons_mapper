@@ -6486,6 +6486,7 @@ function beginWallEditorPortalFlagDrag(tile, event) {
   };
 
   const cleanup = () => {
+    tile.portalFlagDom?.classList.remove("is-dragging");
     window.removeEventListener("pointermove", handleMove);
     window.removeEventListener("pointerup", handleUp);
     window.removeEventListener("pointercancel", handleUp);
@@ -6503,6 +6504,7 @@ function beginWallEditorPortalFlagDrag(tile, event) {
     );
   };
 
+  tile.portalFlagDom?.classList.add("is-dragging");
   applyPointerPosition(event.clientX, event.clientY);
   window.addEventListener("pointermove", handleMove);
   window.addEventListener("pointerup", handleUp);
@@ -6530,7 +6532,7 @@ async function renderWallEditorPage() {
     Click face segments to toggle wall ON/OFF.<br />
     Drag point handles on <strong>Entrance</strong> or <strong>Tile 01</strong> to edit shared guide templates.<br />
     Use <strong>End Tile</strong> to allow or disallow endpoint placement.<br />
-    Use <strong>Portal Flag</strong> to mark portal tiles so auto-build avoids portal-to-portal adjacency when possible, then drag the red flag onto the art.<br />
+    Use <strong>Portal Flag</strong> to mark portal tiles so auto-build avoids portal-to-portal adjacency when possible, then drag the portal marker onto the art.<br />
     These settings will be added as defaults when the full game assets and final tile info are released.<br />
     For custom tiles, this page should still be useful for manual setup and tweaking.<br />
     Everything is saved per tile set + tile.
@@ -6741,7 +6743,7 @@ function createWallEditorTileElement(tileSetId, tile) {
     syncPortalToggle();
     setStatus(
       hasPortalFlag(tile)
-        ? `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: ON. Drag the red flag to position it.`
+        ? `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: ON. Drag the portal marker to position it.`
         : `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: OFF.`,
     );
   });
