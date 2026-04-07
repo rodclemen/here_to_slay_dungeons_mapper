@@ -6416,7 +6416,7 @@ async function renderWallEditorPage() {
     Click face segments to toggle wall ON/OFF.<br />
     Drag point handles on <strong>Entrance</strong> or <strong>Tile 01</strong> to edit shared guide templates.<br />
     Use <strong>End Tile</strong> to allow or disallow endpoint placement.<br />
-    Use <strong>Portal Flag</strong> to mark portal tiles, then drag the red flag onto the art.<br />
+    Use <strong>Portal Flag</strong> to mark portal tiles so auto-build avoids portal-to-portal adjacency when possible, then drag the red flag onto the art.<br />
     Everything is saved per tile set + tile.
   `;
   wallEditorPage.appendChild(intro);

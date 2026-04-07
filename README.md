@@ -135,7 +135,7 @@ What the page is for:
 
 - Mark which tile faces are treated as walls and therefore ignored by contact validation
 - Allow or disallow specific tiles as legal endpoint tiles
-- Mark portal tiles and place the red portal marker on the artwork
+- Mark portal tiles so auto-build can avoid placing two portal tiles next to each other, and place the red portal marker on the artwork
 - Edit shared guide-point templates for `Entrance` and `Tile 01`
 
 How the page is laid out:
@@ -151,7 +151,7 @@ How to edit a tile:
 1. Click any tile to make it the active tile.
 2. Click a highlighted face segment on the tile to toggle that face between wall and non-wall.
 3. Use `End Tile: ON/OFF` to decide whether that tile is allowed to be used as a dungeon endpoint during auto-build.
-4. Use `Portal Flag: ON/OFF` to add or remove a portal marker. When enabled, drag the red flag to the correct spot on the tile art.
+4. Use `Portal Flag: ON/OFF` to add or remove portal metadata for that tile. This is not directional data; it simply marks the tile as a portal tile so auto-build can avoid portal-to-portal adjacency. When enabled, drag the red flag to the correct spot on the tile art.
 
 Guide template editing:
 
@@ -172,6 +172,8 @@ Important behavior notes:
 - Wall editing is for tile metadata, not for building a dungeon layout
 - Auto Build is disabled while Wall Editor is open
 - Regular entrance placement rules still apply in normal build mode after you return to `Build View`
+
+Future Wall Editor planning notes live in [`docs/wall-editor-notes.md`](./docs/wall-editor-notes.md).
 
 ---
 

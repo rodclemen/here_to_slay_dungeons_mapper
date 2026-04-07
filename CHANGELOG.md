@@ -5,6 +5,8 @@
 - Added outer page spacing around the Wall Editor container so the full editor box no longer sits flush against the app edges.
 - Rewrote the Wall Editor intro copy into readable line-broken instructions with stronger emphasis on the key controls (`Entrance`, `Tile 01`, `End Tile`, and `Portal Flag`) so the page is easier to scan while editing.
 - Documented Wall Edit mode in `README.md`, including how to enter/exit the page, what each toolbar control does, how face toggles/end-tile/portal-flag editing works, how shared guide-point template editing behaves, and what the debug import/export actions save.
+- Added `docs/wall-editor-notes.md` as the planning home for future Wall Editor changes, capturing the current tile-set status: Dreamscape and Nightmare portal handling are already covered, Molten and Overgrown only need walls, and Submerged / Deep Freeze are waiting on official tile details before new controls are designed.
+- Corrected Wall Editor documentation text in both `README.md` and the in-app Wall Editor intro so portal flags are described accurately as non-directional portal metadata used to discourage portal-to-portal adjacency during auto-build, with the red flag remaining only a visual marker on the tile art.
 - Session note: Spent part of the day teaching a layout bug that “inside the panel” is not an abstract concept.
 
 ## 2026-04-06
