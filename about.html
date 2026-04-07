@@ -405,6 +405,7 @@
         <div class="eyebrow">Guide</div>
         <h1>Here to Slay DUNGEONS Mapper</h1>
         <p class="lead">This website is a dungeon layout builder for <em>Here to Slay: DUNGEONS</em>. It lets you place tiles on a hex board, test valid layouts, auto-generate complete dungeons, and add bosses before needing to wrestle with the physical tiles.</p>
+        <p class="muted">The current tile, reference-card, and boss-card images should be treated as provisional stand-ins, not final released graphics. Right now the focus is on getting the rules, metadata, and overall framework solid so the official art can be swapped in cleanly as it becomes available.</p>
         <p class="muted">This page explains the user workflow, the important features, and the controls and shortcuts built into the mapper.</p>
         <p class="muted">This project was made by one person, not a full studio with a dedicated QA team. That means bugs, weird edge cases, and the occasional bit of nonsense are bound to slip through now and then. If you run into something odd or have a suggestion for making the mapper better, I’m always happy to hear it.<br />/Rod</p>
       </div>
@@ -425,6 +426,7 @@
       <div class="section-grid">
         <div>
           <p>When you open the mapper, the board sits in the middle, the tile tray is on the left, and the boss and feedback area is on the right. The entrance tile is placed automatically together with the dungeon reference card. The tool then selects six random dungeon tiles and keeps the remaining three in reserve.</p>
+          <p>The visual assets shown here are currently framework-first placeholders for ongoing development. As official graphics are finalized and released, they can be swapped into the existing structure without having to rebuild the placement logic around them.</p>
           <p>Your first job is simple: build a dungeon around the entrance tile. You can do that manually by dragging tiles from the tray, or you can let the Auto Build button do the heavy lifting.</p>
           <ul>
             <li>Choose a tile set from the top bar.</li>
@@ -713,6 +715,7 @@
       <h2>Known Issues</h2>
       <ul>
         <li>If you move a tile that is already placed and that tile was acting as a bridge between two parts of the dungeon, it is possible to leave behind a closed-off island of tiles. The mapper does not currently prevent that state. It is a known limitation, and for now the assumption is that the break is visually obvious enough that you can spot it and fix it manually.</li>
+        <li>The current tile, reference-card, and boss-card graphics are not final release assets. They are being used to prove out the framework now so the official art can be slotted in later with less rework.</li>
       </ul>
     </section>
 

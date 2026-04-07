@@ -129,6 +129,15 @@ body.tile-set-crossfading .app {
   font-size: inherit;
 }
 
+.topbar-brand .brand-beta {
+  display: inline-block;
+  margin-left: 10px;
+  color: #ff1f1f;
+  font: 900 0.72em/1 "Avenir Next", "Segoe UI", sans-serif;
+  letter-spacing: 0.12em;
+  vertical-align: middle;
+}
+
 .corner-logo {
   position: fixed;
   left: 14px;
@@ -1310,7 +1319,14 @@ body:not(.right-drawer-collapsed) .board-zoom-indicator {
   height: 51px !important;
   min-width: 51px !important;
   opacity: 1 !important;
-  transition: color 120ms ease;
+  color: inherit !important;
+  border: 1px solid var(--control-border) !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--surface-elevated) 55%, transparent) !important;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 6px 14px -10px rgba(20, 33, 42, 0.55) !important;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .icon-image-btn.board-auto-build-btn::before {
@@ -1331,7 +1347,14 @@ body:not(.right-drawer-collapsed) .board-zoom-indicator {
   height: 51px !important;
   min-width: 51px !important;
   opacity: 1 !important;
-  transition: color 120ms ease;
+  color: inherit !important;
+  border: 1px solid var(--control-border) !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--surface-elevated) 55%, transparent) !important;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 6px 14px -10px rgba(20, 33, 42, 0.55) !important;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .icon-image-btn.board-reset-btn::before {
@@ -1346,6 +1369,9 @@ body:not(.right-drawer-collapsed) .board-zoom-indicator {
 .icon-image-btn.board-reset-btn:hover,
 .icon-image-btn.board-reset-btn:focus-visible {
   color: var(--accent) !important;
+  border-color: var(--border-strong) !important;
+  background: color-mix(in srgb, var(--surface-elevated) 55%, transparent) !important;
+  box-shadow: 0 10px 18px -12px rgba(20, 33, 42, 0.65) !important;
 }
 
 .icon-image-btn.board-auto-build-btn:hover::before,

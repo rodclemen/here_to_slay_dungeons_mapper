@@ -46,6 +46,8 @@ Here to Slay DUNGEONS Mapper is a browser-based dungeon layout tool. It lets you
 
 It supports all six dungeon tile sets, and can generate random layouts with one click.
 
+The current tiles, reference cards, and boss cards should be treated as provisional stand-ins rather than final production graphics. The main goal right now is to get the layout rules, wall metadata, and overall framework into place so the official art can be swapped in cleanly as the remaining assets are released.
+
 The core problem it solves: **seeing the dungeon before you build it**. Whether you're planning a session, testing a specific tile arrangement, or just want a fresh random crawl, the mapper gets you there faster than shuffling cardboard.
 
 ---
@@ -359,6 +361,7 @@ Then open `http://localhost:8000` in your browser.
 - **No built-in save library yet.** Layouts can now be shared and restored through `Copy Share Link`, but the app still does not provide named local save slots or a layout browser.
 - **Bridge-tile disconnects are possible.** If you move a placed tile that was acting as a bridge between two parts of the dungeon, you can leave behind a disconnected island of tiles. The mapper does not currently prevent that state.
 - **Tile set readiness varies.** Not all six sets may have complete assets and wall data at any given time. The app audits readiness at startup and disables incomplete sets.
+- **Current art is not final.** The tile, reference-card, and boss-card graphics currently in use are placeholders or interim assets while official releases are still incomplete. The framework is being built now so final art can be dropped in later with minimal friction.
 - **Desktop-oriented.** The responsive layout adapts to smaller viewports, but the drag-and-drop interaction model is designed for mouse and pointer input.
 
 ---
@@ -371,6 +374,16 @@ Then open `http://localhost:8000` in your browser.
 - Layout gallery or history browser
 
 These are directions, not promises. The app does what it does well today.
+
+---
+
+## Licensing
+
+The source code in this repository is licensed under the MIT License. See `LICENSE`.
+
+Graphics and other non-code visual assets are licensed separately and are not covered by the code license. See `GRAPHICS_LICENSE.md`.
+
+In short: the code may be reused under the software license, but game graphics and other supplied art may not be reused commercially or outside this project without separate permission.
 
 ---
 

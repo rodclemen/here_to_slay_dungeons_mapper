@@ -2938,6 +2938,16 @@ function analyzeAutoBuildCompletedLayout(regularTiles, entranceTile) {
   const denseTileCount = contactFaceTotals.filter((count) => count >= 4).length;
   const crowdedHubCount = contactFaceTotals.filter((count, idx) => count >= 4 && degrees[idx] >= 3).length;
   const averageContactFaces = contactFaceTotals.reduce((sum, count) => sum + count, 0) / Math.max(contactFaceTotals.length, 1);
+  const maxDegree = degrees.length ? Math.max(...degrees) : 0;
+  const dominantHubDegreeThreshold = Math.max(3, allTiles.length - 3);
+  const dominantHubDegreeMetric = clamp((maxDegree - dominantHubDegreeThreshold + 1) / 3, 0, 1);
+  const starLeafMetric = clamp((leafCount - 3) / 3, 0, 1);
+  const dominantHubMetric = clamp(
+    dominantHubDegreeMetric * 0.72 + starLeafMetric * 0.52 + (crowdedHubCount > 0 ? 0.18 : 0),
+    0,
+    1,
+  );
+  const fullStarHubMetric = allTiles.length >= 4 && maxDegree >= allTiles.length - 1 ? 1 : 0;
 
   const width = Math.max(1, maxX - minX);
   const height = Math.max(1, maxY - minY);
@@ -2976,6 +2986,9 @@ function analyzeAutoBuildCompletedLayout(regularTiles, entranceTile) {
     denseTileCount,
     crowdedHubCount,
     averageContactFaces,
+    maxDegree,
+    dominantHubMetric,
+    fullStarHubMetric,
     avgRadius,
     maxRadius,
     diameter,
@@ -2995,6 +3008,8 @@ function scoreAutoBuildCompletedLayout(candidate, tuning = autoBuildDevTuning, s
   const branchBonus = branchBias * (metrics.branchMetric * 0.55 + metrics.leafinessMetric * 0.32);
   const clusterPenalty = metrics.clusterMetric * (0.85 + spreadBias * 0.55 + branchBias * 0.95);
   const hubPenalty = metrics.hubinessMetric * (0.35 + branchBias * 0.9);
+  const dominantHubPenalty = metrics.dominantHubMetric * (1.7 + spreadBias * 0.65 + (1 - branchBias) * 0.95);
+  const fullStarHubPenalty = metrics.fullStarHubMetric * (1.9 + spreadBias * 0.35 + branchBias * 0.55);
   const noveltyPenalty = candidate.isRecentShape ? searchProfile.recentShapePenalty : 0;
   return (
     spreadFit * 2.55
@@ -3004,6 +3019,8 @@ function scoreAutoBuildCompletedLayout(candidate, tuning = autoBuildDevTuning, s
     + branchBonus
     - clusterPenalty
     - hubPenalty
+    - dominantHubPenalty
+    - fullStarHubPenalty
     - noveltyPenalty
   );
 }

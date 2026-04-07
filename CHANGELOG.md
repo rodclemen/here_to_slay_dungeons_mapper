@@ -7,6 +7,9 @@
 - Documented Wall Edit mode in `README.md`, including how to enter/exit the page, what each toolbar control does, how face toggles/end-tile/portal-flag editing works, how shared guide-point template editing behaves, and what the debug import/export actions save.
 - Added `docs/wall-editor-notes.md` as the planning home for future Wall Editor changes, capturing the current tile-set status: Dreamscape and Nightmare portal handling are already covered, Molten and Overgrown only need walls, and Submerged / Deep Freeze are waiting on official tile details before new controls are designed.
 - Corrected Wall Editor documentation text in both `README.md` and the in-app Wall Editor intro so portal flags are described accurately as non-directional portal metadata used to discourage portal-to-portal adjacency during auto-build, with the red flag remaining only a visual marker on the tile art.
+- Added split licensing docs for code versus assets: created a root MIT `LICENSE`, a separate `GRAPHICS_LICENSE.md` for supplied/non-code visual assets, inserted a concise `README.md` licensing section, and added short folder-level notices in the tracked asset directories so graphics are not accidentally treated as MIT-licensed code.
+- Added a bright red `BETA` badge beside the front-page app title, clarified in the docs that the current tiles/reference cards/boss cards are provisional stand-ins while the framework is being built for later official-art swaps, and added boxed frosted-glass styling around the board `d20` and reset controls for better visibility over busy tile art.
+- Adjusted Auto Build completed-layout scoring to penalize dominant-hub clusters much more heavily, reducing layouts where most or all tiles hang off one central tile without making those shapes impossible.
 - Session note: Spent part of the day teaching a layout bug that “inside the panel” is not an abstract concept.
 
 ## 2026-04-06
