@@ -19,6 +19,7 @@ Plan your dungeon. Randomize the crawl. See every layout before you play.
 - [Highlights](#highlights)
 - [Feature Tour](#feature-tour)
 - [How To Use It](#how-to-use-it)
+- [Wall Edit Mode](#wall-edit-mode)
 - [Technical Blueprint](#technical-blueprint)
 - [Architecture Notes](#architecture-notes)
 - [Controls & Shortcuts](#controls--shortcuts)
@@ -123,6 +124,54 @@ Every tile set has paired light and dark UI themes — twelve total. Themes shif
 8. **Zoom and pan** with the scroll wheel and by dragging empty board space.
 
 9. **Press `X` to reset** all tiles back to the tray and clear boss tokens.
+
+---
+
+## Wall Edit Mode
+
+Wall Edit mode is the app's per-tile rules editor. Open `Advanced Tools` and click `Wall Editor` to switch from the normal board view into the wall editing page. The same button changes to `Build View` while active, which takes you back to the regular mapper.
+
+What the page is for:
+
+- Mark which tile faces are treated as walls and therefore ignored by contact validation
+- Allow or disallow specific tiles as legal endpoint tiles
+- Mark portal tiles and place the red portal marker on the artwork
+- Edit shared guide-point templates for `Entrance` and `Tile 01`
+
+How the page is laid out:
+
+- The top intro explains the current editing actions
+- `Tile Set Group` swaps between paired tile-set views so you can review multiple sets from one screen
+- `Point Edit: ON/OFF` enables guide-template handle editing
+- `Copy Guide Template JSON` exports the current shared guide-template data to the clipboard
+- Each panel below shows one tile set and all of its editable tiles
+
+How to edit a tile:
+
+1. Click any tile to make it the active tile.
+2. Click a highlighted face segment on the tile to toggle that face between wall and non-wall.
+3. Use `End Tile: ON/OFF` to decide whether that tile is allowed to be used as a dungeon endpoint during auto-build.
+4. Use `Portal Flag: ON/OFF` to add or remove a portal marker. When enabled, drag the red flag to the correct spot on the tile art.
+
+Guide template editing:
+
+- Turn on `Point Edit`
+- Edit `Entrance` or `Tile 01`
+- Drag the visible point handles to adjust the shared guide template
+- Changes propagate to tiles that consume those shared templates
+
+Persistence and debug tools:
+
+- Wall data, endpoint permissions, portal flags, and guide-template edits are saved per tile set + tile in local storage
+- `Clear Tile Walls` clears the wall-face list for the currently active tile
+- `Export Debug Walls` writes the current wall-editor override data to JSON
+- `Import Debug Walls` restores that JSON back into the app
+
+Important behavior notes:
+
+- Wall editing is for tile metadata, not for building a dungeon layout
+- Auto Build is disabled while Wall Editor is open
+- Regular entrance placement rules still apply in normal build mode after you return to `Build View`
 
 ---
 

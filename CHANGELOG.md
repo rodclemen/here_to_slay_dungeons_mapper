@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-04-07
+- Tightened the Wall Editor page layout so tile panels stop bleeding into adjacent panels: the wall editor container now behaves like the main scrollable content area, tray/panel wrappers can shrink correctly inside the grid, and horizontal spill is clipped at the panel level instead of overlapping neighboring tiles.
+- Added outer page spacing around the Wall Editor container so the full editor box no longer sits flush against the app edges.
+- Rewrote the Wall Editor intro copy into readable line-broken instructions with stronger emphasis on the key controls (`Entrance`, `Tile 01`, `End Tile`, and `Portal Flag`) so the page is easier to scan while editing.
+- Documented Wall Edit mode in `README.md`, including how to enter/exit the page, what each toolbar control does, how face toggles/end-tile/portal-flag editing works, how shared guide-point template editing behaves, and what the debug import/export actions save.
+- Session note: Spent part of the day teaching a layout bug that “inside the panel” is not an abstract concept.
+
 ## 2026-04-06
 - Continued the `app.js` split into browser-native modules without introducing a build step: extracted board math, board interaction helpers, board visual helpers, shared geometry utilities, guide-point helpers, tile pose/overlap helpers, tile asset geometry extraction, and contact-analysis logic into focused files under `modules/`, leaving `app.js` with less pure math and more of the remaining stateful app flow.
 - Optimized hot paths before the refactor: drag-placement feedback now coalesces to one `requestAnimationFrame` update with per-drag snapped-position caching instead of re-running full placement analysis on every raw pointer move, and tile image loading/readiness checks now run in parallel so startup and tile-set switching spend less time waiting on serialized asset work.

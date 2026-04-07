@@ -6411,7 +6411,14 @@ async function renderWallEditorPage() {
   wallEditorPage.innerHTML = "";
   const intro = document.createElement("div");
   intro.className = "wall-editor-intro";
-  intro.textContent = "Wall Editor: click face segments to toggle wall ON/OFF. Drag point handles on Entrance or Tile 01 to edit the shared guide templates. Use End Tile toggle to allow/disallow endpoint placement. Use Portal Flag to mark portal tiles and drag the red flag to its spot on the art. Saved per tile set + tile.";
+  intro.innerHTML = `
+    <strong>Wall Editor</strong><br />
+    Click face segments to toggle wall ON/OFF.<br />
+    Drag point handles on <strong>Entrance</strong> or <strong>Tile 01</strong> to edit shared guide templates.<br />
+    Use <strong>End Tile</strong> to allow or disallow endpoint placement.<br />
+    Use <strong>Portal Flag</strong> to mark portal tiles, then drag the red flag onto the art.<br />
+    Everything is saved per tile set + tile.
+  `;
   wallEditorPage.appendChild(intro);
 
   const toolbar = document.createElement("div");

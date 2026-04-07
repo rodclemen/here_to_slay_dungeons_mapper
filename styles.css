@@ -1048,18 +1048,28 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
 
 .wall-editor-page {
   display: none;
+  flex: 1 1 auto;
+  margin: 12px;
   border: 1px solid var(--wall-editor-border);
   border-radius: 14px;
   background: var(--wall-editor-bg);
   color: var(--control-text);
   padding: 12px;
   min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .wall-editor-intro {
   font-size: 0.86rem;
+  line-height: 1.55;
   color: var(--muted);
   margin-bottom: 10px;
+}
+
+.wall-editor-intro strong {
+  color: var(--ink);
 }
 
 .wall-editor-toolbar {
@@ -1111,6 +1121,7 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+  min-width: 0;
 }
 
 .tile-set-wall-panel {
@@ -1118,6 +1129,8 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.1);
   padding: 14px 16px 20px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .tile-set-wall-panel h3 {
@@ -1130,6 +1143,9 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 56px 10px;
   padding-bottom: 18px;
+  width: 100%;
+  min-width: 0;
+  align-items: start;
 }
 
 .tile-set-wall-note {
