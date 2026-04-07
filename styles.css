@@ -1079,6 +1079,8 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
 
 .wall-editor-intro strong {
   color: var(--ink);
+  font-size: calc(0.86rem + 5px);
+  font-weight: 500;
 }
 
 .wall-editor-toolbar {
@@ -2887,14 +2889,15 @@ body.wall-edit-mode .tile-controls {
   font-size: 0.8rem;
   line-height: 1;
   border: 1px solid var(--border-strong);
-  background: var(--surface-elevated);
-  color: var(--ink);
+  background: rgba(255, 255, 255, 0.82);
+  color: #000;
   z-index: 30;
 }
 
 .wall-end-tile-toggle.is-on {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: #bf2b41;
+  color: #000;
+  background: rgba(255, 242, 244, 0.94);
 }
 
 .wall-portal-flag-toggle {
@@ -2909,13 +2912,33 @@ body.wall-edit-mode .tile-controls {
   line-height: 1;
   border: 1px solid var(--border-strong);
   background: rgba(255, 255, 255, 0.82);
-  color: #8f2132;
+  color: #000;
   z-index: 30;
 }
 
 .wall-portal-flag-toggle.is-on {
   border-color: #bf2b41;
-  color: #bf2b41;
+  color: #000;
+  background: rgba(255, 242, 244, 0.94);
+}
+
+.wall-end-tile-toggle:hover,
+.wall-end-tile-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.wall-end-tile-toggle.is-on:hover,
+.wall-end-tile-toggle.is-on:focus-visible {
+  background: rgba(255, 242, 244, 0.94);
+}
+
+.wall-portal-flag-toggle:hover,
+.wall-portal-flag-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.wall-portal-flag-toggle.is-on:hover,
+.wall-portal-flag-toggle.is-on:focus-visible {
   background: rgba(255, 242, 244, 0.94);
 }
 

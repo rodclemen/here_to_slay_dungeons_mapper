@@ -136,9 +136,9 @@ Wall Edit mode is the app's per-tile rules editor. Open `Advanced Tools` and cli
 What the page is for:
 
 - Mark which tile faces are treated as walls and therefore ignored by contact validation
-- Allow or disallow specific tiles as legal endpoint tiles
-- Mark portal tiles so auto-build can avoid placing two portal tiles next to each other, and place the red portal marker on the artwork
-- Edit shared guide-point templates for `Entrance` and `Tile 01`
+- Allow or disallow specific tiles as legal endpoint tiles (to avoid empty/boring tiles to be at the end of a branch, which would make it moot to go there.)
+- Mark portal tiles so auto-build can avoid placing two portal tiles next to each other.
+- Edit shared guide-point templates for `Entrance` and `Tile 01` (Tile 01 points is shared to all tiles)
 
 How the page is laid out:
 

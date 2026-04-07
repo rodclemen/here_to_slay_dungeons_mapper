@@ -312,6 +312,12 @@ const COMPACT_DRAG_GROW_DISTANCE_PX = 100;
 const COMPACT_DRAG_START_SIZE_BOOST = 1.12;
 const OVERLAP_POLYGON_INSET_PX = 3;
 const REFERENCE_CARD_COLLISION_INSET_PX = 10;
+const REFERENCE_STACK_CLEARANCE_PAD_PX = 18;
+const BOSS_CARD_ASPECT_RATIO = 327 / 556;
+const BOSS_TOP_CARD_COLLISION_INSET_X_PX = 10;
+const BOSS_TOP_CARD_COLLISION_INSET_Y_PX = 8;
+const BOSS_TOP_CARD_CLEARANCE_PAD_X_PX = 18;
+const BOSS_TOP_CARD_CLEARANCE_PAD_Y_PX = 16;
 const TILE_POSE_GEOMETRY_CACHE_LIMIT = 320;
 const AUTO_BUILD_DEV_TUNING_DEFAULTS = {
   layoutSpread: 0.35,
@@ -4542,10 +4548,15 @@ function getBossReferenceMagnetBoardPosition(boardX, boardY) {
 function getBossReferenceTopMagnetBoardPosition() {
   const reference = state.referenceMarker;
   if (!reference) return null;
+  return getBossReferenceTopMagnetBoardPositionForReference(reference.x, reference.y);
+}
+
+function getBossReferenceTopMagnetBoardPositionForReference(refX, refY) {
+  if (!Number.isFinite(refX) || !Number.isFinite(refY)) return null;
   const topOffset = TILE_SIZE + BOSS_REFERENCE_MAGNET_TOP_GAP;
   return {
-    x: reference.x,
-    y: reference.y - topOffset,
+    x: refX,
+    y: refY - topOffset,
   };
 }
 
@@ -5106,7 +5117,7 @@ function ensureReferenceCardVisibleAfterAutoBuild(placedRegularTiles, entranceTi
 
   const defaultX = entranceTile.x;
   const defaultY = entranceTile.y - REFERENCE_OFFSET_Y;
-  const defaultClear = !isReferenceCardOverlappedByTiles(defaultX, defaultY, placedRegularTiles);
+  const defaultClear = !isReferenceStackOverlappedByTiles(defaultX, defaultY, placedRegularTiles);
   if (defaultClear) {
     if (Math.abs(reference.x - defaultX) > 0.5 || Math.abs(reference.y - defaultY) > 0.5) {
       reference.x = defaultX;
@@ -5117,7 +5128,9 @@ function ensureReferenceCardVisibleAfterAutoBuild(placedRegularTiles, entranceTi
     }
     return false;
   }
-  if (!isReferenceCardOverlappedByTiles(reference.x, reference.y, placedRegularTiles)) return false;
+  if (!isReferenceStackOverlappedByTiles(reference.x, reference.y, placedRegularTiles)) {
+    return false;
+  }
 
   let leftSideTiles = 0;
   let rightSideTiles = 0;
@@ -5131,30 +5144,68 @@ function ensureReferenceCardVisibleAfterAutoBuild(placedRegularTiles, entranceTi
   const primarySign = preferRight ? 1 : -1;
   const secondarySign = -primarySign;
   const baseY = reference.y;
-  const sideOffsetNear = TILE_SIZE * 1.7;
-  const sideOffsetFar = TILE_SIZE * 2.35;
-  const candidates = [
-    { x: entranceTile.x + primarySign * sideOffsetNear, y: baseY },
-    { x: entranceTile.x + primarySign * sideOffsetFar, y: baseY },
-    { x: entranceTile.x + secondarySign * sideOffsetNear, y: baseY },
-    { x: entranceTile.x + secondarySign * sideOffsetFar, y: baseY },
+  const layout = getBoardHexLayout();
+  const ringDirs = [
+    { x: layout.dx, y: layout.dy / 2 },
+    { x: layout.dx, y: -layout.dy / 2 },
+    { x: 0, y: -layout.dy },
+    { x: -layout.dx, y: -layout.dy / 2 },
+    { x: -layout.dx, y: layout.dy / 2 },
+    { x: 0, y: layout.dy },
   ];
+  const candidates = [];
+  const seenCandidates = new Set();
+  const registerCandidate = (x, y) => {
+    const snapped = snapBoardPointToHex(
+      clamp(x, TILE_SIZE * 0.7, board.clientWidth - TILE_SIZE * 0.7),
+      clamp(y, TILE_SIZE * 0.7, board.clientHeight - TILE_SIZE * 0.7),
+    );
+    const key = `${snapped.x.toFixed(2)}:${snapped.y.toFixed(2)}`;
+    if (seenCandidates.has(key)) return;
+    seenCandidates.add(key);
+    candidates.push(snapped);
+  };
+
+  const sideOffsets = [1.7, 2.35, 2.95, 3.45];
+  const yOffsets = [0, -0.45, 0.45, -0.9, 0.9].map((multiplier) => TILE_SIZE * multiplier);
+  for (const sign of [primarySign, secondarySign]) {
+    for (const sideMultiplier of sideOffsets) {
+      for (const yOffset of yOffsets) {
+        registerCandidate(entranceTile.x + sign * TILE_SIZE * sideMultiplier, baseY + yOffset);
+      }
+    }
+  }
+
+  for (let depth = 2; depth <= 6; depth += 1) {
+    for (let dirIdx = 0; dirIdx < ringDirs.length; dirIdx += 1) {
+      const dir = ringDirs[dirIdx];
+      const next = ringDirs[(dirIdx + 1) % ringDirs.length];
+      registerCandidate(entranceTile.x + dir.x * depth, baseY + dir.y * depth);
+      for (let t = 1; t < depth; t += 1) {
+        registerCandidate(
+          entranceTile.x + dir.x * (depth - t) + next.x * t,
+          baseY + dir.y * (depth - t) + next.y * t,
+        );
+      }
+    }
+  }
 
   let best = null;
   for (const candidate of candidates) {
-    const snapped = snapBoardPointToHex(
-      clamp(candidate.x, TILE_SIZE * 0.7, board.clientWidth - TILE_SIZE * 0.7),
-      clamp(candidate.y, TILE_SIZE * 0.7, board.clientHeight - TILE_SIZE * 0.7),
-    );
-    const overlapCount = countReferenceCardOverlaps(snapped.x, snapped.y, placedRegularTiles);
-    const distanceFromEntrance = Math.hypot(snapped.x - entranceTile.x, snapped.y - entranceTile.y);
-    const score = overlapCount * 100000 + distanceFromEntrance;
+    const overlapCount = countReferenceStackOverlaps(candidate.x, candidate.y, placedRegularTiles);
+    const distanceFromEntrance = Math.hypot(candidate.x - entranceTile.x, candidate.y - entranceTile.y);
+    const horizontalDistance = Math.abs(candidate.x - entranceTile.x);
+    const verticalPenalty = Math.abs(candidate.y - baseY) * 0.12;
+    const sideBiasPenalty = horizontalDistance < TILE_SIZE * 1.2 ? 180 : 0;
+    const score = overlapCount * 100000 + distanceFromEntrance + verticalPenalty + sideBiasPenalty;
     if (!best || score < best.score) {
-      best = { x: snapped.x, y: snapped.y, overlapCount, score };
+      best = { x: candidate.x, y: candidate.y, overlapCount, score };
     }
   }
   if (!best) return false;
-  if (best.overlapCount > 0) return false;
+  if (best.overlapCount > 0) {
+    return false;
+  }
 
   reference.x = best.x;
   reference.y = best.y;
@@ -5167,8 +5218,12 @@ function isReferenceCardOverlappedByTiles(refX, refY, tiles) {
   return countReferenceCardOverlaps(refX, refY, tiles) > 0;
 }
 
+function isReferenceStackOverlappedByTiles(refX, refY, tiles) {
+  return countReferenceStackOverlaps(refX, refY, tiles) > 0;
+}
+
 function getReferenceCardCollisionPolygon(refX, refY, insetPx = REFERENCE_CARD_COLLISION_INSET_PX) {
-  const half = Math.max(1, TILE_SIZE * 0.5 - insetPx);
+  const half = Math.max(1, TILE_SIZE * 0.5 - insetPx + REFERENCE_STACK_CLEARANCE_PAD_PX);
   return [
     { x: refX - half, y: refY - half },
     { x: refX + half, y: refY - half },
@@ -5177,18 +5232,59 @@ function getReferenceCardCollisionPolygon(refX, refY, insetPx = REFERENCE_CARD_C
   ];
 }
 
+function getTopBossCardCollisionPolygon(refX, refY) {
+  const topMagnet = getBossReferenceTopMagnetBoardPositionForReference(refX, refY);
+  if (!topMagnet) return null;
+  const halfW = Math.max(
+    1,
+    TILE_SIZE * 0.5 - BOSS_TOP_CARD_COLLISION_INSET_X_PX + BOSS_TOP_CARD_CLEARANCE_PAD_X_PX,
+  );
+  const halfH = Math.max(
+    1,
+    (TILE_SIZE * BOSS_CARD_ASPECT_RATIO) * 0.5 - BOSS_TOP_CARD_COLLISION_INSET_Y_PX + BOSS_TOP_CARD_CLEARANCE_PAD_Y_PX,
+  );
+  return [
+    { x: topMagnet.x - halfW, y: topMagnet.y - halfH },
+    { x: topMagnet.x + halfW, y: topMagnet.y - halfH },
+    { x: topMagnet.x + halfW, y: topMagnet.y + halfH },
+    { x: topMagnet.x - halfW, y: topMagnet.y + halfH },
+  ];
+}
+
 function countReferenceCardOverlaps(refX, refY, tiles) {
-  let count = 0;
   const refPoly = getReferenceCardCollisionPolygon(refX, refY);
-  const refBounds = getPolygonBounds(refPoly);
+  return countPolygonOverlaps(refPoly, tiles);
+}
+
+function countPolygonOverlaps(poly, tiles) {
+  return collectPolygonOverlapEntries(poly, tiles).length;
+}
+
+function collectPolygonOverlapEntries(poly, tiles) {
+  if (!poly?.length) return [];
+  const collisions = [];
+  const polyBounds = getPolygonBounds(poly);
   for (const tile of tiles || []) {
     if (!tile) continue;
     const tileGeometry = getTilePoseGeometry(tile);
-    const tilePoly = tileGeometry.overlapPolygon;
-    const tileBounds = tileGeometry.overlapBounds;
-    if (!boundsOverlap(refBounds, tileBounds)) continue;
-    if (polygonsOverlap(refPoly, tilePoly)) count += 1;
+    const tilePoly = tileGeometry.world;
+    const tileBounds = getPolygonBounds(tilePoly);
+    if (!boundsOverlap(polyBounds, tileBounds)) continue;
+    if (polygonsOverlap(poly, tilePoly)) {
+      collisions.push({
+        tile,
+        poly: tilePoly,
+      });
+    }
   }
+  return collisions;
+}
+
+function countReferenceStackOverlaps(refX, refY, tiles) {
+  const referencePoly = getReferenceCardCollisionPolygon(refX, refY);
+  const topBossPoly = getTopBossCardCollisionPolygon(refX, refY);
+  let count = countPolygonOverlaps(referencePoly, tiles);
+  if (topBossPoly) count += countPolygonOverlaps(topBossPoly, tiles);
   return count;
 }
 
@@ -6430,10 +6526,13 @@ async function renderWallEditorPage() {
   intro.className = "wall-editor-intro";
   intro.innerHTML = `
     <strong>Wall Editor</strong><br />
+    This page exists to make tile setup faster while the official release is still incomplete.<br />
     Click face segments to toggle wall ON/OFF.<br />
     Drag point handles on <strong>Entrance</strong> or <strong>Tile 01</strong> to edit shared guide templates.<br />
     Use <strong>End Tile</strong> to allow or disallow endpoint placement.<br />
     Use <strong>Portal Flag</strong> to mark portal tiles so auto-build avoids portal-to-portal adjacency when possible, then drag the red flag onto the art.<br />
+    These settings will be added as defaults when the full game assets and final tile info are released.<br />
+    For custom tiles, this page should still be useful for manual setup and tweaking.<br />
     Everything is saved per tile set + tile.
   `;
   wallEditorPage.appendChild(intro);
@@ -7002,10 +7101,26 @@ function finishDrop(tile, placedTiles = null) {
 
   tile.placed = true;
   syncRegularTileActivityFromSlotOrder();
+  const entrance = state.tiles.get(ENTRANCE_TILE_ID);
+  const placedRegularTiles = Array.from(state.tiles.values()).filter(
+    (entry) => entry.placed && !isEntranceTile(entry),
+  );
+  const movedReferenceSide = entrance
+    ? ensureReferenceCardVisibleAfterAutoBuild(placedRegularTiles, entrance)
+    : false;
   if (result.valid) {
-    setStatus(`Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} point contacts.`);
+    setStatus(
+      movedReferenceSide
+        ? `Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} point contacts. Reference card moved to side for visibility.`
+        : `Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} point contacts.`,
+    );
   } else {
-    setStatus(`Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} contacts (4-point rule ignored).`, true);
+    setStatus(
+      movedReferenceSide
+        ? `Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} contacts (4-point rule ignored). Reference card moved to side for visibility.`
+        : `Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} contacts (4-point rule ignored).`,
+      true,
+    );
   }
   selectTile(null);
   updatePlacedProgress();
@@ -7178,7 +7293,7 @@ function getInvalidContactReason(result) {
   if (result?.endTileDisallowed) {
     return "This tile is an end tile (3 connected faces) but is not marked as allowed for end placement in Wall Editor.";
   }
-  return "Need at least 2 connected faces total (4 points).";
+  return "Need at least 2 connected faces on one placed tile (4 points).";
 }
 
 function countSideContacts(a, b) {
