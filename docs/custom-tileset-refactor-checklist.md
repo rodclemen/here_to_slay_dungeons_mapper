@@ -109,11 +109,15 @@ Continue by finishing the Wall Editor to custom-tileset editor transition:
 - rename the page/UI language away from `Wall Editor`
 - keep import/export/delete discoverable on that page as the primary custom-set workflow
 - reduce the full-panel rerender blink after each image replacement by patching only the changed slot in place
-- add explicit missing/custom-set error handling for share-link restore
+- refine the new missing/custom-set share restore copy and test the edge cases
+- confirm the custom-share export helper flow is good enough for non-technical users
+- decide whether the helper HTML should stay a simple link wrapper or become a fuller instruction page
 
 Working note:
 
 - image replacement now keeps scroll position correctly, but still causes a brief full-panel blink because the editor rerenders the whole panel after each upload
+- shared layout URLs still only carry layout state; they do not embed custom tileset assets, wall overrides, portal flags, or guide-point template data
+- current share flow now prompts for optional custom-tileset zip export + helper HTML when sharing a custom layout, and missing custom sets can fall back to `Molten` on restore
 
 ## Current status
 

@@ -853,43 +853,8 @@ function buildExportedCustomTileSetManifest(tileSet, assetEntries) {
 }
 
 async function exportCustomTileSet(tileSetId) {
-  const tileSet = getTileSetConfig(tileSetId);
-  if (!tileSet || tileSet.source !== "custom") return;
-
-  const bundle = await getStoredCustomTileSetBundle(tileSetId);
-  if (!bundle?.manifest) {
-    throw new Error(`Could not find stored custom tileset: ${tileSetId}`);
-  }
-  const assetEntries = bundle.assets || [];
-  if (!assetEntries.length) {
-    throw new Error("This custom tile set has no stored images to export yet.");
-  }
-
-  const { manifest, assetMap } = buildExportedCustomTileSetManifest(bundle.manifest, assetEntries);
-  const wallEditorData = buildExportedWallEditorData(tileSet);
-  const zipEntries = [
-    {
-      name: "manifest.json",
-      data: JSON.stringify(manifest, null, 2),
-    },
-    {
-      name: "wall_editor.json",
-      data: JSON.stringify(wallEditorData, null, 2),
-    },
-  ];
-
-  for (const assetEntry of assetEntries) {
-    const relativePath = assetMap?.[assetEntry.assetKind]?.[assetEntry.assetId];
-    if (!relativePath || !(assetEntry.blob instanceof Blob)) continue;
-    zipEntries.push({
-      name: relativePath,
-      data: assetEntry.blob,
-    });
-  }
-
-  const archive = await createZipArchive(zipEntries);
-  const date = new Date().toISOString().slice(0, 10);
-  downloadBlob(archive, `${sanitizeCustomTileSetFilename(tileSet.label || tileSet.id)}-${date}.zip`);
+  const { tileSet, archive, filename } = await buildCustomTileSetExportArchive(tileSetId);
+  downloadBlob(archive, filename);
   setStatus(`Exported custom tile set: ${tileSet.label}.`);
 }
 
@@ -1408,6 +1373,10 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
 
 function getTileSetConfig(tileSetId) {
   return getTileSetRegistry().find((tileSet) => tileSet.id === tileSetId) || getTileSetRegistry()[0];
+}
+
+function findTileSetConfigById(tileSetId) {
+  return getTileSetRegistry().find((tileSet) => tileSet.id === tileSetId) || null;
 }
 
 function getFirstReadyTileSetId() {
@@ -3435,12 +3404,56 @@ function captureBuildViewLayout() {
 }
 
 function captureShareLayoutPayload() {
-  return buildShareLayoutPayload(captureBuildViewLayout(), normalizeAngle);
+  const snapshot = captureBuildViewLayout();
+  const payload = buildShareLayoutPayload(snapshot, normalizeAngle);
+  const tileSet = getTileSetConfig(snapshot.tileSetId);
+  if (!tileSet) return payload;
+
+  const tileSlotMetaById = new Map([
+    [tileSet.entranceTileId, { kind: "entrance", slot: 0 }],
+    ...tileSet.tileIds.map((tileId, index) => [tileId, { kind: "tile", slot: index + 1 }]),
+  ]);
+  payload.t = (payload.t || []).map((entry) => {
+    const meta = tileSlotMetaById.get(String(entry?.i || ""));
+    if (!meta) return entry;
+    return {
+      ...entry,
+      k: meta.kind,
+      sl: meta.slot,
+    };
+  });
+
+  const regularSlotById = new Map(tileSet.tileIds.map((tileId, index) => [tileId, index + 1]));
+  payload.o = (payload.o || []).map((tileId) => {
+    const normalizedTileId = String(tileId || "");
+    const slot = regularSlotById.get(normalizedTileId);
+    return Number.isInteger(slot)
+      ? { i: normalizedTileId, sl: slot }
+      : normalizedTileId;
+  });
+
+  const bossIndexByKey = new Map(
+    tileSet.bossIds.map((bossId, index) => [buildBossAssetKey(tileSet.id, bossId), index]),
+  );
+  payload.b = (payload.b || []).map((entry) => {
+    const bossIndex = bossIndexByKey.get(String(entry?.k || ""));
+    return Number.isInteger(bossIndex)
+      ? { ...entry, bi: bossIndex }
+      : entry;
+  });
+
+  return payload;
 }
 
 function buildShareLayoutSnapshot(payload) {
-  return buildShareLayoutSnapshotFromPayload(payload, {
-    getTileSetConfig,
+  const normalizedPayload = payload && typeof payload === "object"
+    ? {
+        ...payload,
+        o: (payload.o || []).map((entry) => (typeof entry === "string" ? entry : entry?.i || "")),
+      }
+    : payload;
+  return buildShareLayoutSnapshotFromPayload(normalizedPayload, {
+    getTileSetConfig: findTileSetConfigById,
     normalizeRegularTileOrder,
     buildTileDefs,
     migrateLegacyTileId,
@@ -3455,6 +3468,188 @@ function createShareLayoutUrl() {
   return buildShareLayoutUrl(window.location.href, captureShareLayoutPayload());
 }
 
+function buildCustomShareHelperHtml({ tileSet, shareUrl }) {
+  const safeTitle = String(tileSet?.label || "Custom Tileset").replace(/[&<>"]/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+  }[char] || char));
+  const safeUrl = String(shareUrl || "").replace(/[&<>"]/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+  }[char] || char));
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle} Shared Layout</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        padding: 32px 20px;
+        font: 16px/1.5 "Avenir Next", "Segoe UI", sans-serif;
+        background: #efe0cf;
+        color: #23180f;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 28px 24px;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.72);
+        box-shadow: 0 18px 40px rgba(45, 28, 15, 0.12);
+      }
+      h1 { margin-top: 0; font-size: 1.7rem; }
+      ol { padding-left: 1.2rem; }
+      a {
+        color: #0c6f52;
+        font-weight: 700;
+        word-break: break-word;
+      }
+      code {
+        padding: 0.1em 0.35em;
+        border-radius: 6px;
+        background: rgba(35, 24, 15, 0.08);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${safeTitle} Shared Layout</h1>
+      <p>This layout uses a browser-local custom tileset.</p>
+      <ol>
+        <li>Import the included custom tileset <code>.zip</code> into the app first.</li>
+        <li>Then open the shared layout link below.</li>
+      </ol>
+      <p><a href="${safeUrl}">${safeUrl}</a></p>
+      <p>If the custom tileset is not installed, the app can only show a best-effort fallback with the default built-in tileset.</p>
+    </main>
+  </body>
+</html>`;
+}
+
+async function buildCustomTileSetExportArchive(tileSetId) {
+  const tileSet = findTileSetConfigById(tileSetId);
+  if (!tileSet || tileSet.source !== "custom") {
+    throw new Error(`Could not export tileset: ${tileSetId}`);
+  }
+
+  const bundle = await getStoredCustomTileSetBundle(tileSetId);
+  if (!bundle?.manifest) {
+    throw new Error(`Could not find stored custom tileset: ${tileSetId}`);
+  }
+  const assetEntries = bundle.assets || [];
+  if (!assetEntries.length) {
+    throw new Error("This custom tile set has no stored images to export yet.");
+  }
+
+  const { manifest, assetMap } = buildExportedCustomTileSetManifest(bundle.manifest, assetEntries);
+  const wallEditorData = buildExportedWallEditorData(tileSet);
+  const zipEntries = [
+    {
+      name: "manifest.json",
+      data: JSON.stringify(manifest, null, 2),
+    },
+    {
+      name: "wall_editor.json",
+      data: JSON.stringify(wallEditorData, null, 2),
+    },
+  ];
+
+  for (const assetEntry of assetEntries) {
+    const relativePath = assetMap?.[assetEntry.assetKind]?.[assetEntry.assetId];
+    if (!relativePath || !(assetEntry.blob instanceof Blob)) continue;
+    zipEntries.push({
+      name: relativePath,
+      data: assetEntry.blob,
+    });
+  }
+
+  const archive = await createZipArchive(zipEntries);
+  const date = new Date().toISOString().slice(0, 10);
+  return {
+    tileSet,
+    archive,
+    filename: `${sanitizeCustomTileSetFilename(tileSet.label || tileSet.id)}-${date}.zip`,
+  };
+}
+
+async function buildCustomShareBundleArchive(tileSetId, shareUrl) {
+  const { tileSet, archive, filename } = await buildCustomTileSetExportArchive(tileSetId);
+  const helperHtml = buildCustomShareHelperHtml({ tileSet, shareUrl });
+  const date = new Date().toISOString().slice(0, 10);
+  const bundle = await createZipArchive([
+    {
+      name: filename,
+      data: archive,
+    },
+    {
+      name: `${sanitizeCustomTileSetFilename(tileSet.label || tileSet.id)}-shared-layout.html`,
+      data: helperHtml,
+    },
+  ]);
+  return {
+    tileSet,
+    bundle,
+    filename: `${sanitizeCustomTileSetFilename(tileSet.label || tileSet.id)}-share-bundle-${date}.zip`,
+  };
+}
+
+function buildShareFallbackPayload(payload, fallbackTileSetId = DEFAULT_TILE_SET_ID) {
+  const fallbackTileSet = getTileSetConfig(fallbackTileSetId);
+  if (!fallbackTileSet) return null;
+
+  const mapTileSlotToFallbackId = (slot) => {
+    if (slot === 0) return fallbackTileSet.entranceTileId;
+    if (Number.isInteger(slot) && slot >= 1 && slot <= fallbackTileSet.tileIds.length) {
+      return fallbackTileSet.tileIds[slot - 1];
+    }
+    return "";
+  };
+
+  const nextPayload = {
+    ...payload,
+    ts: fallbackTileSetId,
+    o: (payload?.o || [])
+      .map((entry) => {
+        if (typeof entry === "string" && fallbackTileSet.tileIds.includes(entry)) return entry;
+        const slot = Number(entry?.sl);
+        return mapTileSlotToFallbackId(slot);
+      })
+      .filter((tileId) => fallbackTileSet.tileIds.includes(tileId)),
+    t: (payload?.t || [])
+      .map((entry) => {
+        const originalTileId = String(entry?.i || "");
+        const mappedTileId = mapTileSlotToFallbackId(Number(entry?.sl))
+          || (originalTileId === ENTRANCE_TILE_ID ? fallbackTileSet.entranceTileId : "")
+          || (fallbackTileSet.tileIds.includes(originalTileId) ? originalTileId : "");
+        if (!mappedTileId) return null;
+        return {
+          ...entry,
+          i: mappedTileId,
+        };
+      })
+      .filter(Boolean),
+    b: (payload?.b || [])
+      .map((entry) => {
+        const fallbackBossId = fallbackTileSet.bossIds[Number(entry?.bi)] || fallbackTileSet.bossIds[0] || "";
+        if (!fallbackBossId) return null;
+        return {
+          ...entry,
+          k: buildBossAssetKey(fallbackTileSetId, fallbackBossId),
+        };
+      })
+      .filter(Boolean),
+  };
+
+  return nextPayload;
+}
+
 async function copyShareLayoutLink() {
   if (state.wallEditMode) {
     setStatus("Share links are available on Build View only.", true);
@@ -3467,13 +3662,33 @@ async function copyShareLayoutLink() {
   }
   try {
     await navigator.clipboard.writeText(url);
-    setStatus("Share link copied.");
-    return true;
   } catch (error) {
     console.warn("Could not copy share link.", error);
     setStatus("Could not copy share link.", true);
     return false;
   }
+  const activeTileSet = getTileSetConfig(state.selectedTileSetId);
+  if (activeTileSet?.source === "custom") {
+    const shouldExport = window.confirm(
+      "This shared layout uses a browser-local custom tileset.\n\nPress OK to also export the matching tileset zip and a helper HTML file for the receiver.\nPress Cancel to copy only the link.",
+    );
+    if (shouldExport) {
+      try {
+        const { bundle, filename } = await buildCustomShareBundleArchive(activeTileSet.id, url);
+        downloadBlob(bundle, filename);
+        setStatus("Share link copied, and matching custom-share bundle exported.");
+        return true;
+      } catch (error) {
+        console.error(error);
+        setStatus("Share link copied, but exporting the matching custom-share bundle failed.", true);
+        return true;
+      }
+    }
+    setStatus("Share link copied. Receiver will still need the matching custom tileset installed locally.");
+    return true;
+  }
+  setStatus("Share link copied.");
+  return true;
 }
 
 async function restoreSharedLayoutFromUrl() {
@@ -3489,13 +3704,31 @@ async function restoreSharedLayoutFromUrl() {
     return false;
   }
 
+  const requestedTileSetId = String(payload?.ts || "");
+  let tileSet = findTileSetConfigById(requestedTileSetId);
+  if ((!tileSet || tileSet.status !== "ready") && requestedTileSetId && requestedTileSetId !== DEFAULT_TILE_SET_ID) {
+    const builtInIds = new Set(BUILT_IN_TILE_SET_REGISTRY.map((entry) => entry.id));
+    const looksCustom = !builtInIds.has(requestedTileSetId);
+    if (looksCustom) {
+      const useFallback = window.confirm(
+        `This shared layout uses the custom tileset "${requestedTileSetId}", which is not installed on this browser.\n\nPress OK to view the layout with Molten as a best-effort fallback.\nPress Cancel to keep the current view and import the matching custom tileset zip first.`,
+      );
+      if (!useFallback) {
+        setStatus("Shared layout needs its matching custom tileset zip imported first.", true);
+        return false;
+      }
+      payload = buildShareFallbackPayload(payload, DEFAULT_TILE_SET_ID);
+      tileSet = findTileSetConfigById(DEFAULT_TILE_SET_ID);
+    }
+  }
+
   const snapshot = buildShareLayoutSnapshot(payload);
   if (!snapshot) {
     setStatus("Shared layout link is invalid or unsupported.", true);
     return false;
   }
 
-  const tileSet = getTileSetConfig(snapshot.tileSetId);
+  tileSet = findTileSetConfigById(snapshot.tileSetId);
   if (!tileSet || tileSet.status !== "ready") {
     setStatus(`Shared layout tile set "${snapshot.tileSetId}" is unavailable on this build.`, true);
     return false;
@@ -3507,7 +3740,11 @@ async function restoreSharedLayoutFromUrl() {
 
   const restored = restoreBuildViewLayout(snapshot);
   if (restored) {
-    setStatus("Shared layout loaded from link.");
+    setStatus(
+      snapshot.tileSetId === DEFAULT_TILE_SET_ID && requestedTileSetId && requestedTileSetId !== DEFAULT_TILE_SET_ID
+        ? `Shared layout loaded with Molten fallback because "${requestedTileSetId}" is not installed locally.`
+        : "Shared layout loaded from link.",
+    );
   } else {
     setStatus("Could not restore the shared layout.", true);
   }

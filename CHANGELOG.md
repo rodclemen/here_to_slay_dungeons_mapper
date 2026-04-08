@@ -10,6 +10,9 @@
 - Added a ready-to-import mixed sample package under `docs/custom-tileset-sample-mixed/` plus `docs/custom-tileset-sample-mixed.zip` so the package format can be tested without hand-authoring a manifest.
 - Updated the custom tileset planning docs to reflect the real intended workflow: Wall Edit is now the home for custom tileset creation/editing/import/export/delete, v1 is locked to 1 entrance tile + 9 regular tiles + 1 reference card + 2 boss cards, and the remaining follow-up work is called out explicitly.
 - Polished the editor visuals around custom asset slots: added real silhouette-style empty tile placeholders, added a visible entrance placeholder, aligned reference/boss placeholder sizing to the loaded cards, switched hover emphasis from the outer box to the silhouette itself, and wired the page favicon to `d20.png` to stop the missing-favicon requests.
+- Added the first custom-share portability flow: copying a share link from a custom tileset now offers to export a single share-bundle zip containing the normal custom tileset package plus a helper HTML file that links back to the shared layout URL.
+- Added missing-custom-set restore handling for shared layouts: if a link references a browser-local custom tileset that is not installed, the app now explains that clearly and offers a best-effort `Molten` fallback instead of silently failing.
+- Extended new share payloads with slot metadata so custom-layout fallback restore can remap newer links onto `Molten` more intelligently while keeping older links backward-compatible.
 - Session note: Stared at a placeholder long enough to learn the difference between “the box is bigger” and “the actual shape is still tiny.”
 
 ## 2026-04-07

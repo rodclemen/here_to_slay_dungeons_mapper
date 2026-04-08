@@ -342,14 +342,33 @@ Follow-up polish after this step:
 
 What this step does:
 
-- If a shared layout references a custom set that is not installed, show a clear error
-- Prevent broken silent failures
+- Detect when the current share/export flow is using a browser-local custom tileset
+- Prompt the sender to optionally export the matching custom tileset package alongside the shared map link
+- Generate a tiny helper HTML file for that case that tells the receiver to import the included zip first and then open the shared layout link
+- If a shared layout references a custom set that is not installed locally, show a clear prompt instead of failing silently
+- Offer a fallback path to view the layout with the default built-in tileset (`Molten`) when the correct custom set is missing
+- Make it explicit that custom tilesets are browser-local unless the zip package is exported separately
+- Keep the current limitation visible: the shared layout URL carries layout state, not custom tileset assets or wall/portal metadata
 - Mark custom sets clearly in the UI
 - Decide how custom boss cards behave in `Random Boss: All Sets`
+
+Important behavior notes:
+
+- The current share link should still only carry layout state such as tile positions, tile identities, tray/reserve ordering, boss placement, and board view state
+- The share link should not try to embed custom tileset blobs, wall overrides, portal flags, or guide-point templates directly into the URL
+- The exported helper HTML is only a convenience wrapper around the existing shared link; the real custom tileset data still lives in the accompanying zip
 
 Definition of done:
 
 - Missing custom sets fail gracefully
+- A sender can package the needed custom zip together with a helper file that points the receiver to the correct shared layout link
+- A receiver without the right custom set gets a clear choice: import the correct zip or open the layout using `Molten` as a best-effort fallback
+
+Current implementation note:
+
+- the app now prompts to export the matching custom tileset zip + helper HTML when copying a share link for a custom layout
+- restore now offers a `Molten` fallback when the referenced custom tileset is not installed locally
+- the fallback is best-effort and depends on slot metadata stored in newer share links
 
 ## Step 11. Documentation and guardrails
 
