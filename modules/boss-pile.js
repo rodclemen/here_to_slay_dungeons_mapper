@@ -1,7 +1,7 @@
-export function getBossTileSources(tileSetId, getTileSetConfig) {
+export function getBossTileSources(tileSetId, getTileSetConfig, resolveTileSetAssetPath) {
   const tileSet = getTileSetConfig(tileSetId);
   const bossIds = Array.isArray(tileSet?.bossIds) ? tileSet.bossIds : [];
-  return bossIds.map((bossId) => `./tiles/${tileSet.id}/${tileSet.id}_boss_${bossId}.png`);
+  return bossIds.map((bossId) => resolveTileSetAssetPath(tileSet, "boss", bossId));
 }
 
 export function normalizeOrderedSources(canonical, existing = []) {

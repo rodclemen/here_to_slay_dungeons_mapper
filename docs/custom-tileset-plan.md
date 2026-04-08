@@ -15,6 +15,7 @@ What this step does:
 - Decide the exact `.zip` structure
 - Decide which metadata fields are required
 - Decide how wall editor data is stored inside the package
+- Decide which fields must match the app's runtime registry shape
 
 Recommended package shape:
 
@@ -43,15 +44,28 @@ Recommended contents:
 - `manifest.json`
   - `id`
   - `label`
+  - `version`
+  - `schemaVersion`
+  - `gameSetId`
+  - `uiThemeId`
+  - `entranceTileId`
+  - `referenceCardId`
   - `tileIds`
   - `bossIds`
-  - optional theme choice
   - asset file mapping
 - `wall_editor.json`
   - wall faces
   - end-tile flags
   - portal flags
   - guide point templates
+
+Notes to lock down now:
+
+- The manifest should match the fields the runtime already expects in the tile set registry, not a second parallel shape
+- `uiThemeId` should be constrained to supported built-in theme IDs unless custom UI theming is added later
+- `tileIds` should stay at exactly 9 for now because the current tray, reserve, share-link, and wall editor logic all assume 9 regular tiles
+- `wall_editor.json` should explicitly define whether guide templates are per tileset or global; the current app treats guide templates as global
+- `asset file mapping` should cover entrance, regular tiles, reference card, and boss cards so runtime code does not need filename assumptions
 
 Definition of done:
 
@@ -64,6 +78,7 @@ What this step does:
 - Add `IndexedDB` storage for custom manifests and image blobs
 - Keep built-in sets as they are
 - Do not expose import UI yet
+- Define how custom storage versions and migrations work
 
 Why:
 
@@ -76,6 +91,7 @@ Recommended storage model:
   - manifest
   - slot assignment
   - display metadata
+  - created / updated timestamps
 - `customTileAssets`
   - image blobs keyed by tileset ID and asset ID
 - `customWallEditorData`
@@ -83,6 +99,12 @@ Recommended storage model:
   - end-tile flags
   - portal flags
   - guide point templates
+
+Also decide in this step:
+
+- whether custom wall data stays split by concern, like the current local storage model, or is normalized into one stored record per tileset
+- whether guide point templates move from global storage to per-tileset storage
+- how object URLs created from stored blobs are cached and revoked so repeated tile set switching does not leak memory
 
 Definition of done:
 
@@ -93,7 +115,7 @@ Definition of done:
 What this step does:
 
 - Refactor tileset loading so the app no longer assumes everything lives in `./tiles/...`
-- Add an asset resolver layer
+- Add an asset resolver layer for every tile-set-backed image, not only main tiles
 - Merge built-in registry and custom registry at startup
 
 Key refactor:
@@ -101,6 +123,16 @@ Key refactor:
 - Introduce a single asset lookup function
 - Built-in sets return normal repo paths
 - Custom sets return `blob:` URLs created from stored `IndexedDB` blobs
+- Route entrance tile, regular tiles, reference card, and boss card lookups through that resolver
+- Keep the merged registry compatible with readiness checks, share-link restore, wall editor rendering, and boss pile ordering
+
+Current code paths this step must cover:
+
+- `buildTileDefs(...)`
+- `getReferenceTileSrc(...)`
+- boss card source generation
+- readiness auditing and registry validation
+- any code that compares boss card sources, because custom sets will produce `blob:` URLs instead of stable repo paths
 
 Definition of done:
 
@@ -121,6 +153,12 @@ Behavior:
 - Custom entries appear only when real custom tilesets exist
 - Each imported set gets a persistent custom index for fallback naming
 - User-provided names take priority over fallback names in the dropdown and related UI
+- The wall editor group UI needs a custom-set strategy instead of only the three hard-coded built-in groups
+
+Adjustment to the original idea:
+
+- Do not require empty placeholder entries in the main dropdown; only show real imported custom sets there
+- If custom tiles need wall editing, add either a dedicated `Custom Tile Sets` wall-editor group or a dynamic grouping model in the wall editor
 
 Definition of done:
 
@@ -146,6 +184,14 @@ Validation should catch:
 - bad file names or missing mappings
 - malformed wall editor data
 - duplicate custom tileset IDs
+- unsupported `uiThemeId`
+- invalid registry fields needed by the current app runtime
+- malformed or duplicate boss asset mappings
+
+Import behavior to decide explicitly:
+
+- whether importing an existing custom `id` is blocked, replaces in place, or offers an overwrite flow
+- whether slot assignment is reused on overwrite or treated as a new import
 
 Definition of done:
 
@@ -164,6 +210,10 @@ Recommended rule:
 
 - Imported `wall_editor.json` becomes the custom set's initial defaults
 - Later edits overwrite the local saved version for that custom set
+
+Needs one extra decision:
+
+- If guide point templates stay global, custom sets will silently share them with built-in sets; that is probably not what we want, so this step should either scope templates per tileset or document the limitation clearly
 
 Definition of done:
 
@@ -190,6 +240,11 @@ Important:
   - slot assignment for that custom set
 - After deletion, that slot should fall back to an empty `Custom N` placeholder again
 
+Change needed here:
+
+- If Step 4 keeps the dropdown free of placeholders, deletion should simply remove the entry and preserve numbering metadata only if stable fallback labels still matter for remaining custom sets
+- Export should preserve the manifest fields required by the runtime registry shape, not rebuild a thinner manifest that later re-imports ambiguously
+
 Definition of done:
 
 - A user can import, tweak wall data, export, delete, and re-import elsewhere
@@ -201,6 +256,7 @@ What this step does:
 - If a shared layout references a custom set that is not installed, show a clear error
 - Prevent broken silent failures
 - Mark custom sets clearly in the UI
+- Decide how custom boss cards behave in `Random Boss: All Sets`
 
 Definition of done:
 
@@ -214,6 +270,7 @@ What this step does:
 - Explain import and export
 - Explain local-only browser storage
 - Explain that custom sets stay browser-local unless exported
+- Explain share-link limitations clearly: a share link can reference a custom tileset ID, but the receiver still needs that tileset installed locally
 
 Definition of done:
 

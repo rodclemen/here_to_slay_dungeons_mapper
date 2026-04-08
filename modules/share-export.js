@@ -52,6 +52,7 @@ export function captureShareLayoutPayload(snapshot, normalizeAngle) {
       r: normalizeAngle(Number(tile.rotation) || 0),
     })),
     b: (snapshot.bossTokens || []).map((token) => ({
+      k: token.bossKey || "",
       s: token.src,
       x: roundShareNumber(token.x),
       y: roundShareNumber(token.y),
@@ -92,8 +93,9 @@ export function buildShareLayoutSnapshot(payload, deps) {
   if (!tiles.length) return null;
 
   const bossTokens = (payload.b || [])
-    .filter((entry) => typeof entry?.s === "string" && entry.s)
+    .filter((entry) => (typeof entry?.k === "string" && entry.k) || (typeof entry?.s === "string" && entry.s))
     .map((entry) => ({
+      bossKey: String(entry.k || ""),
       src: entry.s,
       x: roundShareNumber(entry.x),
       y: roundShareNumber(entry.y),

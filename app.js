@@ -1,4 +1,5 @@
 import {
+  getBuiltInTileSetAssetPath,
   getMissingDefaultWallEntries,
   getRegistryIssues,
   getTileSetAssetPaths,
@@ -165,20 +166,21 @@ const DEFAULT_APPEARANCE_MODE = "system";
 const ENTRANCE_TILE_ID = "entrance";
 const TILE_IDS = Array.from({ length: 9 }, (_, i) => `tile_${String(i + 1).padStart(2, "0")}`);
 const REFERENCE_CARD_ID = "reference_card";
-const UI_THEME_IDS = new Set([
-  "molten",
-  "overgrown",
-  "deep_freeze",
-  "nightmare",
-  "submerged",
-  "dreamscape",
-  "molten_dark",
-  "overgrown_dark",
-  "submerged_dark",
-  "deep_freeze_dark",
-  "dreamscape_dark",
-  "nightmare_dark",
-]);
+const UI_THEME_CATALOG = [
+  { id: "molten", label: "Molten - Light", mode: "light", className: "ui-theme-molten" },
+  { id: "overgrown", label: "Overgrown - Light", mode: "light", className: "ui-theme-overgrown" },
+  { id: "dreamscape", label: "Dreamscape - Light", mode: "light", className: "ui-theme-dreamscape" },
+  { id: "nightmare", label: "Nightmare - Light", mode: "light", className: "ui-theme-nightmare" },
+  { id: "submerged", label: "Submerged - Light", mode: "light", className: "ui-theme-submerged" },
+  { id: "deep_freeze", label: "Deep Freeze - Light", mode: "light", className: "ui-theme-deep-freeze" },
+  { id: "molten_dark", label: "Molten - Dark", mode: "dark", className: "ui-theme-molten-dark" },
+  { id: "overgrown_dark", label: "Overgrown - Dark", mode: "dark", className: "ui-theme-overgrown-dark" },
+  { id: "dreamscape_dark", label: "Dreamscape - Dark", mode: "dark", className: "ui-theme-dreamscape-dark" },
+  { id: "nightmare_dark", label: "Nightmare - Dark", mode: "dark", className: "ui-theme-nightmare-dark" },
+  { id: "submerged_dark", label: "Submerged - Dark", mode: "dark", className: "ui-theme-submerged-dark" },
+  { id: "deep_freeze_dark", label: "Deep Freeze - Dark", mode: "dark", className: "ui-theme-deep-freeze-dark" },
+];
+const UI_THEME_IDS = new Set(UI_THEME_CATALOG.map((theme) => theme.id));
 const APPEARANCE_MODE_IDS = new Set(["light", "system", "dark"]);
 const APPEARANCE_MODE_ICON_SVG = {
   light: `<svg width="19" height="19" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M361.5 1.2c5 2.1 8.6 6.6 9.6 11.9L391 121l107.9 19.8c5.3 1 9.8 4.6 11.9 9.6s1.5 10.7-1.6 15.2L446.9 256l62.3 90.3c3.1 4.5 3.7 10.2 1.6 15.2s-6.6 8.6-11.9 9.6L391 391 371.1 498.9c-1 5.3-4.6 9.8-9.6 11.9s-10.7 1.5-15.2-1.6L256 446.9l-90.3 62.3c-4.5 3.1-10.2 3.7-15.2 1.6s-8.6-6.6-9.6-11.9L121 391 13.1 371.1c-5.3-1-9.8-4.6-11.9-9.6s-1.5-10.7 1.6-15.2L65.1 256 2.8 165.7c-3.1-4.5-3.7-10.2-1.6-15.2s6.6-8.6 11.9-9.6L121 121 140.9 13.1c1-5.3 4.6-9.8 9.6-11.9s10.7-1.5 15.2 1.6L256 65.1 346.3 2.8c4.5-3.1 10.2-3.7 15.2-1.6zM160 256a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zm224 0a128 128 0 1 0 -256 0 128 128 0 1 0 256 0z"/></svg>`,
@@ -186,7 +188,7 @@ const APPEARANCE_MODE_ICON_SVG = {
   system: `<svg width="19" height="19" viewBox="0 0 576 512" aria-hidden="true"><path fill="currentColor" d="M64 0C28.7 0 0 28.7 0 64L0 352c0 35.3 28.7 64 64 64l176 0-10.7 32L160 448c-17.7 0-32 14.3-32 32s14.3 32 32 32l256 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-69.3 0L336 416l176 0c35.3 0 64-28.7 64-64l0-288c0-35.3-28.7-64-64-64L64 0zM512 64l0 224L64 288 64 64l448 0z"/></svg>`,
 };
 
-const TILE_SET_REGISTRY = [
+const BUILT_IN_TILE_SET_REGISTRY = [
   {
     id: "molten",
     label: "Molten",
@@ -214,7 +216,7 @@ const TILE_SET_REGISTRY = [
     label: "Dreamscape",
     status: "not_implemented",
     gameSetId: "base_game_2",
-    uiThemeId: "molten",
+    uiThemeId: "dreamscape",
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
@@ -225,7 +227,7 @@ const TILE_SET_REGISTRY = [
     label: "Nightmare",
     status: "not_implemented",
     gameSetId: "base_game_2",
-    uiThemeId: "molten",
+    uiThemeId: "nightmare",
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
@@ -236,7 +238,7 @@ const TILE_SET_REGISTRY = [
     label: "Submerged",
     status: "not_implemented",
     gameSetId: "base_game_3",
-    uiThemeId: "molten",
+    uiThemeId: "submerged",
     entranceTileId: ENTRANCE_TILE_ID,
     tileIds: TILE_IDS,
     referenceCardId: REFERENCE_CARD_ID,
@@ -255,7 +257,9 @@ const TILE_SET_REGISTRY = [
   },
 ];
 
-const WALL_EDITOR_GROUPS = [
+let runtimeTileSetRegistry = BUILT_IN_TILE_SET_REGISTRY.map((tileSet) => ({ ...tileSet }));
+
+const WALL_EDITOR_BASE_GROUPS = [
   {
     id: "molten_overgrown",
     label: "Molten / Overgrown",
@@ -272,6 +276,31 @@ const WALL_EDITOR_GROUPS = [
     tileSetIds: ["submerged", "deep_freeze"],
   },
 ];
+
+function getWallEditorGroups() {
+  const runtimeIds = new Set(getTileSetRegistry().map((tileSet) => tileSet.id));
+  const baseGroups = WALL_EDITOR_BASE_GROUPS
+    .map((group) => ({
+      ...group,
+      tileSetIds: group.tileSetIds.filter((tileSetId) => runtimeIds.has(tileSetId)),
+    }))
+    .filter((group) => group.tileSetIds.length > 0);
+
+  const builtInIds = new Set(BUILT_IN_TILE_SET_REGISTRY.map((tileSet) => tileSet.id));
+  const customTileSetIds = getTileSetRegistry()
+    .filter((tileSet) => tileSet?.source === "custom" || !builtInIds.has(tileSet.id))
+    .map((tileSet) => tileSet.id);
+
+  if (customTileSetIds.length) {
+    baseGroups.push({
+      id: "custom_tile_sets",
+      label: "Custom Tile Sets",
+      tileSetIds: customTileSetIds,
+    });
+  }
+
+  return baseGroups;
+}
 const DEFAULT_WALL_FACE_DATA = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
@@ -417,6 +446,7 @@ const tilePoseGeometryCache = new WeakMap();
 const autoBuildTuningInputRefs = new Map();
 
 const state = {
+  tileSetRegistry: runtimeTileSetRegistry,
   tiles: new Map(),
   selectedTileId: null,
   hoveredTileId: null,
@@ -569,12 +599,33 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
 }
 
 function getTileSetConfig(tileSetId) {
-  return TILE_SET_REGISTRY.find((tileSet) => tileSet.id === tileSetId) || TILE_SET_REGISTRY[0];
+  return getTileSetRegistry().find((tileSet) => tileSet.id === tileSetId) || getTileSetRegistry()[0];
 }
 
 function getFirstReadyTileSetId() {
-  const readyTileSet = TILE_SET_REGISTRY.find((tileSet) => tileSet.status === "ready");
+  const readyTileSet = getReadyTileSets()[0];
   return readyTileSet?.id || null;
+}
+
+function getTileSetRegistry() {
+  return runtimeTileSetRegistry;
+}
+
+function getReadyTileSets() {
+  return getTileSetRegistry().filter((tileSet) => tileSet.status === "ready");
+}
+
+function getUiThemeById(uiThemeId) {
+  return UI_THEME_CATALOG.find((theme) => theme.id === uiThemeId) || null;
+}
+
+function getUiThemesForMode(mode) {
+  if (mode !== "light" && mode !== "dark") return [...UI_THEME_CATALOG];
+  return UI_THEME_CATALOG.filter((theme) => theme.mode === mode);
+}
+
+function isSupportedUiThemeId(uiThemeId) {
+  return UI_THEME_IDS.has(uiThemeId);
 }
 
 function getTileSetStatusSuffix(status) {
@@ -587,7 +638,7 @@ function getTileSetStatusSuffix(status) {
 function hydrateTileSetSelector() {
   if (!tileSetSelect) return;
   tileSetSelect.innerHTML = "";
-  for (const tileSet of TILE_SET_REGISTRY) {
+  for (const tileSet of getTileSetRegistry()) {
     const option = document.createElement("option");
     option.value = tileSet.id;
     option.disabled = tileSet.status !== "ready";
@@ -644,9 +695,58 @@ function buildTileKey(tileSetId, tileId) {
   return `${tileSetId}:${tileId}`;
 }
 
+function buildBossAssetKey(tileSetId, bossId) {
+  return `${tileSetId}:boss:${bossId}`;
+}
+
+function parseBossAssetKey(bossKey) {
+  const match = /^([^:]+):boss:(.+)$/.exec(String(bossKey || ""));
+  if (!match) return null;
+  return {
+    tileSetId: match[1],
+    bossId: match[2],
+  };
+}
+
+function resolveTileSetAssetPath(tileSetOrId, assetKind, assetId = "") {
+  const tileSet = typeof tileSetOrId === "string" ? getTileSetConfig(tileSetOrId) : tileSetOrId;
+  if (!tileSet) return "";
+
+  if (tileSet.assetResolver && typeof tileSet.assetResolver === "function") {
+    return tileSet.assetResolver(assetKind, assetId);
+  }
+
+  if (tileSet.assetPaths?.[assetKind]) {
+    const kindEntry = tileSet.assetPaths[assetKind];
+    if (typeof kindEntry === "string") return kindEntry;
+    if (kindEntry && typeof kindEntry === "object" && assetId in kindEntry) return kindEntry[assetId];
+  }
+
+  return getBuiltInTileSetAssetPath(tileSet, assetKind, assetId);
+}
+
+function resolveBossAssetSrc(bossKey) {
+  const parsed = parseBossAssetKey(bossKey);
+  if (!parsed) return "";
+  return resolveTileSetAssetPath(parsed.tileSetId, "boss", parsed.bossId);
+}
+
+function getBossKeyForLegacySrc(src, fallbackTileSetId = state.selectedTileSetId) {
+  for (const tileSet of getTileSetRegistry()) {
+    const bossIds = Array.isArray(tileSet?.bossIds) ? tileSet.bossIds : [];
+    for (const bossId of bossIds) {
+      const bossKey = buildBossAssetKey(tileSet.id, bossId);
+      if (resolveBossAssetSrc(bossKey) === src) return bossKey;
+    }
+  }
+
+  const fallbackTileSet = getTileSetConfig(fallbackTileSetId);
+  const fallbackBossIds = Array.isArray(fallbackTileSet?.bossIds) ? fallbackTileSet.bossIds : [];
+  return fallbackBossIds.length ? buildBossAssetKey(fallbackTileSet.id, fallbackBossIds[0]) : "";
+}
+
 function buildTileDefs(tileSetId) {
   const tileSet = getTileSetConfig(tileSetId);
-  const basePath = `./tiles/${tileSet.id}`;
   const entranceTileId = tileSet.entranceTileId || ENTRANCE_TILE_ID;
   const tileIds = Array.isArray(tileSet.tileIds) && tileSet.tileIds.length ? tileSet.tileIds : TILE_IDS;
 
@@ -655,14 +755,14 @@ function buildTileDefs(tileSetId) {
       tileSetId: tileSet.id,
       tileId: entranceTileId,
       key: buildTileKey(tileSet.id, entranceTileId),
-      imageSrc: `${basePath}/${tileSet.id}_entrance.png`,
+      imageSrc: resolveTileSetAssetPath(tileSet, "entrance", entranceTileId),
       required: true,
     },
     ...tileIds.map((tileId) => ({
       tileSetId: tileSet.id,
       tileId,
       key: buildTileKey(tileSet.id, tileId),
-      imageSrc: `${basePath}/${tileSet.id}_${tileId}.png`,
+      imageSrc: resolveTileSetAssetPath(tileSet, "tile", tileId),
       required: false,
     })),
   ];
@@ -723,7 +823,7 @@ function migrateLegacyWallOverrides(raw) {
 
 function buildDefaultWallFaceData() {
   const defaults = {};
-  for (const tileSet of TILE_SET_REGISTRY) {
+  for (const tileSet of getTileSetRegistry()) {
     defaults[tileSet.id] = {};
     for (const def of buildTileDefs(tileSet.id)) {
       defaults[tileSet.id][def.tileId] = [];
@@ -735,16 +835,17 @@ function buildDefaultWallFaceData() {
 async function auditTileSetReadiness() {
   const seenIds = new Set();
   const registryIssuesByTileSetId = new Map();
-  for (const tileSet of TILE_SET_REGISTRY) {
+  for (const tileSet of getTileSetRegistry()) {
     registryIssuesByTileSetId.set(tileSet.id, getRegistryIssues(tileSet, seenIds));
     seenIds.add(tileSet.id);
   }
 
-  const report = await Promise.all(TILE_SET_REGISTRY.map(async (tileSet) => {
+  const report = await Promise.all(getTileSetRegistry().map(async (tileSet) => {
     const registryIssues = registryIssuesByTileSetId.get(tileSet.id) || [];
     const { coreAssets, bossAssets } = getTileSetAssetPaths(tileSet, {
-      tileIds: TILE_IDS,
-      referenceCardId: REFERENCE_CARD_ID,
+      tileIds: tileSet.tileIds || TILE_IDS,
+      referenceCardId: tileSet.referenceCardId || REFERENCE_CARD_ID,
+      resolveAssetPath: resolveTileSetAssetPath,
     });
     const [coreChecks, bossChecks] = await Promise.all([
       Promise.all(coreAssets.map((src) => imageExists(src))),
@@ -1844,7 +1945,7 @@ function loadUiThemeId() {
   try {
     const saved = localStorage.getItem(UI_THEME_STORAGE_KEY);
     if (saved === "current") return DEFAULT_UI_THEME_ID;
-    if (UI_THEME_IDS.has(saved)) return saved;
+    if (isSupportedUiThemeId(saved)) return saved;
   } catch (error) {
     console.warn("Could not load UI theme preference.", error);
   }
@@ -1855,7 +1956,8 @@ function loadLastLightUiThemeId() {
   try {
     const saved = localStorage.getItem(LAST_LIGHT_UI_THEME_STORAGE_KEY);
     if (saved === "current") return DEFAULT_UI_THEME_ID;
-    if (saved === "molten" || saved === "overgrown" || saved === "deep_freeze" || saved === "dreamscape" || saved === "nightmare" || saved === "submerged") return saved;
+    const sanitized = sanitizeLightUiThemeId(saved);
+    if (sanitized) return sanitized;
   } catch (error) {
     console.warn("Could not load light theme preference.", error);
   }
@@ -1865,7 +1967,8 @@ function loadLastLightUiThemeId() {
 function loadLastDarkUiThemeId() {
   try {
     const saved = localStorage.getItem(LAST_DARK_UI_THEME_STORAGE_KEY);
-    if (saved === "molten_dark" || saved === "overgrown_dark" || saved === "submerged_dark" || saved === "deep_freeze_dark" || saved === "dreamscape_dark" || saved === "nightmare_dark") return saved;
+    const sanitized = sanitizeDarkUiThemeId(saved);
+    if (sanitized) return sanitized;
   } catch (error) {
     console.warn("Could not load dark theme preference.", error);
   }
@@ -1898,26 +2001,19 @@ function saveUiThemeId(uiThemeId) {
 
 function sanitizeLightUiThemeId(uiThemeId) {
   if (uiThemeId === "current") return DEFAULT_UI_THEME_ID;
-  if (uiThemeId === "overgrown") return "overgrown";
-  if (uiThemeId === "deep_freeze") return "deep_freeze";
-  if (uiThemeId === "dreamscape") return "dreamscape";
-  if (uiThemeId === "nightmare") return "nightmare";
-  if (uiThemeId === "submerged") return "submerged";
-  return uiThemeId === "molten" ? "molten" : DEFAULT_UI_THEME_ID;
+  const theme = getUiThemeById(uiThemeId);
+  if (theme?.mode === "light") return theme.id;
+  return DEFAULT_UI_THEME_ID;
 }
 
 function sanitizeDarkUiThemeId(uiThemeId) {
-  if (uiThemeId === "molten_dark") return "molten_dark";
-  if (uiThemeId === "overgrown_dark") return "overgrown_dark";
-  if (uiThemeId === "submerged_dark") return "submerged_dark";
-  if (uiThemeId === "deep_freeze_dark") return "deep_freeze_dark";
-  if (uiThemeId === "dreamscape_dark") return "dreamscape_dark";
-  if (uiThemeId === "nightmare_dark") return "nightmare_dark";
+  const theme = getUiThemeById(uiThemeId);
+  if (theme?.mode === "dark") return theme.id;
   return "overgrown_dark";
 }
 
 function isDarkUiTheme(uiThemeId) {
-  return uiThemeId === "molten_dark" || uiThemeId === "overgrown_dark" || uiThemeId === "submerged_dark" || uiThemeId === "deep_freeze_dark" || uiThemeId === "dreamscape_dark" || uiThemeId === "nightmare_dark";
+  return getUiThemeById(uiThemeId)?.mode === "dark";
 }
 
 function resolvePairedUiThemeIdForMode(uiThemeId, mode) {
@@ -1942,7 +2038,9 @@ function resolveUiThemeForAppearanceMode(mode) {
 }
 
 function applyAutoThemeForTileSet(tileSetId, { save = true, showStatus = false } = {}) {
-  const linkedLightThemeId = sanitizeLightUiThemeId(tileSetId);
+  const tileSet = getTileSetConfig(tileSetId);
+  const baseThemeId = tileSet?.uiThemeId || DEFAULT_UI_THEME_ID;
+  const linkedLightThemeId = sanitizeLightUiThemeId(baseThemeId);
   const linkedDarkThemeId = sanitizeDarkUiThemeId(`${linkedLightThemeId}_dark`);
   state.lastLightUiThemeId = linkedLightThemeId;
   state.lastDarkUiThemeId = linkedDarkThemeId;
@@ -1973,9 +2071,9 @@ function setAutoThemeByTileSet(enabled, { save = true, showStatus = true, applyN
 function syncUiThemeSelectAvailability(mode) {
   if (!uiThemeSelect) return;
   if (!Array.isArray(uiThemeOptionCatalog)) {
-    uiThemeOptionCatalog = Array.from(uiThemeSelect.options).map((option) => ({
-      value: option.value,
-      label: option.textContent || option.value,
+    uiThemeOptionCatalog = UI_THEME_CATALOG.map((theme) => ({
+      value: theme.id,
+      label: theme.label,
     }));
   }
   const effectiveMode =
@@ -2137,35 +2235,14 @@ function setUiThemeMenuOpen(open) {
 }
 
 function applyUiTheme(uiThemeId) {
-  document.body.classList.toggle("ui-theme-molten", uiThemeId === "molten");
-  document.body.classList.toggle("ui-theme-overgrown", uiThemeId === "overgrown");
-  document.body.classList.toggle("ui-theme-submerged", uiThemeId === "submerged");
-  document.body.classList.toggle("ui-theme-deep-freeze", uiThemeId === "deep_freeze");
-  document.body.classList.toggle("ui-theme-nightmare", uiThemeId === "nightmare");
-  document.body.classList.toggle("ui-theme-dreamscape", uiThemeId === "dreamscape");
-  document.body.classList.toggle("ui-theme-molten-dark", uiThemeId === "molten_dark");
-  document.body.classList.toggle("ui-theme-overgrown-dark", uiThemeId === "overgrown_dark");
-  document.body.classList.toggle("ui-theme-submerged-dark", uiThemeId === "submerged_dark");
-  document.body.classList.toggle("ui-theme-deep-freeze-dark", uiThemeId === "deep_freeze_dark");
-  document.body.classList.toggle("ui-theme-dreamscape-dark", uiThemeId === "dreamscape_dark");
-  document.body.classList.toggle("ui-theme-nightmare-dark", uiThemeId === "nightmare_dark");
+  for (const theme of UI_THEME_CATALOG) {
+    document.body.classList.toggle(theme.className, theme.id === uiThemeId);
+  }
   scheduleBoardHexGridRender();
 }
 
 function getUiThemeLabel(uiThemeId) {
-  if (uiThemeId === "molten") return "Molten - Light";
-  if (uiThemeId === "overgrown") return "Overgrown - Light";
-  if (uiThemeId === "deep_freeze") return "Deep Freeze - Light";
-  if (uiThemeId === "dreamscape") return "Dreamscape - Light";
-  if (uiThemeId === "nightmare") return "Nightmare - Light";
-  if (uiThemeId === "submerged") return "Submerged - Light";
-  if (uiThemeId === "molten_dark") return "Molten - Dark";
-  if (uiThemeId === "overgrown_dark") return "Overgrown - Dark";
-  if (uiThemeId === "submerged_dark") return "Submerged - Dark";
-  if (uiThemeId === "deep_freeze_dark") return "Deep Freeze - Dark";
-  if (uiThemeId === "dreamscape_dark") return "Dreamscape - Dark";
-  if (uiThemeId === "nightmare_dark") return "Nightmare - Dark";
-  return "Molten - Light";
+  return getUiThemeById(uiThemeId)?.label || getUiThemeById(DEFAULT_UI_THEME_ID)?.label || "Molten - Light";
 }
 
 function applyFeedbackMode(useFaceFeedback) {
@@ -2389,6 +2466,7 @@ function captureBuildViewLayout() {
   }
   const bossTokens = state.bossTokens.map((token) => ({
     id: token.id,
+    bossKey: token.bossKey || "",
     src: token.src,
     x: Number(token.x) || 0,
     y: Number(token.y) || 0,
@@ -2539,8 +2617,10 @@ function restoreBuildViewLayout(snapshot) {
     }
   }
   for (const savedToken of snapshot.bossTokens || []) {
+    const bossKey = savedToken.bossKey || getBossKeyForLegacySrc(savedToken.src, snapshot.tileSetId);
+    if (!bossKey) continue;
     createBossToken(
-      savedToken.src,
+      bossKey,
       Number(savedToken.x) || 0,
       Number(savedToken.y) || 0,
       Number(savedToken.size) || TILE_SIZE,
@@ -4205,7 +4285,10 @@ function rerenderTrayAndReserve() {
 }
 
 function getBossTileSources(tileSetId = state.selectedTileSetId) {
-  return getBossTileSourcesValue(tileSetId, getTileSetConfig);
+  return getBossTileSourcesValue(tileSetId, getTileSetConfig, (tileSet, assetKind, assetId) => {
+    if (assetKind !== "boss") return resolveTileSetAssetPath(tileSet, assetKind, assetId);
+    return buildBossAssetKey(tileSet.id, assetId);
+  });
 }
 
 function ensureBossPileOrder(tileSetId = state.selectedTileSetId) {
@@ -4223,22 +4306,22 @@ function rotateBossPileTop(tileSetId = state.selectedTileSetId) {
   state.bossPileOrderByTileSet[tileSetId] = rotatePileTop(order);
 }
 
-function pushBossBackToPile(src, tileSetId = state.selectedTileSetId) {
+function pushBossBackToPile(bossKey, tileSetId = state.selectedTileSetId) {
   if (state.useAllBosses) {
     const unified = ensureAllBossesPileOrder();
-    const filtered = unified.filter((entry) => entry !== src);
-    filtered.push(src);
+    const filtered = unified.filter((entry) => entry !== bossKey);
+    filtered.push(bossKey);
     state.allBossesPileOrder = filtered;
     return;
   }
   const order = ensureBossPileOrder(tileSetId);
-  const filtered = order.filter((entry) => entry !== src);
-  filtered.push(src);
+  const filtered = order.filter((entry) => entry !== bossKey);
+  filtered.push(bossKey);
   state.bossPileOrderByTileSet[tileSetId] = filtered;
 }
 
 function ensureAllBossesPileOrder() {
-  const allCanonical = buildAllBossTileSources(TILE_SET_REGISTRY, getBossTileSources);
+  const allCanonical = buildAllBossTileSources(getTileSetRegistry(), getBossTileSources);
   const existing = Array.isArray(state.allBossesPileOrder) ? state.allBossesPileOrder : [];
   const isFirstBuild = !existing.length;
   const normalized = normalizeOrderedSources(allCanonical, existing);
@@ -4248,11 +4331,18 @@ function ensureAllBossesPileOrder() {
 
 function rotateAllBossesPileTop() {
   const order = ensureAllBossesPileOrder();
-  state.allBossesPileOrder = rotatePileTop(order);
+  const placedBossSources = new Set(state.bossTokens.map((token) => token.bossKey));
+  const visibleOrder = order.filter((bossKey) => !placedBossSources.has(bossKey));
+  const visibleTop = visibleOrder[visibleOrder.length - 1];
+  if (!visibleTop) return;
+
+  const next = order.filter((bossKey) => bossKey !== visibleTop);
+  next.unshift(visibleTop);
+  state.allBossesPileOrder = next;
 }
 
 function getAvailableBossSources(tileSetId = state.selectedTileSetId) {
-  const placedBossSources = new Set(state.bossTokens.map((token) => token.src));
+  const placedBossSources = new Set(state.bossTokens.map((token) => token.bossKey));
   if (state.useAllBosses) {
     return ensureAllBossesPileOrder().filter((src) => !placedBossSources.has(src));
   }
@@ -4275,16 +4365,18 @@ function triggerBossRandomizeAnimation(tileSetId = state.selectedTileSetId) {
 }
 
 function getTileSetIdForBossSrc(src) {
-  return findBossTileSetIdForSrc(src, TILE_SET_REGISTRY, getBossTileSources, state.selectedTileSetId);
+  const parsed = parseBossAssetKey(src);
+  if (parsed?.tileSetId) return parsed.tileSetId;
+  return findBossTileSetIdForSrc(src, getTileSetRegistry(), getBossTileSources, state.selectedTileSetId);
 }
 
 function removeBossToken(token, { returnToPile = true } = {}) {
   if (!token) return;
   if (returnToPile) {
     const targetTileSetId = state.useAllBosses
-      ? getTileSetIdForBossSrc(token.src)
+      ? getTileSetIdForBossSrc(token.bossKey)
       : state.selectedTileSetId;
-    pushBossBackToPile(token.src, targetTileSetId);
+    pushBossBackToPile(token.bossKey, targetTileSetId);
   }
   state.bossTokens = state.bossTokens.filter((entry) => entry.id !== token.id);
   token.dom?.remove();
@@ -4297,7 +4389,7 @@ function generateAllBossesOffset(src, z, count) {
 function renderBossPile() {
   if (!bossPile) return;
   bossPile.innerHTML = "";
-  const placedBossSources = new Set(state.bossTokens.map((token) => token.src));
+  const placedBossSources = new Set(state.bossTokens.map((token) => token.bossKey));
   let order;
   if (state.useAllBosses) {
     order = ensureAllBossesPileOrder();
@@ -4342,7 +4434,7 @@ function renderBossPile() {
     card.style.setProperty("--cycle-target-scale", String(cycleTargetOffset.scale));
 
     const img = document.createElement("img");
-    img.src = ordered[i];
+    img.src = resolveBossAssetSrc(ordered[i]);
     img.alt = "Boss tile";
     img.draggable = false;
     img.addEventListener("dragstart", (event) => event.preventDefault());
@@ -4365,6 +4457,7 @@ function renderBossPile() {
         draggedOut = false;
         return;
       }
+      if (!isTopCard) return;
       if (!state.bossEditMode) return;
       if (ordered.length < 2) return;
       if (state.bossPileCycleInProgress) return;
@@ -4649,7 +4742,7 @@ function getBoardDropPositionFromPointer(clientX, clientY, boardRect, zoom = get
   });
 }
 
-function beginBossSpawnDrag(event, src, onDragStart = null) {
+function beginBossSpawnDrag(event, bossKey, onDragStart = null) {
   if (event.button !== 0) return;
   event.preventDefault();
   event.stopPropagation();
@@ -4692,7 +4785,7 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
   preview.style.width = `${TILE_SIZE}px`;
   preview.style.display = "none";
   const previewImg = document.createElement("img");
-  previewImg.src = src;
+  previewImg.src = resolveBossAssetSrc(bossKey);
   previewImg.alt = "";
   previewImg.draggable = false;
   previewImg.addEventListener("dragstart", (e) => e.preventDefault());
@@ -4758,7 +4851,7 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
     if (moved && droppedInsideBoard) {
       const zoom = getBoardZoom();
       const { x: bx, y: by } = getBoardDropPositionFromPointer(upEvent.clientX, upEvent.clientY, boardRect, zoom);
-      createBossToken(src, bx, by, TILE_SIZE);
+      createBossToken(bossKey, bx, by, TILE_SIZE);
       droppedToBoard = true;
       renderBossPile();
     }
@@ -4770,10 +4863,12 @@ function beginBossSpawnDrag(event, src, onDragStart = null) {
   window.addEventListener("pointercancel", handleUp);
 }
 
-function createBossToken(src, x, y, size = 130) {
+function createBossToken(bossKey, x, y, size = 130) {
   const gridSize = TILE_SIZE;
+  const src = resolveBossAssetSrc(bossKey);
   const token = {
     id: `boss-token-${state.nextBossTokenId++}`,
+    bossKey,
     src,
     x,
     y,
@@ -4881,7 +4976,7 @@ function beginBossTokenDrag(token, event) {
     const droppedInsideBossPile = isPointInsideElement(upEvent.clientX, upEvent.clientY, bossPile);
     const droppedInsideInfoDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, rightDrawer);
     if (droppedInsideBossPile || droppedInsideInfoDrawer) {
-      pushBossBackToPile(token.src, state.selectedTileSetId);
+      pushBossBackToPile(token.bossKey, state.selectedTileSetId);
       state.bossTokens = state.bossTokens.filter((entry) => entry.id !== token.id);
       token.dom.remove();
       renderBossPile();
@@ -5058,7 +5153,7 @@ function updateReferenceMarkerTransform(reference = state.referenceMarker) {
 
 function getReferenceTileSrc(tileSetId = state.selectedTileSetId) {
   const tileSet = getTileSetConfig(tileSetId);
-  return `./tiles/${tileSet.id}/${tileSet.id}_${tileSet.referenceCardId}.png`;
+  return resolveTileSetAssetPath(tileSet, "reference", tileSet.referenceCardId);
 }
 
 function placeReferenceMarkerAt(x, y) {
@@ -6029,7 +6124,7 @@ function refreshWallGuideDom(guideDom, wallFaceSet) {
 
 function getWallStorageDeps() {
   return {
-    tileSetRegistry: TILE_SET_REGISTRY,
+    tileSetRegistry: getTileSetRegistry(),
     buildTileDefs,
   };
 }
@@ -6512,12 +6607,15 @@ function beginWallEditorPortalFlagDrag(tile, event) {
 }
 
 function getWallEditorGroupById(groupId) {
-  return WALL_EDITOR_GROUPS.find((group) => group.id === groupId) || WALL_EDITOR_GROUPS[0];
+  const groups = getWallEditorGroups();
+  return groups.find((group) => group.id === groupId) || groups[0];
 }
 
 function getWallEditorGroupIdForTileSet(tileSetId) {
-  return WALL_EDITOR_GROUPS.find((group) => group.tileSetIds.includes(tileSetId))?.id
-    || WALL_EDITOR_GROUPS[0].id;
+  const groups = getWallEditorGroups();
+  return groups.find((group) => group.tileSetIds.includes(tileSetId))?.id
+    || groups[0]?.id
+    || null;
 }
 
 async function renderWallEditorPage() {
@@ -6546,9 +6644,11 @@ async function renderWallEditorPage() {
   groupLabel.className = "wall-editor-group-label";
   groupLabel.textContent = "Tile Set Group";
 
+  const wallEditorGroups = getWallEditorGroups();
+  if (!wallEditorGroups.length) return;
   const groupSelect = document.createElement("select");
   groupSelect.className = "wall-editor-group-select";
-  for (const group of WALL_EDITOR_GROUPS) {
+  for (const group of wallEditorGroups) {
     const option = document.createElement("option");
     option.value = group.id;
     option.textContent = group.label;
@@ -6556,7 +6656,7 @@ async function renderWallEditorPage() {
   }
   groupSelect.value = getWallEditorGroupById(state.wallEditorGroupId).id;
   groupSelect.addEventListener("change", () => {
-    state.wallEditorGroupId = groupSelect.value || WALL_EDITOR_GROUPS[0].id;
+    state.wallEditorGroupId = groupSelect.value || wallEditorGroups[0]?.id || null;
     state.wallEditorTileRefs = new Map();
     state.wallEditorActiveTileSetId = null;
     state.wallEditorActiveTileId = null;
@@ -6606,6 +6706,7 @@ async function renderWallEditorPage() {
   wallEditorPage.appendChild(trays);
 
   const selectedGroup = getWallEditorGroupById(state.wallEditorGroupId);
+  if (!selectedGroup) return;
   const tileSets = selectedGroup.tileSetIds
     .map((tileSetId) => getTileSetConfig(tileSetId))
     .filter(Boolean);

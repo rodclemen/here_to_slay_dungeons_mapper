@@ -1,15 +1,35 @@
 const imageExistsCache = new Map();
 const imageLoadCache = new Map();
 
-export function getTileSetAssetPaths(tileSet, { tileIds = [], referenceCardId = "reference_card" } = {}) {
+export function getBuiltInTileSetAssetPath(tileSet, assetKind, assetId = "") {
   const basePath = `./tiles/${tileSet.id}`;
+  if (assetKind === "entrance") return `${basePath}/${tileSet.id}_entrance.png`;
+  if (assetKind === "reference") return `${basePath}/${tileSet.id}_${assetId || "reference_card"}.png`;
+  if (assetKind === "tile") return `${basePath}/${tileSet.id}_${assetId}.png`;
+  if (assetKind === "boss") return `${basePath}/${tileSet.id}_boss_${assetId}.png`;
+  return "";
+}
+
+export function resolveTileSetAssetPath(tileSet, assetKind, assetId = "") {
+  if (!tileSet || !tileSet.id) return "";
+  return getBuiltInTileSetAssetPath(tileSet, assetKind, assetId);
+}
+
+export function getTileSetAssetPaths(
+  tileSet,
+  {
+    tileIds = [],
+    referenceCardId = "reference_card",
+    resolveAssetPath = resolveTileSetAssetPath,
+  } = {},
+) {
   const coreAssets = [
-    `${basePath}/${tileSet.id}_entrance.png`,
-    ...tileIds.map((tileId) => `${basePath}/${tileSet.id}_${tileId}.png`),
-    `${basePath}/${tileSet.id}_${referenceCardId}.png`,
+    resolveAssetPath(tileSet, "entrance", tileSet?.entranceTileId || "entrance"),
+    ...tileIds.map((tileId) => resolveAssetPath(tileSet, "tile", tileId)),
+    resolveAssetPath(tileSet, "reference", referenceCardId),
   ];
   const bossAssets = (tileSet.bossIds || []).map(
-    (bossId) => `${basePath}/${tileSet.id}_boss_${bossId}.png`,
+    (bossId) => resolveAssetPath(tileSet, "boss", bossId),
   );
   return { coreAssets, bossAssets };
 }
