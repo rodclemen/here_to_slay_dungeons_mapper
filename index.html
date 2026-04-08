@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Here to Slay DUNGEONS mapper</title>
+    <link rel="icon" type="image/png" href="./icons/d20.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -115,6 +116,8 @@
               </svg>
             </button>
             <div id="quick-actions-dropdown" class="quick-actions-dropdown" role="menu" hidden>
+              <button id="add-custom-tileset-btn" class="quick-action-option" type="button" role="menuitem">Add Custom Tile Set</button>
+              <button id="import-custom-tileset-btn" class="quick-action-option" type="button" role="menuitem">Import Custom Tileset</button>
               <button id="copy-share-link-btn" class="quick-action-option" type="button" role="menuitem">Copy Share Link</button>
               <button id="export-pdf-btn" class="quick-action-option" type="button" role="menuitem">Export PDF</button>
               <button id="reset-tiles-btn" class="quick-action-option" type="button" role="menuitem">Reset Tiles</button>
@@ -144,6 +147,7 @@
             </select>
           </div>
           <input id="import-wall-data-input" type="file" accept="application/json" hidden />
+          <input id="import-custom-tileset-input" type="file" accept=".zip,application/zip" hidden />
         </div>
       </header>
       <img id="corner-logo" class="corner-logo" src="./Graphics/logo.png" alt="" aria-hidden="true" />

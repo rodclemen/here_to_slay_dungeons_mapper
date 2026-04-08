@@ -91,6 +91,20 @@ import {
   getFaceGeometry as getFaceGeometryValue,
   getOpaqueBounds as getOpaqueBoundsValue,
 } from "./modules/tile-assets.js";
+import {
+  buildCustomTileAssetStorageKey,
+  clearStoredCustomTileSetBundles,
+  deleteStoredCustomTileSetBundle,
+  getStoredCustomTileSetBundle,
+  listStoredCustomTileSetBundles,
+  saveStoredCustomTileSetBundle,
+} from "./modules/custom-tileset-storage.js";
+import {
+  createZipArchive,
+  getZipEntryBlob,
+  getZipEntryText,
+  readZipArchive,
+} from "./modules/zip-reader.js";
 
 const SIDES = 16;
 const SQRT_3 = Math.sqrt(3);
@@ -160,6 +174,7 @@ const AUTO_THEME_BY_TILE_SET_STORAGE_KEY = "hts_auto_theme_by_tile_set_v1";
 const DRAWER_STATE_STORAGE_KEY = "hts_drawer_state_v1";
 const AUTO_BUILD_DEV_TUNING_STORAGE_KEY = "hts_auto_build_dev_tuning_v1";
 const LEGACY_AUTO_BUILD_TUNING_STORAGE_KEY = "hts_auto_build_tuning_v1";
+const LEGACY_CUSTOM_TILE_SET_RECORDS_STORAGE_KEY = "hts_custom_tile_set_records_v1";
 const DEFAULT_TILE_SET_ID = "molten";
 const DEFAULT_UI_THEME_ID = "molten";
 const DEFAULT_APPEARANCE_MODE = "system";
@@ -258,6 +273,786 @@ const BUILT_IN_TILE_SET_REGISTRY = [
 ];
 
 let runtimeTileSetRegistry = BUILT_IN_TILE_SET_REGISTRY.map((tileSet) => ({ ...tileSet }));
+let customTileSetManifestCache = [];
+let customTileSetAssetUrlCache = new Map();
+
+function cloneBuiltInTileSetRegistry() {
+  return BUILT_IN_TILE_SET_REGISTRY.map((tileSet) => ({ ...tileSet, source: "built_in" }));
+}
+
+function sanitizeTileAssetPathMap(input) {
+  if (!input || typeof input !== "object") return null;
+  const sanitized = {};
+  for (const [assetId, assetPath] of Object.entries(input)) {
+    if (!assetId || typeof assetPath !== "string" || !assetPath.trim()) continue;
+    sanitized[String(assetId)] = assetPath.trim();
+  }
+  return Object.keys(sanitized).length ? sanitized : null;
+}
+
+function sanitizeCustomTileSetAssetPaths(assetPaths, tileSet) {
+  if (!assetPaths || typeof assetPaths !== "object") return null;
+  const sanitized = {};
+  const entrancePath = typeof assetPaths.entrance === "string"
+    ? assetPaths.entrance.trim()
+    : typeof assetPaths.entrance?.[tileSet.entranceTileId] === "string"
+      ? assetPaths.entrance[tileSet.entranceTileId].trim()
+      : "";
+  const referencePath = typeof assetPaths.reference === "string"
+    ? assetPaths.reference.trim()
+    : typeof assetPaths.reference?.[tileSet.referenceCardId] === "string"
+      ? assetPaths.reference[tileSet.referenceCardId].trim()
+      : "";
+  const tilePaths = sanitizeTileAssetPathMap(assetPaths.tile);
+  const bossPaths = sanitizeTileAssetPathMap(assetPaths.boss);
+
+  if (entrancePath) sanitized.entrance = entrancePath;
+  if (referencePath) sanitized.reference = { [tileSet.referenceCardId]: referencePath };
+  if (tilePaths) sanitized.tile = tilePaths;
+  if (bossPaths) sanitized.boss = bossPaths;
+
+  return Object.keys(sanitized).length ? sanitized : null;
+}
+
+function normalizeCustomTileSetRecord(record, { includeAssetPaths = false } = {}) {
+  if (!record || typeof record !== "object") return null;
+  const id = String(record.id || "").trim();
+  if (!id) return null;
+
+  const tileIds = Array.isArray(record.tileIds) && record.tileIds.length === TILE_IDS.length
+    ? record.tileIds.map((tileId) => String(tileId || "").trim()).filter(Boolean)
+    : [...TILE_IDS];
+  const normalized = {
+    ...record,
+    id,
+    label: String(record.label || id).trim() || id,
+    source: "custom",
+    gameSetId: String(record.gameSetId || "custom").trim() || "custom",
+    uiThemeId: isSupportedUiThemeId(record.uiThemeId) ? record.uiThemeId : DEFAULT_UI_THEME_ID,
+    entranceTileId: String(record.entranceTileId || ENTRANCE_TILE_ID).trim() || ENTRANCE_TILE_ID,
+    tileIds: tileIds.length === TILE_IDS.length ? tileIds : [...TILE_IDS],
+    referenceCardId: String(record.referenceCardId || REFERENCE_CARD_ID).trim() || REFERENCE_CARD_ID,
+    bossIds: Array.isArray(record.bossIds)
+      ? [...new Set(record.bossIds.map((bossId) => String(bossId || "").trim()).filter(Boolean))]
+      : [],
+    status: "not_implemented",
+  };
+
+  if (includeAssetPaths) {
+    const assetPaths = sanitizeCustomTileSetAssetPaths(record.assetPaths, normalized);
+    if (assetPaths) normalized.assetPaths = assetPaths;
+    else delete normalized.assetPaths;
+  } else {
+    delete normalized.assetPaths;
+  }
+
+  return normalized;
+}
+
+function getRequiredCustomTileAssetRefs(tileSet) {
+  const refs = [
+    { assetKind: "entrance", assetId: tileSet.entranceTileId },
+    ...tileSet.tileIds.map((tileId) => ({ assetKind: "tile", assetId: tileId })),
+    { assetKind: "reference", assetId: tileSet.referenceCardId },
+    ...tileSet.bossIds.map((bossId) => ({ assetKind: "boss", assetId: bossId })),
+  ];
+  return refs;
+}
+
+function stripTransientCustomTileSetFields(tileSet) {
+  const normalized = normalizeCustomTileSetRecord(tileSet);
+  if (!normalized) return null;
+  delete normalized.status;
+  delete normalized.assetResolver;
+  return normalized;
+}
+
+function slugifyCustomTileSetId(name) {
+  const slug = String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return slug || "custom_tileset";
+}
+
+function buildUniqueCustomTileSetId(name) {
+  const baseId = slugifyCustomTileSetId(name);
+  const takenIds = new Set(getTileSetRegistry().map((tileSet) => tileSet.id));
+  if (!takenIds.has(baseId)) return baseId;
+  let suffix = 2;
+  while (takenIds.has(`${baseId}_${suffix}`)) suffix += 1;
+  return `${baseId}_${suffix}`;
+}
+
+function buildNewCustomTileSetManifest(name) {
+  const trimmedName = String(name || "").trim();
+  const sourceTileSet = getTileSetConfig(state.selectedTileSetId);
+  return stripTransientCustomTileSetFields({
+    id: buildUniqueCustomTileSetId(trimmedName),
+    label: trimmedName || "Custom Tile Set",
+    source: "custom",
+    gameSetId: "custom",
+    uiThemeId: sourceTileSet?.uiThemeId || DEFAULT_UI_THEME_ID,
+    entranceTileId: ENTRANCE_TILE_ID,
+    tileIds: [...TILE_IDS],
+    referenceCardId: REFERENCE_CARD_ID,
+    bossIds: ["boss_01", "boss_02"],
+  });
+}
+
+function revokeCustomTileSetAssetUrls(cache = customTileSetAssetUrlCache) {
+  for (const url of cache.values()) {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function buildRuntimeCustomTileSetRecordsFromCache() {
+  return customTileSetManifestCache
+    .map((manifest) => decorateStoredCustomTileSetManifest(manifest, customTileSetAssetUrlCache))
+    .filter(Boolean);
+}
+
+async function fetchCustomTileAssetBlob(src) {
+  const response = await fetch(src);
+  if (!response.ok) {
+    throw new Error(`Could not fetch custom tile asset: ${src}`);
+  }
+  return response.blob();
+}
+
+async function buildStoredCustomTileSetBundle(record) {
+  const normalized = normalizeCustomTileSetRecord(record, { includeAssetPaths: true });
+  if (!normalized?.assetPaths) {
+    throw new Error("Custom tile set record is missing assetPaths.");
+  }
+
+  const assetEntries = [];
+  for (const { assetKind, assetId } of getRequiredCustomTileAssetRefs(normalized)) {
+    const src =
+      typeof normalized.assetPaths?.[assetKind] === "string"
+        ? normalized.assetPaths[assetKind]
+        : normalized.assetPaths?.[assetKind]?.[assetId];
+    if (!src) {
+      throw new Error(`Missing custom asset path for ${assetKind}:${assetId}`);
+    }
+    assetEntries.push({
+      key: buildCustomTileAssetStorageKey(normalized.id, assetKind, assetId),
+      tileSetId: normalized.id,
+      assetKind,
+      assetId,
+      blob: await fetchCustomTileAssetBlob(src),
+    });
+  }
+
+  return {
+    manifest: stripTransientCustomTileSetFields(normalized),
+    assets: assetEntries,
+  };
+}
+
+function getCustomPackageAssetMap(manifest) {
+  return manifest?.assetMap || manifest?.assetPaths || null;
+}
+
+function getPackageAssetRelativePath(assetMap, tileSet, assetKind, assetId) {
+  if (!assetMap || typeof assetMap !== "object") return "";
+  const entry = assetMap[assetKind];
+  if (typeof entry === "string") return entry.trim();
+  if (entry && typeof entry === "object" && typeof entry[assetId] === "string") {
+    return entry[assetId].trim();
+  }
+  if (assetKind === "entrance" && entry && typeof entry[tileSet.entranceTileId] === "string") {
+    return entry[tileSet.entranceTileId].trim();
+  }
+  if (assetKind === "reference" && entry && typeof entry[tileSet.referenceCardId] === "string") {
+    return entry[tileSet.referenceCardId].trim();
+  }
+  return "";
+}
+
+function normalizePackagePath(path) {
+  return String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/^\/+/, "")
+    .trim();
+}
+
+function inferBlobTypeFromPath(path) {
+  if (/\.png$/i.test(path)) return "image/png";
+  if (/\.jpe?g$/i.test(path)) return "image/jpeg";
+  if (/\.webp$/i.test(path)) return "image/webp";
+  return "application/octet-stream";
+}
+
+function normalizeImportedWallEditorData(raw, tileSet) {
+  if (!raw || typeof raw !== "object") return null;
+  const validTileIds = new Set([tileSet.entranceTileId, ...tileSet.tileIds]);
+  const sanitizeFaces = (value) => [...new Set(
+    Array.isArray(value)
+      ? value.filter((face) => Number.isInteger(face) && face >= 0 && face < 64)
+      : [],
+  )].sort((a, b) => a - b);
+  const sanitizePortal = (value) => sanitizePortalFlagPosition(value);
+
+  const wallOverrides = {};
+  const endTileOverrides = {};
+  const portalFlagOverrides = {};
+
+  const wallSource = raw.wallOverrides || raw.wallFaces || {};
+  for (const [tileId, faces] of Object.entries(wallSource)) {
+    if (!validTileIds.has(tileId)) continue;
+    wallOverrides[tileId] = sanitizeFaces(faces);
+  }
+
+  const endSource = raw.endTileOverrides || raw.allowAsEndTile || {};
+  for (const [tileId, allowed] of Object.entries(endSource)) {
+    if (!validTileIds.has(tileId)) continue;
+    if (typeof allowed !== "boolean") continue;
+    endTileOverrides[tileId] = allowed;
+  }
+
+  const portalSource = raw.portalFlagOverrides || raw.portalFlags || {};
+  for (const [tileId, portal] of Object.entries(portalSource)) {
+    if (!validTileIds.has(tileId)) continue;
+    const sanitized = sanitizePortal(portal);
+    if (!sanitized) continue;
+    portalFlagOverrides[tileId] = sanitized;
+  }
+
+  const guidePointTemplateOverrides = sanitizeGuidePointTemplateOverrides(
+    raw.guidePointTemplateOverrides || raw.guidePointTemplates || {},
+  );
+
+  return {
+    wallOverrides,
+    endTileOverrides,
+    portalFlagOverrides,
+    guidePointTemplateOverrides,
+  };
+}
+
+async function buildStoredCustomTileSetBundleFromZip(file) {
+  const files = await readZipArchive(file);
+  const manifestText = getZipEntryText(files, "manifest.json");
+  if (!manifestText) {
+    throw new Error("Zip is missing manifest.json at the package root.");
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestText);
+  } catch (error) {
+    throw new Error("manifest.json is not valid JSON.");
+  }
+  if (!Array.isArray(manifest.tileIds) || manifest.tileIds.length !== TILE_IDS.length) {
+    throw new Error("manifest.json must define exactly 9 tileIds.");
+  }
+  if (!manifest.entranceTileId || !manifest.referenceCardId) {
+    throw new Error("manifest.json must define entranceTileId and referenceCardId.");
+  }
+  if (!Array.isArray(manifest.bossIds)) {
+    throw new Error("manifest.json must define bossIds as an array.");
+  }
+
+  const normalized = normalizeCustomTileSetRecord({
+    ...manifest,
+    assetPaths: getCustomPackageAssetMap(manifest),
+  }, { includeAssetPaths: true });
+  if (!normalized) {
+    throw new Error("manifest.json is missing required tileset fields.");
+  }
+  if (!isSupportedUiThemeId(normalized.uiThemeId)) {
+    throw new Error(`Unsupported uiThemeId: ${normalized.uiThemeId}`);
+  }
+  if (normalized.tileIds.length !== TILE_IDS.length) {
+    throw new Error("Custom tilesets must define exactly 9 regular tile IDs.");
+  }
+  if (BUILT_IN_TILE_SET_REGISTRY.some((tileSet) => tileSet.id === normalized.id)) {
+    throw new Error(`Tileset id "${normalized.id}" conflicts with a built-in set.`);
+  }
+
+  const assetEntries = [];
+  for (const { assetKind, assetId } of getRequiredCustomTileAssetRefs(normalized)) {
+    const relativePath = normalizePackagePath(
+      getPackageAssetRelativePath(normalized.assetPaths, normalized, assetKind, assetId),
+    );
+    if (!relativePath) {
+      throw new Error(`manifest.json is missing asset mapping for ${assetKind}:${assetId}`);
+    }
+    const blob = getZipEntryBlob(files, relativePath, inferBlobTypeFromPath(relativePath));
+    if (!blob) {
+      throw new Error(`Zip is missing asset file: ${relativePath}`);
+    }
+    assetEntries.push({
+      key: buildCustomTileAssetStorageKey(normalized.id, assetKind, assetId),
+      tileSetId: normalized.id,
+      assetKind,
+      assetId,
+      blob,
+    });
+  }
+
+  let wallEditorData = null;
+  const wallEditorText = getZipEntryText(files, "wall_editor.json");
+  if (wallEditorText) {
+    try {
+      wallEditorData = normalizeImportedWallEditorData(JSON.parse(wallEditorText), normalized);
+    } catch (error) {
+      throw new Error("wall_editor.json is not valid JSON.");
+    }
+  }
+
+  return {
+    manifest: stripTransientCustomTileSetFields(normalized),
+    assets: assetEntries,
+    wallEditorData,
+  };
+}
+
+function replaceTileSetOverrideMapEntry(source, tileSetId, nextValue) {
+  if (!nextValue || !Object.keys(nextValue).length) {
+    delete source[tileSetId];
+    return;
+  }
+  source[tileSetId] = nextValue;
+}
+
+function applyImportedWallEditorData(tileSetId, wallEditorData) {
+  if (!wallEditorData) return;
+
+  replaceTileSetOverrideMapEntry(state.wallOverrides, tileSetId, wallEditorData.wallOverrides);
+  replaceTileSetOverrideMapEntry(state.endTileOverrides, tileSetId, wallEditorData.endTileOverrides);
+  replaceTileSetOverrideMapEntry(state.portalFlagOverrides, tileSetId, wallEditorData.portalFlagOverrides);
+
+  if (wallEditorData.guidePointTemplateOverrides && Object.keys(wallEditorData.guidePointTemplateOverrides).length) {
+    state.guidePointTemplateOverrides = {
+      ...state.guidePointTemplateOverrides,
+      ...wallEditorData.guidePointTemplateOverrides,
+    };
+    saveGuidePointTemplateOverrides();
+  }
+
+  saveWallOverrides();
+  saveEndTileOverrides();
+  savePortalFlagOverrides();
+}
+
+function removeCustomTileSetLocalState(tileSetId) {
+  delete state.wallOverrides[tileSetId];
+  delete state.endTileOverrides[tileSetId];
+  delete state.portalFlagOverrides[tileSetId];
+  saveWallOverrides();
+  saveEndTileOverrides();
+  savePortalFlagOverrides();
+}
+
+async function importCustomTileSetPackage(file) {
+  if (!file) return;
+  setStatus(`Importing custom tileset from ${file.name}...`);
+  const bundle = await buildStoredCustomTileSetBundleFromZip(file);
+  await saveStoredCustomTileSetBundle(bundle.manifest, bundle.assets);
+  await refreshRuntimeTileSetRegistry(null, { reloadActiveTileSet: false });
+  applyImportedWallEditorData(bundle.manifest.id, bundle.wallEditorData);
+
+  if (tileSetSelect) tileSetSelect.value = bundle.manifest.id;
+  if (getTileSetConfig(bundle.manifest.id)?.status === "ready") {
+    await applyTileSet(bundle.manifest.id, false);
+    syncTileSetMenuOptions();
+  }
+  if (state.wallEditMode) {
+    await renderWallEditorPage();
+  }
+  setStatus(`Imported custom tileset: ${bundle.manifest.label}.`);
+}
+
+function openCustomTileSetImportPicker() {
+  if (!importCustomTileSetInput) return;
+  importCustomTileSetInput.value = "";
+  importCustomTileSetInput.click();
+}
+
+async function promptAndCreateCustomTileSet() {
+  const name = window.prompt("Name your custom tile set:");
+  if (name == null) return;
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    setStatus("Custom tile set name is required.", true);
+    return;
+  }
+
+  const manifest = buildNewCustomTileSetManifest(trimmedName);
+  await saveStoredCustomTileSetBundle(manifest, []);
+  await refreshRuntimeTileSetRegistry(null, { reloadActiveTileSet: false });
+  state.selectedTileSetId = manifest.id;
+  state.wallEditorGroupId = getWallEditorGroupIdForTileSet(manifest.id);
+  if (!state.wallEditMode) {
+    setWallEditMode(true);
+  }
+  state.wallEditorActiveTileSetId = manifest.id;
+  state.wallEditorActiveTileId = manifest.entranceTileId;
+  await rerenderWallEditorPreservingScroll();
+  setActiveWallEditorTile(manifest.id, manifest.entranceTileId);
+  setStatus(`Created custom tile set: ${manifest.label}. Load art in the editor slots.`);
+}
+
+async function replaceCustomTileSetAsset(tileSetId, assetKind, assetId, file) {
+  if (!file) return;
+  const blob = file instanceof Blob
+    ? file
+    : new Blob([file], { type: file?.type || "application/octet-stream" });
+  const bundle = await getStoredCustomTileSetBundle(tileSetId);
+  if (!bundle?.manifest) throw new Error(`Could not find stored custom tileset: ${tileSetId}`);
+
+  const nextAssets = (bundle.assets || [])
+    .filter((asset) => !(asset.assetKind === assetKind && asset.assetId === assetId));
+  nextAssets.push({
+    key: buildCustomTileAssetStorageKey(tileSetId, assetKind, assetId),
+    tileSetId,
+    assetKind,
+    assetId,
+    blob,
+  });
+  await saveStoredCustomTileSetBundle(bundle.manifest, nextAssets);
+  const assetKey = buildCustomTileAssetStorageKey(tileSetId, assetKind, assetId);
+  customTileSetAssetUrlCache.set(assetKey, URL.createObjectURL(blob));
+  const cachedManifest = stripTransientCustomTileSetFields(bundle.manifest);
+  const manifestIndex = customTileSetManifestCache.findIndex((entry) => entry.id === tileSetId);
+  if (manifestIndex >= 0) customTileSetManifestCache[manifestIndex] = cachedManifest;
+  else customTileSetManifestCache.push(cachedManifest);
+  await refreshRuntimeTileSetRegistry(buildRuntimeCustomTileSetRecordsFromCache(), { reloadActiveTileSet: false });
+  state.selectedTileSetId = tileSetId;
+  state.wallEditorGroupId = getWallEditorGroupIdForTileSet(tileSetId);
+  state.wallEditorActiveTileSetId = tileSetId;
+  state.wallEditorActiveTileId = assetKind === "tile" || assetKind === "entrance" ? assetId : state.wallEditorActiveTileId;
+  if (state.wallEditMode) {
+    await rerenderWallEditorPreservingScroll();
+    if (state.wallEditorActiveTileId) setActiveWallEditorTile(tileSetId, state.wallEditorActiveTileId);
+  }
+  setStatus(`${getTileSetConfig(tileSetId)?.label || tileSetId} ${assetId} image updated.`);
+}
+
+async function renameCustomTileSet(tileSetId) {
+  const tileSet = getTileSetConfig(tileSetId);
+  if (!tileSet || tileSet.source !== "custom") return;
+  const nextLabel = window.prompt("Rename custom tile set:", tileSet.label || "");
+  if (nextLabel == null) return;
+  const trimmedLabel = nextLabel.trim();
+  if (!trimmedLabel) {
+    setStatus("Custom tile set name is required.", true);
+    return;
+  }
+
+  const bundle = await getStoredCustomTileSetBundle(tileSetId);
+  if (!bundle?.manifest) throw new Error(`Could not find stored custom tileset: ${tileSetId}`);
+  const nextManifest = {
+    ...bundle.manifest,
+    label: trimmedLabel,
+  };
+  await saveStoredCustomTileSetBundle(nextManifest, bundle.assets || []);
+  const manifestIndex = customTileSetManifestCache.findIndex((entry) => entry.id === tileSetId);
+  if (manifestIndex >= 0) customTileSetManifestCache[manifestIndex] = stripTransientCustomTileSetFields(nextManifest);
+  await refreshRuntimeTileSetRegistry(buildRuntimeCustomTileSetRecordsFromCache(), { reloadActiveTileSet: false });
+  state.selectedTileSetId = tileSetId;
+  state.wallEditorGroupId = getWallEditorGroupIdForTileSet(tileSetId);
+  if (tileSetSelect) tileSetSelect.value = tileSetId;
+  syncTileSetMenuOptions();
+  syncSelectedTileSetHeading();
+  syncBossTileSetHeading();
+  if (state.wallEditMode) {
+    await rerenderWallEditorPreservingScroll();
+    if (state.wallEditorActiveTileSetId && state.wallEditorActiveTileId) {
+      setActiveWallEditorTile(state.wallEditorActiveTileSetId, state.wallEditorActiveTileId);
+    }
+  }
+  setStatus(`Renamed custom tile set to ${trimmedLabel}.`);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function getBlobFileExtension(blob, fallback = ".bin") {
+  const type = String(blob?.type || "").toLowerCase();
+  if (type.includes("png")) return ".png";
+  if (type.includes("webp")) return ".webp";
+  if (type.includes("jpeg") || type.includes("jpg")) return ".jpg";
+  return fallback;
+}
+
+function sanitizeCustomTileSetFilename(value) {
+  return String(value || "custom_tileset")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    || "custom_tileset";
+}
+
+function buildExportedWallEditorData(tileSet) {
+  const tileIds = [tileSet.entranceTileId, ...tileSet.tileIds];
+  const wallFaces = {};
+  const allowAsEndTile = {};
+  const portalFlags = {};
+
+  for (const tileId of tileIds) {
+    wallFaces[tileId] = getStoredWallFaces(tileSet.id, tileId);
+    allowAsEndTile[tileId] = getStoredAllowAsEndTile(tileSet.id, tileId);
+    const portalFlag = getStoredPortalFlag(tileSet.id, tileId);
+    if (portalFlag) {
+      portalFlags[tileId] = portalFlag;
+    }
+  }
+
+  const payload = {
+    wallFaces,
+    allowAsEndTile,
+    portalFlags,
+  };
+
+  if (state.guidePointTemplateOverrides && Object.keys(state.guidePointTemplateOverrides).length) {
+    payload.guidePointTemplateOverrides = state.guidePointTemplateOverrides;
+  }
+
+  return payload;
+}
+
+function buildExportedCustomTileSetManifest(tileSet, assetEntries) {
+  const manifest = stripTransientCustomTileSetFields(tileSet);
+  const assetMap = {
+    entrance: {},
+    tile: {},
+    reference: {},
+    boss: {},
+  };
+
+  for (const assetEntry of assetEntries) {
+    const extension = getBlobFileExtension(assetEntry.blob, ".png");
+    const fileName = `assets/${assetEntry.assetKind}_${assetEntry.assetId}${extension}`;
+    if (!assetMap[assetEntry.assetKind] || typeof assetMap[assetEntry.assetKind] !== "object") {
+      assetMap[assetEntry.assetKind] = {};
+    }
+    assetMap[assetEntry.assetKind][assetEntry.assetId] = fileName;
+  }
+
+  return {
+    manifest: {
+      ...manifest,
+      assetMap,
+    },
+    assetMap,
+  };
+}
+
+async function exportCustomTileSet(tileSetId) {
+  const tileSet = getTileSetConfig(tileSetId);
+  if (!tileSet || tileSet.source !== "custom") return;
+
+  const bundle = await getStoredCustomTileSetBundle(tileSetId);
+  if (!bundle?.manifest) {
+    throw new Error(`Could not find stored custom tileset: ${tileSetId}`);
+  }
+  const assetEntries = bundle.assets || [];
+  if (!assetEntries.length) {
+    throw new Error("This custom tile set has no stored images to export yet.");
+  }
+
+  const { manifest, assetMap } = buildExportedCustomTileSetManifest(bundle.manifest, assetEntries);
+  const wallEditorData = buildExportedWallEditorData(tileSet);
+  const zipEntries = [
+    {
+      name: "manifest.json",
+      data: JSON.stringify(manifest, null, 2),
+    },
+    {
+      name: "wall_editor.json",
+      data: JSON.stringify(wallEditorData, null, 2),
+    },
+  ];
+
+  for (const assetEntry of assetEntries) {
+    const relativePath = assetMap?.[assetEntry.assetKind]?.[assetEntry.assetId];
+    if (!relativePath || !(assetEntry.blob instanceof Blob)) continue;
+    zipEntries.push({
+      name: relativePath,
+      data: assetEntry.blob,
+    });
+  }
+
+  const archive = await createZipArchive(zipEntries);
+  const date = new Date().toISOString().slice(0, 10);
+  downloadBlob(archive, `${sanitizeCustomTileSetFilename(tileSet.label || tileSet.id)}-${date}.zip`);
+  setStatus(`Exported custom tile set: ${tileSet.label}.`);
+}
+
+async function deleteCustomTileSet(tileSetId) {
+  const tileSet = getTileSetConfig(tileSetId);
+  if (!tileSet || tileSet.source !== "custom") return;
+  const confirmed = window.confirm(`Delete custom tile set "${tileSet.label}"?`);
+  if (!confirmed) return;
+
+  const deletedWasSelected = state.selectedTileSetId === tileSetId;
+  const remainingCustomTileSetId = customTileSetManifestCache
+    .find((entry) => entry.id !== tileSetId)?.id || "";
+  const intendedFallbackTileSetId = state.wallEditMode
+    ? (remainingCustomTileSetId
+      || getTileSetRegistry().find((entry) => entry.id !== tileSetId && entry.status === "ready")?.id
+      || BUILT_IN_TILE_SET_REGISTRY[0]?.id
+      || DEFAULT_TILE_SET_ID)
+    : (getTileSetRegistry().find((entry) => entry.id !== tileSetId && entry.status === "ready")?.id
+      || BUILT_IN_TILE_SET_REGISTRY[0]?.id
+      || DEFAULT_TILE_SET_ID);
+  await deleteStoredCustomTileSetBundle(tileSetId);
+  removeCustomTileSetLocalState(tileSetId);
+  if (deletedWasSelected) {
+    state.selectedTileSetId = intendedFallbackTileSetId;
+  }
+  if (state.wallEditorActiveTileSetId === tileSetId) {
+    state.wallEditorActiveTileSetId = null;
+    state.wallEditorActiveTileId = null;
+  }
+
+  await refreshRuntimeTileSetRegistry(null, { reloadActiveTileSet: false });
+  if (deletedWasSelected || !getTileSetRegistry().some((entry) => entry.id === state.selectedTileSetId)) {
+    if (state.wallEditMode) {
+      state.selectedTileSetId = getTileSetRegistry().find((entry) => entry.source === "custom")?.id
+        || getTileSetRegistry().find((entry) => entry.status === "ready")?.id
+        || BUILT_IN_TILE_SET_REGISTRY[0]?.id
+        || DEFAULT_TILE_SET_ID;
+    } else {
+      state.selectedTileSetId = getTileSetRegistry().some((entry) => entry.id === intendedFallbackTileSetId)
+        ? intendedFallbackTileSetId
+        : (getTileSetRegistry().find((entry) => entry.status === "ready")?.id
+          || BUILT_IN_TILE_SET_REGISTRY[0]?.id
+          || DEFAULT_TILE_SET_ID);
+    }
+  }
+  state.wallEditorGroupId = getWallEditorGroupIdForTileSet(state.selectedTileSetId);
+  if (tileSetSelect) tileSetSelect.value = state.selectedTileSetId;
+  syncTileSetMenuOptions();
+  syncSelectedTileSetHeading();
+  syncBossTileSetHeading();
+
+  if (state.wallEditMode) {
+    await rerenderWallEditorPreservingScroll();
+  } else if (getTileSetConfig(state.selectedTileSetId)?.status === "ready") {
+    await applyTileSet(state.selectedTileSetId, false);
+  }
+
+  setStatus(`Deleted custom tile set: ${tileSet.label}.`);
+}
+
+function promptForCustomTileSetAsset(tileSetId, assetKind, assetId) {
+  state.wallEditorAssetScrollAnchor = { tileSetId, assetKind, assetId };
+  const picker = document.createElement("input");
+  picker.type = "file";
+  picker.accept = "image/png,image/webp,image/jpeg";
+  picker.hidden = true;
+  document.body.appendChild(picker);
+  picker.addEventListener("change", async () => {
+    const file = picker.files?.[0];
+    picker.remove();
+    if (!file) return;
+    try {
+      await replaceCustomTileSetAsset(tileSetId, assetKind, assetId, file);
+    } catch (error) {
+      console.error(error);
+      setStatus(error?.message || "Could not update custom tile asset.", true);
+    }
+  }, { once: true });
+  picker.click();
+}
+
+function buildCustomTileSetAssetUrlCache(bundles) {
+  const nextCache = new Map();
+  for (const bundle of bundles) {
+    for (const assetEntry of bundle.assets || []) {
+      if (!(assetEntry.blob instanceof Blob)) continue;
+      nextCache.set(assetEntry.key, URL.createObjectURL(assetEntry.blob));
+    }
+  }
+  return nextCache;
+}
+
+function decorateStoredCustomTileSetManifest(manifest, assetUrlCache) {
+  const normalized = normalizeCustomTileSetRecord(manifest);
+  if (!normalized) return null;
+
+  return {
+    ...normalized,
+    source: "custom",
+    assetResolver: (assetKind, assetId = "") => {
+      const requestedAssetId =
+        assetKind === "entrance"
+          ? (assetId || normalized.entranceTileId)
+          : assetKind === "reference"
+            ? (assetId || normalized.referenceCardId)
+            : assetId;
+      const key = buildCustomTileAssetStorageKey(normalized.id, assetKind, requestedAssetId);
+      return assetUrlCache.get(key) || "";
+    },
+  };
+}
+
+async function migrateLegacyCustomTileSetRecords() {
+  try {
+    const bundles = await listStoredCustomTileSetBundles();
+    if (bundles.length > 0) return;
+    const raw = localStorage.getItem(LEGACY_CUSTOM_TILE_SET_RECORDS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.length) return;
+    for (const entry of parsed) {
+      const bundle = await buildStoredCustomTileSetBundle(entry);
+      await saveStoredCustomTileSetBundle(bundle.manifest, bundle.assets);
+    }
+    localStorage.removeItem(LEGACY_CUSTOM_TILE_SET_RECORDS_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Could not migrate legacy custom tile set records.", error);
+  }
+}
+
+async function loadStoredCustomTileSetRecords() {
+  const bundles = await listStoredCustomTileSetBundles();
+  const nextCache = buildCustomTileSetAssetUrlCache(bundles);
+  customTileSetManifestCache = bundles
+    .map((bundle) => stripTransientCustomTileSetFields(bundle.manifest))
+    .filter(Boolean);
+  customTileSetAssetUrlCache = nextCache;
+  return buildRuntimeCustomTileSetRecordsFromCache();
+}
+
+function buildRuntimeTileSetRegistry(customTileSetRecords = []) {
+  const builtIns = cloneBuiltInTileSetRegistry();
+  const builtInIds = new Set(builtIns.map((tileSet) => tileSet.id));
+  const custom = [];
+  const seenIds = new Set(builtInIds);
+
+  for (const record of customTileSetRecords) {
+    const normalized = normalizeCustomTileSetRecord(record);
+    if (!normalized) continue;
+    if (seenIds.has(normalized.id)) continue;
+    seenIds.add(normalized.id);
+    custom.push(normalized);
+  }
+
+  return [...builtIns, ...custom];
+}
+
+function setRuntimeTileSetRegistry(customTileSetRecords = []) {
+  runtimeTileSetRegistry = buildRuntimeTileSetRegistry(customTileSetRecords);
+  state.tileSetRegistry = runtimeTileSetRegistry;
+  defaultWallFaceData = buildDefaultWallFaceData();
+  return runtimeTileSetRegistry;
+}
 
 const WALL_EDITOR_BASE_GROUPS = [
   {
@@ -301,7 +1096,7 @@ function getWallEditorGroups() {
 
   return baseGroups;
 }
-const DEFAULT_WALL_FACE_DATA = buildDefaultWallFaceData();
+let defaultWallFaceData = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
 const START_TILE_DEFAULT_Y_OFFSET = 286;
@@ -410,6 +1205,9 @@ const exportPdfBtn = document.getElementById("export-pdf-btn");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetAllBtn = document.getElementById("reset-all-btn");
 const resetTilesBtn = document.getElementById("reset-tiles-btn");
+const addCustomTileSetBtn = document.getElementById("add-custom-tileset-btn");
+const importCustomTileSetBtn = document.getElementById("import-custom-tileset-btn");
+const importCustomTileSetInput = document.getElementById("import-custom-tileset-input");
 const copyShareLinkBtn = document.getElementById("copy-share-link-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
 const toggleWallEditBtn = document.getElementById("toggle-wall-edit-btn");
@@ -507,6 +1305,7 @@ const state = {
     tileIdMigrations: 0,
     wallOverrideTileIdMigrations: 0,
   },
+  wallEditorAssetScrollAnchor: null,
 };
 
 let autoBuildDevTuning = loadAutoBuildDevTuning();
@@ -520,6 +1319,15 @@ async function init() {
   const initialDrawerState = loadDrawerState();
   state.leftDrawerCollapsed = initialDrawerState.left;
   state.rightDrawerCollapsed = initialDrawerState.right;
+  window.addEventListener("beforeunload", () => {
+    revokeCustomTileSetAssetUrls();
+  }, { once: true });
+  await migrateLegacyCustomTileSetRecords();
+  setRuntimeTileSetRegistry(await loadStoredCustomTileSetRecords());
+  state.wallOverrides = loadWallOverrides();
+  state.endTileOverrides = loadEndTileOverrides();
+  state.portalFlagOverrides = loadPortalFlagOverrides();
+  exposeCustomTileSetDebugApi();
   bindGlobalControls();
   await auditTileSetReadiness();
   hydrateTileSetSelector();
@@ -609,6 +1417,100 @@ function getFirstReadyTileSetId() {
 
 function getTileSetRegistry() {
   return runtimeTileSetRegistry;
+}
+
+function hasTileSetId(tileSetId) {
+  return getTileSetRegistry().some((tileSet) => tileSet.id === tileSetId);
+}
+
+async function refreshRuntimeTileSetRegistry(
+  customTileSetRecords = null,
+  { reloadActiveTileSet = false, statusMessage = "" } = {},
+) {
+  const previousSelectedTileSetId = state.selectedTileSetId;
+  const runtimeCustomTileSetRecords = Array.isArray(customTileSetRecords)
+    ? customTileSetRecords
+    : await loadStoredCustomTileSetRecords();
+  setRuntimeTileSetRegistry(runtimeCustomTileSetRecords);
+  state.wallOverrides = loadWallOverrides();
+  state.endTileOverrides = loadEndTileOverrides();
+  state.portalFlagOverrides = loadPortalFlagOverrides();
+  state.readinessByTileSet = {};
+
+  await auditTileSetReadiness();
+  hydrateTileSetSelector();
+
+  const nextTileSetId = hasTileSetId(previousSelectedTileSetId)
+    ? previousSelectedTileSetId
+    : (getFirstReadyTileSetId() || getTileSetRegistry()[0]?.id || DEFAULT_TILE_SET_ID);
+  state.selectedTileSetId = nextTileSetId;
+  state.referenceTileSrc = getReferenceTileSrc(nextTileSetId);
+
+  if (tileSetSelect) tileSetSelect.value = nextTileSetId;
+  syncTileSetMenuOptions();
+  syncSelectedTileSetHeading();
+  syncBossTileSetHeading();
+
+  if (reloadActiveTileSet && getTileSetConfig(nextTileSetId)?.status === "ready") {
+    await applyTileSet(nextTileSetId, false);
+  }
+  if (state.wallEditMode) {
+    await renderWallEditorPage();
+  }
+
+  if (statusMessage) setStatus(statusMessage);
+  return getTileSetRegistry();
+}
+
+function exposeCustomTileSetDebugApi() {
+  window.__HTS_CUSTOM_TILESETS__ = {
+    backend: "indexeddb",
+    legacyStorageKey: LEGACY_CUSTOM_TILE_SET_RECORDS_STORAGE_KEY,
+    list: () => customTileSetManifestCache.map((record) => ({ ...record })),
+    replace: async (records = []) => {
+      await clearStoredCustomTileSetBundles();
+      const sourceRecords = Array.isArray(records) ? records : [];
+      for (const record of sourceRecords) {
+        const bundle = await buildStoredCustomTileSetBundle(record);
+        await saveStoredCustomTileSetBundle(bundle.manifest, bundle.assets);
+      }
+      return refreshRuntimeTileSetRegistry(null, {
+        reloadActiveTileSet: state.tiles.size > 0,
+        statusMessage: `Custom tile sets loaded: ${sourceRecords.length}.`,
+      });
+    },
+    add: async (record) => {
+      const normalized = normalizeCustomTileSetRecord(record);
+      if (!normalized) throw new Error("Invalid custom tile set record.");
+      const bundle = await buildStoredCustomTileSetBundle(record);
+      await saveStoredCustomTileSetBundle(bundle.manifest, bundle.assets);
+      return refreshRuntimeTileSetRegistry(null, {
+        reloadActiveTileSet: state.tiles.size > 0,
+        statusMessage: `Custom tile set loaded: ${normalized.label}.`,
+      });
+    },
+    remove: async (tileSetId) => {
+      await deleteStoredCustomTileSetBundle(tileSetId);
+      removeCustomTileSetLocalState(tileSetId);
+      return refreshRuntimeTileSetRegistry(null, {
+        reloadActiveTileSet: state.tiles.size > 0,
+        statusMessage: `Custom tile set removed: ${tileSetId}.`,
+      });
+    },
+    clear: async () => {
+      await clearStoredCustomTileSetBundles();
+      for (const tileSet of getTileSetRegistry().filter((entry) => entry.source === "custom")) {
+        removeCustomTileSetLocalState(tileSet.id);
+      }
+      return refreshRuntimeTileSetRegistry(null, {
+        reloadActiveTileSet: state.tiles.size > 0,
+        statusMessage: "Custom tile sets cleared.",
+      });
+    },
+    refresh: async () => refreshRuntimeTileSetRegistry(null, {
+      reloadActiveTileSet: state.tiles.size > 0,
+    }),
+  };
 }
 
 function getReadyTileSets() {
@@ -855,7 +1757,7 @@ async function auditTileSetReadiness() {
     const bossMissing = bossAssets.filter((_, idx) => !bossChecks[idx]);
     const missingWallEntries = getMissingDefaultWallEntries(
       tileSet,
-      DEFAULT_WALL_FACE_DATA,
+      defaultWallFaceData,
       [ENTRANCE_TILE_ID, ...TILE_IDS],
     );
     let status = resolveTileSetStatus(tileSet, { coreMissing, bossMissing, missingWallEntries });
@@ -1065,6 +1967,32 @@ function bindGlobalControls() {
           ? "Random boss: drawing from all tile sets."
           : "Random boss: drawing from current tile set only.",
       );
+    });
+  }
+  if (addCustomTileSetBtn) {
+    addCustomTileSetBtn.addEventListener("click", () => {
+      promptAndCreateCustomTileSet().catch((error) => {
+        console.error(error);
+        setStatus("Could not create custom tile set.", true);
+      });
+      closeAdvancedMenuForElement(addCustomTileSetBtn);
+    });
+  }
+  if (importCustomTileSetBtn && importCustomTileSetInput) {
+    importCustomTileSetBtn.addEventListener("click", () => {
+      openCustomTileSetImportPicker();
+      closeAdvancedMenuForElement(importCustomTileSetBtn);
+    });
+    importCustomTileSetInput.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      try {
+        await importCustomTileSetPackage(file);
+      } catch (error) {
+        console.error(error);
+        setStatus(error?.message || "Could not import custom tileset.", true);
+      }
     });
   }
   if (toggleWallEditBtn) {
@@ -2423,10 +3351,25 @@ function setWallEditMode(enabled) {
     setStatus("Wall edit mode: click a face segment to toggle wall ON/OFF. Changes are saved per tile set + tile.");
   } else {
     syncSelectedTileSetWallsFromOverrides();
-    const restored = restoreBuildViewLayout(state.buildViewSnapshot);
+    const snapshot = state.buildViewSnapshot;
     state.buildViewSnapshot = null;
-    if (restored) {
-      setStatus("Wall edit mode off. Restored previous layout.");
+    if (snapshot?.tileSetId) {
+      applyTileSet(snapshot.tileSetId, false)
+        .then(() => {
+          const restored = restoreBuildViewLayout(snapshot);
+          if (tileSetSelect) tileSetSelect.value = snapshot.tileSetId;
+          syncTileSetMenuOptions();
+          if (restored) {
+            setStatus("Wall edit mode off. Restored previous layout.");
+          } else {
+            startRound();
+            setStatus("Wall edit mode off. Round reset.");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+          setStatus("Wall edit mode off, but the previous build-view tileset could not be restored.", true);
+        });
     } else {
       startRound();
       setStatus("Wall edit mode off. Round reset.");
@@ -4029,24 +4972,11 @@ function snapBoardPointToHex(x, y) {
   });
 }
 
-function createTraySlotGuideElement() {
-  const size = 150;
-  const center = size / 2;
-  const radius = 28;
-  const halfH = (SQRT_3 * radius) / 2;
-  const dy = SQRT_3 * radius;
-  const centers = [
-    [center, center],
-    [center + 1.5 * radius, center + halfH],
-    [center + 1.5 * radius, center - halfH],
-    [center, center + dy],
-    [center, center - dy],
-    [center - 1.5 * radius, center + halfH],
-    [center - 1.5 * radius, center - halfH],
-  ];
-
+function createHexGuideElement({ size = 150, centers = [], radius = 28, className = "tray-slot-guide" } = {}) {
   const svg = document.createElementNS(BOARD_HEX_SVG_NS, "svg");
-  svg.classList.add("tray-slot-guide");
+  for (const token of String(className || "").split(/\s+/).filter(Boolean)) {
+    svg.classList.add(token);
+  }
   svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
   svg.setAttribute("aria-hidden", "true");
   for (const [cx, cy] of centers) {
@@ -4055,6 +4985,30 @@ function createTraySlotGuideElement() {
     svg.appendChild(path);
   }
   return svg;
+}
+
+function createHexClusterGuideElement({ size = 150, radius = 28, className = "tray-slot-guide" } = {}) {
+  const center = size / 2;
+  const halfH = (SQRT_3 * radius) / 2;
+  const dy = SQRT_3 * radius;
+  return createHexGuideElement({
+    size,
+    radius,
+    className,
+    centers: [
+      [center, center],
+      [center + 1.5 * radius, center + halfH],
+      [center + 1.5 * radius, center - halfH],
+      [center, center + dy],
+      [center, center - dy],
+      [center - 1.5 * radius, center + halfH],
+      [center - 1.5 * radius, center - halfH],
+    ],
+  });
+}
+
+function createTraySlotGuideElement() {
+  return createHexClusterGuideElement({ size: 150, radius: 28, className: "tray-slot-guide" });
 }
 
 function createTraySlotElement() {
@@ -6184,7 +7138,7 @@ function savePortalFlagOverrides() {
 
 function getStoredWallFaces(tileSetId, tileId) {
   const tileSetOverrides = state.wallOverrides?.[tileSetId];
-  const arr = tileSetOverrides?.[tileId] ?? DEFAULT_WALL_FACE_DATA?.[tileSetId]?.[tileId] ?? [];
+  const arr = tileSetOverrides?.[tileId] ?? defaultWallFaceData?.[tileSetId]?.[tileId] ?? [];
   if (!Array.isArray(arr)) return [];
   return arr.filter((n) => Number.isInteger(n) && n >= 0).sort((a, b) => a - b);
 }
@@ -6618,6 +7572,165 @@ function getWallEditorGroupIdForTileSet(tileSetId) {
     || null;
 }
 
+function getWallEditorAssetEntries(tileSet) {
+  const coreEntries = buildTileDefs(tileSet.id).map((def) => ({
+    kind: def.tileId === tileSet.entranceTileId ? "entrance" : "tile",
+    assetKind: def.tileId === tileSet.entranceTileId ? "entrance" : "tile",
+    assetId: def.tileId,
+    tileId: def.tileId,
+    label: getTileDisplayLabel(def.tileId),
+    imageSrc: def.imageSrc,
+    editableTile: true,
+  }));
+  const supportEntries = [
+    {
+      kind: "reference",
+      assetKind: "reference",
+      assetId: tileSet.referenceCardId,
+      tileId: tileSet.referenceCardId,
+      label: "Reference Card",
+      imageSrc: resolveTileSetAssetPath(tileSet, "reference", tileSet.referenceCardId),
+      editableTile: false,
+    },
+    ...tileSet.bossIds.map((bossId, index) => ({
+      kind: "boss",
+      assetKind: "boss",
+      assetId: bossId,
+      tileId: bossId,
+      label: `Boss Card ${index + 1}`,
+      imageSrc: resolveTileSetAssetPath(tileSet, "boss", bossId),
+      editableTile: false,
+    })),
+  ];
+  return { coreEntries, supportEntries };
+}
+
+function createWallEditorAssetSlot({
+  tileSet,
+  entry,
+  contentEl,
+  loaded = false,
+  missing = false,
+  note = "",
+}) {
+  const slot = document.createElement("div");
+  slot.className = "wall-editor-asset-slot";
+  slot.dataset.tileSetId = tileSet.id;
+  slot.dataset.assetKind = entry.assetKind;
+  slot.dataset.assetId = entry.assetId;
+  if (entry.kind === "reference" || entry.kind === "boss") slot.classList.add("wall-editor-asset-slot-support");
+  if (loaded) slot.classList.add("is-loaded");
+  if (missing) slot.classList.add("is-missing");
+
+  const frame = document.createElement("div");
+  frame.className = "wall-editor-asset-frame";
+  frame.appendChild(contentEl);
+  slot.appendChild(frame);
+
+  const meta = document.createElement("div");
+  meta.className = "wall-editor-asset-meta";
+
+  const title = document.createElement("strong");
+  title.className = "wall-editor-asset-title";
+  title.textContent = entry.label;
+  meta.appendChild(title);
+
+  if (note) {
+    const noteEl = document.createElement("span");
+    noteEl.className = "wall-editor-asset-note";
+    noteEl.textContent = note;
+    meta.appendChild(noteEl);
+  }
+
+  if (tileSet.source === "custom") {
+    const actionBtn = document.createElement("button");
+    actionBtn.type = "button";
+    actionBtn.className = "wall-editor-asset-action";
+    actionBtn.textContent = loaded ? "Replace Image" : "Load Image";
+    actionBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      promptForCustomTileSetAsset(tileSet.id, entry.assetKind, entry.assetId);
+    });
+    meta.appendChild(actionBtn);
+  }
+
+  slot.appendChild(meta);
+  return slot;
+}
+
+function createWallEditorAssetPlaceholder(tileSet, entry) {
+  const placeholder = document.createElement("button");
+  placeholder.type = "button";
+  placeholder.className = "wall-editor-asset-placeholder";
+  if (entry.kind === "reference" || entry.kind === "boss") {
+    placeholder.classList.add("wall-editor-asset-placeholder-support");
+  } else {
+    placeholder.classList.add("wall-editor-asset-placeholder-tile");
+  }
+  if (entry.kind === "reference" || entry.kind === "boss") {
+    placeholder.innerHTML = `
+      <span class="wall-editor-asset-placeholder-shape"></span>
+      <span class="wall-editor-asset-placeholder-text">${tileSet.source === "custom" ? "Load image" : "Missing asset"}</span>
+    `;
+  } else if (entry.kind === "entrance") {
+    const shape = document.createElement("img");
+    shape.className = "wall-editor-asset-placeholder-entrance-shape";
+    shape.src = "./tiles/nightmare/nightmare_entrance.png";
+    shape.alt = "";
+    shape.draggable = false;
+    placeholder.appendChild(shape);
+  } else {
+    const guide = createHexClusterGuideElement({
+      size: 304,
+      radius: 57,
+      className: "wall-editor-asset-placeholder-guide",
+    });
+    placeholder.appendChild(guide);
+  }
+  if (tileSet.source === "custom") {
+    placeholder.addEventListener("click", () => {
+      promptForCustomTileSetAsset(tileSet.id, entry.assetKind, entry.assetId);
+    });
+  } else {
+    placeholder.disabled = true;
+  }
+  return placeholder;
+}
+
+function createWallEditorSupportAssetCard(tileSet, entry) {
+  const card = document.createElement("div");
+  card.className = "wall-editor-support-card";
+  const img = document.createElement("img");
+  img.src = entry.imageSrc;
+  img.alt = `${tileSet.label} ${entry.label}`;
+  img.draggable = false;
+  img.addEventListener("dragstart", (event) => event.preventDefault());
+  card.appendChild(img);
+  return card;
+}
+
+async function rerenderWallEditorPreservingScroll() {
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  const anchor = state.wallEditorAssetScrollAnchor
+    ? { ...state.wallEditorAssetScrollAnchor }
+    : null;
+  await renderWallEditorPage();
+  await waitForNextPaint();
+  if (anchor) {
+    const selector = `.wall-editor-asset-slot[data-tile-set-id="${CSS.escape(anchor.tileSetId)}"][data-asset-kind="${CSS.escape(anchor.assetKind)}"][data-asset-id="${CSS.escape(anchor.assetId)}"]`;
+    const anchorEl = document.querySelector(selector);
+    if (anchorEl) {
+      anchorEl.scrollIntoView({ block: "center", inline: "nearest" });
+      state.wallEditorAssetScrollAnchor = null;
+      return;
+    }
+  }
+  window.scrollTo(scrollX, scrollY);
+  state.wallEditorAssetScrollAnchor = null;
+}
+
 async function renderWallEditorPage() {
   if (!wallEditorPage) return;
 
@@ -6690,6 +7803,15 @@ async function renderWallEditorPage() {
   syncPointEditToggle();
   toolbar.appendChild(pointEditToggleBtn);
 
+  const importCustomBtn = document.createElement("button");
+  importCustomBtn.type = "button";
+  importCustomBtn.className = "wall-editor-copy-btn";
+  importCustomBtn.textContent = "Import Custom Tileset";
+  importCustomBtn.addEventListener("click", () => {
+    openCustomTileSetImportPicker();
+  });
+  toolbar.appendChild(importCustomBtn);
+
   const copyTemplatesBtn = document.createElement("button");
   copyTemplatesBtn.type = "button";
   copyTemplatesBtn.className = "wall-editor-copy-btn";
@@ -6712,49 +7834,153 @@ async function renderWallEditorPage() {
     .filter(Boolean);
   const panels = await Promise.all(tileSets.map((tileSet) => buildWallEditorTileSetPanel(tileSet)));
   for (const panel of panels) trays.appendChild(panel);
+  if (state.wallEditorActiveTileSetId && state.wallEditorActiveTileId) {
+    setActiveWallEditorTile(state.wallEditorActiveTileSetId, state.wallEditorActiveTileId);
+  }
 }
 
 async function buildWallEditorTileSetPanel(tileSet) {
   const panel = document.createElement("section");
   panel.className = "tile-set-wall-panel";
 
+  const header = document.createElement("div");
+  header.className = "tile-set-wall-panel-header";
+  const titleGroup = document.createElement("div");
+  titleGroup.className = "tile-set-wall-panel-title-group";
   const title = document.createElement("h3");
   title.textContent = tileSet.label;
-  panel.appendChild(title);
+  titleGroup.appendChild(title);
+  if (tileSet.source === "custom") {
+    const renameBtn = document.createElement("button");
+    renameBtn.type = "button";
+    renameBtn.className = "wall-editor-panel-rename";
+    renameBtn.setAttribute("aria-label", `Rename ${tileSet.label}`);
+    renameBtn.setAttribute("title", `Rename ${tileSet.label}`);
+    renameBtn.innerHTML = '<img src="./icons/pencil.png" alt="" aria-hidden="true" />';
+    renameBtn.addEventListener("click", async () => {
+      try {
+        await renameCustomTileSet(tileSet.id);
+      } catch (error) {
+        console.error(error);
+        setStatus("Could not rename custom tile set.", true);
+      }
+    });
+    titleGroup.appendChild(renameBtn);
+
+    const exportBtn = document.createElement("button");
+    exportBtn.type = "button";
+    exportBtn.className = "wall-editor-panel-action";
+    exportBtn.setAttribute("aria-label", `Export ${tileSet.label}`);
+    exportBtn.setAttribute("title", `Export ${tileSet.label}`);
+    exportBtn.innerHTML = '<img src="./icons/download.png" alt="" aria-hidden="true" />';
+    exportBtn.addEventListener("click", async () => {
+      try {
+        await exportCustomTileSet(tileSet.id);
+      } catch (error) {
+        console.error(error);
+        setStatus(error?.message || "Could not export custom tile set.", true);
+      }
+    });
+    titleGroup.appendChild(exportBtn);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "wall-editor-panel-delete";
+    deleteBtn.setAttribute("aria-label", `Delete ${tileSet.label}`);
+    deleteBtn.setAttribute("title", `Delete ${tileSet.label}`);
+    deleteBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 448 512" aria-hidden="true">
+        <path fill="currentColor" d="M135.2 17.7C140.6 7.1 151.5 0 163.5 0h121c12 0 22.9 7.1 28.3 17.7L328 32h88c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 96 0 81.7 0 64S14.3 32 32 32h88l15.2-14.3zM53.2 128H394.8L376.6 435.1c-1.7 29.4-26 52.9-55.4 52.9H126.8c-29.4 0-53.7-23.5-55.4-52.9L53.2 128zm90.8 64c-13.3 0-24 10.7-24 24V400c0 13.3 10.7 24 24 24s24-10.7 24-24V216c0-13.3-10.7-24-24-24zm80 0c-13.3 0-24 10.7-24 24V400c0 13.3 10.7 24 24 24s24-10.7 24-24V216c0-13.3-10.7-24-24-24zm80 0c-13.3 0-24 10.7-24 24V400c0 13.3 10.7 24 24 24s24-10.7 24-24V216c0-13.3-10.7-24-24-24z"/>
+      </svg>
+    `;
+    deleteBtn.addEventListener("click", async () => {
+      try {
+        await deleteCustomTileSet(tileSet.id);
+      } catch (error) {
+        console.error(error);
+        setStatus("Could not delete custom tile set.", true);
+      }
+    });
+    titleGroup.appendChild(deleteBtn);
+  }
+  header.appendChild(titleGroup);
+  panel.appendChild(header);
 
   const tray = document.createElement("div");
   tray.className = "tile-set-wall-tray";
   panel.appendChild(tray);
 
-  const defs = buildTileDefs(tileSet.id);
+  const supportTray = document.createElement("div");
+  supportTray.className = "tile-set-support-tray";
+  panel.appendChild(supportTray);
+
+  const { coreEntries, supportEntries } = getWallEditorAssetEntries(tileSet);
   let missingCount = 0;
 
-  for (const def of defs) {
+  for (const entry of coreEntries) {
     try {
-      const img = await loadImage(def.imageSrc);
+      const img = await loadImage(entry.imageSrc);
       const faceGeometry = getFaceGeometry(img, SIDES);
       const tile = {
-        tileSetId: def.tileSetId,
-        tileId: def.tileId,
-        key: def.key,
-        imageSrc: def.imageSrc,
-        required: def.required,
+        tileSetId: tileSet.id,
+        tileId: entry.tileId,
+        key: buildTileKey(tileSet.id, entry.tileId),
+        imageSrc: entry.imageSrc,
+        required: entry.kind === "entrance",
         img,
         faceGeometry,
-        wallFaceSet: new Set(getStoredWallFaces(tileSet.id, def.tileId)),
-        allowAsEndTile: getStoredAllowAsEndTile(tileSet.id, def.tileId),
-        portalFlag: getStoredPortalFlag(tileSet.id, def.tileId),
+        wallFaceSet: new Set(getStoredWallFaces(tileSet.id, entry.tileId)),
+        allowAsEndTile: getStoredAllowAsEndTile(tileSet.id, entry.tileId),
+        portalFlag: getStoredPortalFlag(tileSet.id, entry.tileId),
       };
       const tileEl = createWallEditorTileElement(tileSet.id, tile);
-      tray.appendChild(tileEl);
-      state.wallEditorTileRefs.set(`${tileSet.id}:${tile.tileId}`, {
+      const slot = createWallEditorAssetSlot({
+        tileSet,
+        entry,
+        contentEl: tileEl,
+        loaded: true,
+      });
+      tray.appendChild(slot);
+      state.wallEditorTileRefs.set(`${tileSet.id}:${entry.tileId}`, {
         tileSetId: tileSet.id,
         tile,
         el: tileEl,
       });
     } catch (error) {
-      console.warn(`Missing asset for ${tileSet.id}/${def.tileId}`, error);
+      console.warn(`Missing asset for ${tileSet.id}/${entry.tileId}`, error);
       missingCount += 1;
+      const slot = createWallEditorAssetSlot({
+        tileSet,
+        entry,
+        contentEl: createWallEditorAssetPlaceholder(tileSet, entry),
+        missing: true,
+        note: tileSet.source === "custom" ? "No image loaded yet" : "Asset missing",
+      });
+      tray.appendChild(slot);
+    }
+  }
+
+  for (const entry of supportEntries) {
+    try {
+      const img = await loadImage(entry.imageSrc);
+      const card = createWallEditorSupportAssetCard(tileSet, { ...entry, imageSrc: img.src });
+      const slot = createWallEditorAssetSlot({
+        tileSet,
+        entry,
+        contentEl: card,
+        loaded: true,
+      });
+      supportTray.appendChild(slot);
+    } catch (error) {
+      console.warn(`Missing support asset for ${tileSet.id}/${entry.assetId}`, error);
+      const slot = createWallEditorAssetSlot({
+        tileSet,
+        entry,
+        contentEl: createWallEditorAssetPlaceholder(tileSet, entry),
+        missing: true,
+        note: tileSet.source === "custom" ? "No image loaded yet" : "Asset missing",
+      });
+      supportTray.appendChild(slot);
     }
   }
 

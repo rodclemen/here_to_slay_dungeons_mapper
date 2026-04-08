@@ -1,0 +1,48 @@
+{
+  "id": "mixed_realm_debug",
+  "label": "Mixed Realm Debug",
+  "version": "1.0.0",
+  "schemaVersion": 1,
+  "gameSetId": "custom",
+  "uiThemeId": "dreamscape",
+  "entranceTileId": "entrance",
+  "referenceCardId": "reference_card",
+  "tileIds": [
+    "tile_01",
+    "tile_02",
+    "tile_03",
+    "tile_04",
+    "tile_05",
+    "tile_06",
+    "tile_07",
+    "tile_08",
+    "tile_09"
+  ],
+  "bossIds": [
+    "flamebeard",
+    "moongrin"
+  ],
+  "assetMap": {
+    "entrance": {
+      "entrance": "assets/entrance.png"
+    },
+    "tile": {
+      "tile_01": "assets/tile_01.png",
+      "tile_02": "assets/tile_02.png",
+      "tile_03": "assets/tile_03.png",
+      "tile_04": "assets/tile_04.png",
+      "tile_05": "assets/tile_05.png",
+      "tile_06": "assets/tile_06.png",
+      "tile_07": "assets/tile_07.png",
+      "tile_08": "assets/tile_08.png",
+      "tile_09": "assets/tile_09.png"
+    },
+    "reference": {
+      "reference_card": "assets/reference_card.png"
+    },
+    "boss": {
+      "flamebeard": "assets/boss_flamebeard.png",
+      "moongrin": "assets/boss_moongrin.png"
+    }
+  }
+}

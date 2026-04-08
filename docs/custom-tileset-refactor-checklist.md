@@ -71,31 +71,58 @@ Implemented the wall-editor runtime grouping step in code:
 
 Still not done for wall-editor integration:
 
-- runtime custom tilesets still need an actual merge/setter path into the main registry
 - wall data still lives in existing browser storage, not IndexedDB
+
+Implemented the runtime custom-tileset merge path in code:
+
+- a persisted custom-record storage key now exists for runtime-only custom tileset records
+- `runtimeTileSetRegistry` now has a real setter/merge path that rebuilds built-in plus custom entries
+- app startup now loads built-in sets plus stored custom records before readiness audit and selector hydration
+- wall-storage sanitizers and default wall-face fallback now refresh against the merged runtime registry
+- a small debug API is exposed on `window.__HTS_CUSTOM_TILESETS__` so custom sets can be injected, replaced, removed, and refreshed without zip import
+
+Implemented IndexedDB-backed custom asset storage in code:
+
+- custom manifests and asset blobs now persist in IndexedDB
+- runtime custom asset resolution now serves object URLs created from stored blobs
+- legacy local-storage debug records are migrated forward into IndexedDB on startup
+- the debug custom-tileset API now stores fetched asset blobs instead of keeping repo-path strings as runtime state
+
+Implemented first user-facing custom import step in code:
+
+- the quick-actions menu now includes `Import Custom Tileset`
+- the app can read a custom tileset `.zip` package with `manifest.json`, package assets, and optional `wall_editor.json`
+- imported manifests/assets are validated and stored in the existing IndexedDB-backed custom-set storage
+- after import, the runtime registry refreshes and the imported set can be selected like any other runtime tileset
+- imported wall editor defaults now map into the current wall/end/portal storage model, with guide templates still following the current global-template limitation
+
+Still not done after the import step:
+
+- custom wall data still lives in the existing browser wall-data storage model, not a custom IndexedDB store
+- the dropdown still shows runtime entries directly; custom slot naming/persistence is a later step
+- the About page theme list is still separate from the main theme catalog
 
 ### Next recommended step
 
-Continue with the runtime custom-tileset merge path:
+Continue by finishing the Wall Editor to custom-tileset editor transition:
 
-- add a setter/merge function for `runtimeTileSetRegistry`
-- allow app startup to load built-in sets plus custom-set records
-- keep the runtime shape identical for built-in and custom sets
+- rename the page/UI language away from `Wall Editor`
+- keep import/export/delete discoverable on that page as the primary custom-set workflow
+- reduce the full-panel rerender blink after each image replacement by patching only the changed slot in place
+- add explicit missing/custom-set error handling for share-link restore
 
-After that:
+Working note:
 
-- add IndexedDB storage for custom manifests/assets
-- then add zip import against the already-working runtime registry and asset resolver
+- image replacement now keeps scroll position correctly, but still causes a brief full-panel blink because the editor rerenders the whole panel after each upload
 
 ## Current status
 
-The app is partly registry-driven, but several important systems still assume:
+The app is mostly registry-driven, but several important systems still assume:
 
-- all assets live in `./tiles/<set>/<set>_*.png`
-- the set list is fixed at build time
-- the theme list is fixed at build time
-- the wall editor only works with the built-in set groups
-- boss identity can be derived from image `src`
+- built-in assets still follow the `./tiles/<set>/<set>_*.png` pattern
+- the About page theme list is still fixed separately from the main app catalog
+- the wall editor still depends on the existing browser wall-data storage model
+- boss export still carries resolved image `src` for output compatibility, even though runtime identity now uses stable boss keys
 - regular tile count is always 9
 
 That means custom tilesets are not blocked by one bug. They are blocked by several architectural assumptions.
@@ -107,7 +134,7 @@ To keep the refactor manageable, lock these constraints in for the first custom-
 - a custom tileset must still have exactly 1 entrance tile
 - a custom tileset must still have exactly 9 regular tiles
 - a custom tileset must still have exactly 1 reference card
-- a custom tileset may have 0 or more boss cards, but the app should keep expecting an array of boss IDs
+- a custom tileset must still have exactly 2 boss cards in v1, even if the runtime keeps using a boss ID array internally
 - custom tilesets should reuse an existing built-in UI theme ID
 - no custom CSS theme system in v1
 

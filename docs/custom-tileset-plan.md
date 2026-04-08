@@ -8,6 +8,45 @@ You can later refer to this document with requests like:
 - "Implement steps 4 and 5"
 - "Start with the zip package format"
 
+## Product direction
+
+The intended user workflow is:
+
+1. The user clicks `Add Custom Tile Set`
+2. The user enters the tile set name
+3. The app creates the custom tile set record immediately
+4. The app takes the user to the current Wall Editor page
+5. That page becomes the one place where the user:
+   - loads art for entrance, 9 regular tiles, reference card, and boss cards
+   - edits wall faces, end-tile flags, portal flags, and guide points
+   - imports a full custom tileset package
+   - exports the current custom tileset package
+   - deletes the current custom tileset
+
+Implications:
+
+- zip import is not the primary entry point anymore; it is one action inside the custom-tileset editor workflow
+- the current Wall Editor page should later be renamed, because it becomes the full custom-tileset editor
+- custom-set creation should pre-seed the current guide-point template counts automatically, but point handles should only render for tiles that already have an image loaded
+- the editor should show entrance + 9 regular tiles + reference card + boss cards in one place so art loading and tile-data editing stay together
+
+## Current v1 assumptions
+
+Keep these constraints for the first custom-tileset version:
+
+- exactly 1 entrance tile
+- exactly 9 regular tiles
+- exactly 1 reference card
+- exactly 2 boss cards in the editor UI
+- boss support stays tied to the existing runtime `bossIds` array, with v1 custom sets expected to provide exactly 2 boss IDs
+- custom tilesets reuse an existing built-in `uiThemeId`
+- no custom CSS theme system in v1
+
+UI note for boss cards:
+
+- the custom-tileset editor should show exactly 2 boss-card slots alongside the other assets
+- the runtime/package shape can stay array-based internally, but v1 validation should require exactly 2 boss IDs so the editor and package format stay aligned
+
 ## Step 1. Define the custom tileset package format
 
 What this step does:
@@ -138,7 +177,51 @@ Definition of done:
 
 - A custom tileset can exist in the app registry and behave like a normal set internally
 
-## Step 4. Add the custom tileset dropdown slot system
+## Step 4. Add the custom tileset creation flow
+
+What this step does:
+
+- Add `Add Custom Tile Set`
+- Ask for the custom tile set name
+- Create the custom tile set record immediately
+- Pre-seed default wall/editor data for that set
+- Route the user straight into the current Wall Editor page for that set
+
+Creation behavior:
+
+- the newly created set should appear in the main tileset dropdown immediately
+- the set should use the name entered by the user
+- default guide-point template counts should already exist for the set
+- guide-point handles should only render when a tile image exists
+- the set should be editable even before every image has been loaded
+
+Definition of done:
+
+- a user can create an empty custom tile set and land directly in the editor for it
+
+## Step 5. Turn Wall Editor into the custom-tileset editor shell
+
+What this step does:
+
+- keep the current wall-edit tools
+- add reference card and boss-card slots below the entrance + regular tiles
+- show empty tile silhouettes/placeholders for unloaded assets
+- let the user click each slot to load or replace that image
+- make the page the home for import, export, and delete actions for the current custom set
+
+Editor behavior:
+
+- entrance + 9 regular tiles keep the existing editable wall-data behavior
+- reference card and boss cards should be visible and loadable on the same page
+- point handles should only show on tiles that actually have image geometry available
+- import should be accessible from the editor page itself, not only from a global menu
+- the page should remain useful for built-in tiles, but custom sets become a first-class editing flow here
+
+Definition of done:
+
+- a user can stay on one page to load art and edit tile data for a custom set
+
+## Step 6. Add the custom tileset dropdown behavior
 
 What this step does:
 
@@ -166,17 +249,17 @@ Definition of done:
 - Named custom tilesets display their saved name
 - Unnamed custom tilesets fall back to labels like `Custom 1`, `Custom 2`, and so on
 
-## Step 5. Add zip import for custom tilesets
+## Step 7. Add zip import inside the custom-tileset editor
 
 What this step does:
 
-- Add `Import Custom Tileset`
+- Add `Import Custom Tileset` to the custom-tileset editor page
 - Read a `.zip`
 - Validate `manifest.json`
 - Validate required image files
 - Validate `wall_editor.json`
 - Save everything to `IndexedDB`
-- Assign the set to a custom slot
+- Update or create the current custom set record through the same runtime/storage path as manual editing
 
 Validation should catch:
 
@@ -195,16 +278,17 @@ Import behavior to decide explicitly:
 
 Definition of done:
 
-- A user can import one zip and see that set appear under `Custom 1/2/3/...`
+- a user can import a package from inside the editor and immediately continue editing that set there
 
-## Step 6. Make Wall Editor fully work with custom sets
+## Step 8. Make the editor fully persist custom tile data
 
 What this step does:
 
-- Load wall editor data from imported package defaults
-- Allow editing exactly like built-in sets
-- Save edits back to browser storage for that custom set
-- Keep package defaults separate from user-local changes if we want cleaner re-export behavior
+- load wall-editor data from imported package defaults
+- allow editing exactly like built-in sets
+- save edits back to storage for that custom set
+- save image replacements done through the editor back to the custom asset store
+- keep package defaults separate from user-local changes if we want cleaner re-export behavior
 
 Recommended rule:
 
@@ -217,14 +301,15 @@ Needs one extra decision:
 
 Definition of done:
 
-- Custom tiles can be edited in Wall Editor exactly like built-in ones
+- custom tiles can be created, loaded with art, edited, and reopened later in the same editor flow
 
-## Step 7. Add export for custom tilesets
+## Step 9. Add export and delete for custom tilesets
 
 What this step does:
 
-- Add `Export Custom Tileset`
-- Add `Delete Custom Tileset`
+- Add `Export Custom Tileset` to the custom-tileset editor
+- Add `Delete Custom Tileset` to the custom-tileset editor
+- keep `Import Custom Tileset` available on that same page so the full package workflow stays local to the editor
 - Rebuild a `.zip` from:
   - stored manifest
   - stored image blobs
@@ -242,14 +327,18 @@ Important:
 
 Change needed here:
 
-- If Step 4 keeps the dropdown free of placeholders, deletion should simply remove the entry and preserve numbering metadata only if stable fallback labels still matter for remaining custom sets
+- If Step 6 keeps the dropdown free of placeholders, deletion should simply remove the entry and preserve numbering metadata only if stable fallback labels still matter for remaining custom sets
 - Export should preserve the manifest fields required by the runtime registry shape, not rebuild a thinner manifest that later re-imports ambiguously
 
 Definition of done:
 
-- A user can import, tweak wall data, export, delete, and re-import elsewhere
+- a user can create, import, tweak, export, delete, and re-import from the same editor workflow
 
-## Step 8. Add missing-state and share-link handling
+Follow-up polish after this step:
+
+- avoid full editor rerenders for single-slot image replacement so the page no longer blinks after each upload
+
+## Step 10. Add missing-state and share-link handling
 
 What this step does:
 
@@ -262,12 +351,13 @@ Definition of done:
 
 - Missing custom sets fail gracefully
 
-## Step 9. Documentation and guardrails
+## Step 11. Documentation and guardrails
 
 What this step does:
 
 - Add a README section for custom tilesets
 - Explain import and export
+- Explain manual creation in the editor
 - Explain local-only browser storage
 - Explain that custom sets stay browser-local unless exported
 - Explain share-link limitations clearly: a share link can reference a custom tileset ID, but the receiver still needs that tileset installed locally
@@ -287,10 +377,12 @@ Definition of done:
 7. Step 7
 8. Step 8
 9. Step 9
+10. Step 10
+11. Step 11
 
 ## Good stopping points
 
 - After Step 3: the storage and runtime architecture are in place
-- After Step 5: import works
-- After Step 6: Wall Editor works for custom sets
-- After Step 7: the full portable custom tileset workflow exists
+- After Step 5: the editor shell is in place
+- After Step 7: import works inside the editor flow
+- After Step 9: the full portable custom tileset workflow exists

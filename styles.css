@@ -1145,8 +1145,96 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
 }
 
 .tile-set-wall-panel h3 {
-  margin: 0 0 14px;
+  margin: 0;
   font-size: 1.02rem;
+}
+
+.tile-set-wall-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+
+.tile-set-wall-panel-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wall-editor-panel-rename {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.wall-editor-panel-rename img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-1px);
+}
+
+.wall-editor-panel-rename:hover,
+.wall-editor-panel-rename:focus-visible {
+  opacity: 0.85;
+}
+
+.wall-editor-panel-action {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.wall-editor-panel-action img {
+  display: block;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-1px);
+  filter: brightness(0) saturate(100%) invert(41%) sepia(55%) saturate(671%) hue-rotate(84deg) brightness(92%) contrast(94%);
+}
+
+.wall-editor-panel-action:hover,
+.wall-editor-panel-action:focus-visible {
+  opacity: 0.85;
+}
+
+.wall-editor-panel-delete {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #c73a3a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.wall-editor-panel-delete svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-1px);
+}
+
+.wall-editor-panel-delete:hover,
+.wall-editor-panel-delete:focus-visible {
+  color: #e24c4c;
 }
 
 .tile-set-wall-tray {
@@ -1157,6 +1245,217 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   width: 100%;
   min-width: 0;
   align-items: start;
+}
+
+.tile-set-support-tray {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.wall-editor-asset-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wall-editor-asset-slot-support {
+  --support-card-size: min(100%, 226px);
+  --support-card-ratio: 556 / 327;
+}
+
+.wall-editor-asset-frame {
+  min-width: 0;
+}
+
+.wall-editor-asset-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.wall-editor-asset-title {
+  font-size: 0.86rem;
+}
+
+.wall-editor-asset-note {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.wall-editor-asset-action {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font: 700 0.78rem/1 "Avenir Next", "Segoe UI", sans-serif;
+}
+
+.wall-editor-asset-placeholder {
+  width: min(100%, 304px);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border-radius: 24px;
+  border: 1px dashed var(--border-strong);
+  background:
+    radial-gradient(circle at 50% 28%, rgba(255,255,255,0.3), transparent 36%),
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.14));
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+}
+
+.wall-editor-asset-placeholder-tile {
+  position: relative;
+  width: min(100%, 304px);
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  gap: 0;
+  padding: 0;
+  overflow: visible;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.wall-editor-asset-placeholder:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.wall-editor-asset-placeholder-shape {
+  width: 54%;
+  aspect-ratio: 1 / 1;
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  border: 2px solid rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.12);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
+}
+
+.wall-editor-asset-placeholder-text {
+  font: 700 0.9rem/1.2 "Avenir Next", "Segoe UI", sans-serif;
+}
+
+.wall-editor-asset-placeholder-guide {
+  position: absolute;
+  width: min(100%, 304px);
+  height: min(100%, 304px);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.92;
+  pointer-events: none;
+}
+
+.wall-editor-asset-placeholder-guide path {
+  fill: var(--tray-guide-fill);
+  stroke: var(--tray-guide-stroke);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transition: fill 120ms ease, stroke 120ms ease, opacity 120ms ease;
+}
+
+.wall-editor-asset-placeholder-entrance-shape {
+  width: min(100%, 304px);
+  height: min(100%, 304px);
+  display: block;
+  object-fit: contain;
+  opacity: 0.45;
+  filter: grayscale(1) sepia(0.35) brightness(1.05) contrast(0.9);
+  pointer-events: none;
+  transition: opacity 120ms ease, filter 120ms ease;
+}
+
+.wall-editor-asset-placeholder-tile:hover .wall-editor-asset-placeholder-guide path,
+.wall-editor-asset-placeholder-tile:focus-visible .wall-editor-asset-placeholder-guide path {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: var(--accent);
+}
+
+.wall-editor-asset-placeholder-tile:hover .wall-editor-asset-placeholder-entrance-shape,
+.wall-editor-asset-placeholder-tile:focus-visible .wall-editor-asset-placeholder-entrance-shape {
+  opacity: 0.68;
+  filter: brightness(0) saturate(100%) opacity(0.68);
+}
+
+.wall-editor-asset-placeholder-tile:hover,
+.wall-editor-asset-placeholder-tile:focus,
+.wall-editor-asset-placeholder-tile:focus-visible,
+.wall-editor-asset-placeholder-tile:active {
+  border: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.wall-editor-asset-placeholder-support {
+  width: var(--support-card-size);
+  aspect-ratio: var(--support-card-ratio);
+  padding: 0;
+  gap: 0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.wall-editor-asset-placeholder-support .wall-editor-asset-placeholder-shape {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 5px;
+  clip-path: none;
+  border: 0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(0,0,0,0.18));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.16),
+    inset 0 0 0 2px rgba(0,0,0,0.08);
+}
+
+.wall-editor-asset-placeholder-support .wall-editor-asset-placeholder-text {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: max-content;
+  font-size: 0.8rem;
+}
+
+.wall-editor-support-card {
+  width: var(--support-card-size);
+  aspect-ratio: var(--support-card-ratio);
+  margin: 0 auto;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wall-editor-support-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .tile-set-wall-note {
@@ -2996,11 +3295,19 @@ body.show-portal-flags .tile-portal-flag {
   .tile-set-wall-tray {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+
+  .tile-set-support-tray {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1240px) {
   .tile-set-wall-tray {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tile-set-support-tray {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -3028,9 +3335,23 @@ body.show-portal-flags .tile-portal-flag {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .tile-set-support-tray {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .wall-editor-tile {
     width: min(304px, calc(100vw - 120px));
     height: min(304px, calc(100vw - 120px));
+  }
+
+  .wall-editor-asset-placeholder,
+  .wall-editor-support-card {
+    width: min(304px, calc(100vw - 120px));
+  }
+
+  .wall-editor-asset-placeholder-support,
+  .wall-editor-support-card {
+    width: min(226px, calc(100vw - 120px));
   }
 }
 
