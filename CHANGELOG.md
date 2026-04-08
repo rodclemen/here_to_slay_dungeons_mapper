@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-04-08
+- Built the first full custom tileset workflow into the app: custom sets can now be created from `Add Custom Tile Set`, named immediately, opened directly in Wall Edit, and managed as real runtime tilesets instead of debug-only records.
+- Added IndexedDB-backed custom tileset storage in `modules/custom-tileset-storage.js`, including persisted manifests and image blobs, runtime object-URL asset resolution, and migration away from the earlier local debug-record approach.
+- Added zip import support for custom tilesets with `manifest.json`, package image validation, optional `wall_editor.json`, and runtime refresh after import; also added a matching zip export path so stored custom sets can be packaged back out with their current wall/end/portal data.
+- Added the new custom tileset editor shell on the Wall Edit page: entrance tile, 9 regular tiles, 1 reference card, and 2 boss cards all live on the same page, with direct image loading/replacement from each slot.
+- Added custom-set management controls to the editor UI, including inline rename with `pencil.png`, delete with confirmation and cleanup, and export via `download.png`; also moved custom import into the Wall Edit toolbar so the package workflow stays on the same page.
+- Fixed several custom-editor state bugs while building the flow: image uploads now persist without blanking previously loaded images, the page no longer jumps to the top after each upload, delete fallback stays on remaining custom sets instead of dumping back to built-ins, and entering/leaving Wall Edit now restores the intended Build View tileset.
+- Added a ready-to-import mixed sample package under `docs/custom-tileset-sample-mixed/` plus `docs/custom-tileset-sample-mixed.zip` so the package format can be tested without hand-authoring a manifest.
+- Updated the custom tileset planning docs to reflect the real intended workflow: Wall Edit is now the home for custom tileset creation/editing/import/export/delete, v1 is locked to 1 entrance tile + 9 regular tiles + 1 reference card + 2 boss cards, and the remaining follow-up work is called out explicitly.
+- Polished the editor visuals around custom asset slots: added real silhouette-style empty tile placeholders, added a visible entrance placeholder, aligned reference/boss placeholder sizing to the loaded cards, switched hover emphasis from the outer box to the silhouette itself, and wired the page favicon to `d20.png` to stop the missing-favicon requests.
+- Session note: Stared at a placeholder long enough to learn the difference between “the box is bigger” and “the actual shape is still tiny.”
+
 ## 2026-04-07
 - Tightened the Wall Editor page layout so tile panels stop bleeding into adjacent panels: the wall editor container now behaves like the main scrollable content area, tray/panel wrappers can shrink correctly inside the grid, and horizontal spill is clipped at the panel level instead of overlapping neighboring tiles.
 - Added outer page spacing around the Wall Editor container so the full editor box no longer sits flush against the app edges.
