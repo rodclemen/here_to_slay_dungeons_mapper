@@ -1,6 +1,17 @@
 # Changelog
 
 ## 2026-04-09
+- Added a browser-local QA checklist tracker: `modules/dev-qa-checks.js` now records supported user actions and interactions, `qa-checks.html` renders them on a separate page, and `qa-checks-bridge.html` plus polling/BroadcastChannel/localStorage syncing keep the checklist updated across tabs while testing.
+- Instrumented the main app in `app.js` so the QA tracker marks real user-facing actions such as Auto Build, reroll, reset, tile-set changes, share/export actions, settings toggles, compact-mode activation, board zoom changes, and successful tile placement.
+- Removed the separate `Reset Tiles` quick action from the main UI and QA checklist so `Reset Tiles and Boss Cards` remains the single reset flow.
+- Fixed compact-mode boss-card usability in `styles.css` and `app.js`: the draggable boss card now appears first in the compact stack, and boss tokens can be dragged back into the compact left drawer instead of only the exact boss pile hitbox.
+- Fixed compact-mode return-drag scaling in `app.js` so tiles now shrink back toward compact-sidebar size when you drag them from the board into the left drawer, matching the existing grow-on-drag behavior in the opposite direction.
+- Added the `Z` keyboard shortcut in `app.js` to reset board zoom and pan via the existing `resetBoardView()` path, and updated `about.html` so the Guide now lists `Shortcuts` instead of `Controls`, includes `Z`, and keeps `Esc` as the last shortcut row.
+- Reworked the Tile Editor toolbar in `app.js` and `styles.css`: custom-set actions now live on the editor toolbar as icon buttons (`Add`, `Import`, `Point Edit`, `Export All`), the tile-set dropdown plus `Copy Guide Template JSON` sit on the right, and custom-set panel actions keep bottom-left hints for rename/export/delete.
+- Rebuilt Tile Editor tile metadata controls in `app.js` and `styles.css`: `End Tile` and `Portal` now use compact inline switch rows in the top-right of regular tiles, the entrance tile no longer shows those controls, and both toggles show the same bottom-left hint behavior as the toolbar icons.
+- Added a URL-gated dev mode in `app.js`, `index.html`, and `styles.css`: opening the app with `?dev=1` reveals internal tools like debug wall import/export, clear-wall controls, `Show Numbers`, auto-build tuning, and the remaining dev-only Tile Editor helpers while keeping them hidden from normal users.
+- Updated the Tile Editor icon system in `styles.css` to use theme-aware icon coloring and accent-only hover/press states without highlight boxes, while preserving the older pencil/download/trash coloring on custom tileset panel actions.
+- Refreshed `README.md` to document the current Tile Editor toolbar workflow, the separate QA checklist page, the `?dev=1` dev-mode gate, the `Z` shortcut, and the current backup/import behavior for bulk custom-tileset exports.
 - Ran the custom-tileset QA checklist against the new workflow in `docs/custom-tileset-qa-checklist.md` and pushed the pass through creation, zip import, duplicate-ID reimport, custom asset replacement, custom metadata persistence, built-in metadata isolation, single-set export/import round trip, bulk backup export, and delete cleanup.
 - Fixed IndexedDB custom-set save/delete writes in `modules/custom-tileset-storage.js` so asset-key lookups happen in a separate readonly transaction before the readwrite transaction starts; this stops the browser from invalidating long-running custom-set save/delete operations mid-flight.
 - Hardened custom package normalization in `modules/custom-tileset-package.js` by supplying default entrance/tile/reference IDs when older or partially-populated stored manifests are loaded, preventing startup crashes from missing normalization options.
@@ -10,6 +21,7 @@
 - Fixed a shared-layout restore race in `app.js` by cancelling pending compact-mode board zoom resets before applying a shared snapshot; built-in share links were otherwise restoring the correct layout data and then being overwritten back to `Zoom 75%`.
 - Fixed custom shared-layout restore selector sync in `app.js` so restoring an installed custom layout now updates the main tile-set selector/menu to the restored custom set instead of leaving the UI labeled `Molten` while the board is already showing the custom tileset.
 - Session note: Verified one more “exact restore” bug that turned out to be exact right up until another animation frame decided otherwise.
+- Session note: Tooltips, dev gates, compact drag math, and one stubborn pencil icon all eventually agreed to behave.
 
 ## 2026-04-08
 - Built the first full custom tileset workflow into the app: custom sets can now be created from `Add Custom Tile Set`, named immediately, opened directly in Wall Edit, and managed as real runtime tilesets instead of debug-only records.

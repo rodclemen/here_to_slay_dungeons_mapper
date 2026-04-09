@@ -74,6 +74,68 @@ body {
     var(--bg);
 }
 
+body:not(.dev-mode) .dev-only {
+  display: none !important;
+}
+
+body.dev-mode .dev-only {
+  --dev-accent: #2f9e44;
+  --dev-accent-soft: rgba(47, 158, 68, 0.12);
+  --dev-accent-line: rgba(47, 158, 68, 0.32);
+}
+
+body.dev-mode button.dev-only,
+body.dev-mode .dev-only > summary,
+body.dev-mode label.dev-only {
+  border-color: var(--dev-accent-line);
+  background: var(--dev-accent-soft);
+  color: var(--dev-accent);
+}
+
+body.dev-mode button.dev-only:hover,
+body.dev-mode .dev-only > summary:hover,
+body.dev-mode label.dev-only:hover {
+  background: rgba(47, 158, 68, 0.18);
+}
+
+body.dev-mode .advanced-debug-group.dev-only,
+body.dev-mode .auto-build-tuning-panel.dev-only {
+  border-top-color: var(--dev-accent-line);
+}
+
+body.dev-mode .advanced-debug-group.dev-only p,
+body.dev-mode .auto-build-tuning-panel.dev-only > summary,
+body.dev-mode .auto-build-tuning-panel.dev-only .auto-build-tuning-note,
+body.dev-mode .auto-build-tuning-panel.dev-only .auto-build-tuning-label,
+body.dev-mode .auto-build-tuning-panel.dev-only .auto-build-tuning-value,
+body.dev-mode label.dev-only span {
+  color: var(--dev-accent);
+}
+
+body.dev-mode .auto-build-tuning-panel.dev-only .auto-build-tuning-badge {
+  border-color: var(--dev-accent-line);
+  background: rgba(47, 158, 68, 0.14);
+  color: var(--dev-accent);
+}
+
+body.dev-mode .wall-editor-toolbar-icon-btn.dev-only img,
+body.dev-mode .wall-editor-copy-btn.dev-only,
+body.dev-mode .wall-editor-copy-btn.dev-only:hover,
+body.dev-mode .wall-editor-copy-btn.dev-only:focus-visible {
+  color: var(--dev-accent);
+}
+
+body.dev-mode .wall-editor-toolbar-icon-btn.dev-only img {
+  filter: brightness(0) saturate(100%) invert(43%) sepia(53%) saturate(786%) hue-rotate(84deg) brightness(89%) contrast(91%);
+}
+
+body.dev-mode .wall-editor-toolbar-icon-btn.dev-only:hover img,
+body.dev-mode .wall-editor-toolbar-icon-btn.dev-only:focus-visible img,
+body.dev-mode .wall-editor-toolbar-icon-btn.dev-only:active img,
+body.dev-mode .wall-editor-toolbar-icon-btn.dev-only.is-active img {
+  filter: brightness(0) saturate(100%) invert(43%) sepia(53%) saturate(786%) hue-rotate(84deg) brightness(89%) contrast(91%);
+}
+
 input,
 select,
 textarea,
@@ -1087,8 +1149,37 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   display: flex;
   align-items: end;
   gap: 12px;
-  justify-content: flex-end;
   margin-bottom: 14px;
+}
+
+.wall-editor-toolbar-right {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.wall-editor-toolbar-hint {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  max-width: min(320px, calc(100vw - 36px));
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(20, 28, 34, 0.88);
+  color: #f4f8fb;
+  font: 600 0.8rem/1.25 "Avenir Next", "Segoe UI", sans-serif;
+  letter-spacing: 0.01em;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+  z-index: 120;
+}
+
+.wall-editor-toolbar-hint.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .wall-editor-group-label {
@@ -1126,6 +1217,82 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
 .wall-editor-copy-btn.is-active {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.wall-editor-toolbar-icon-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+
+.wall-editor-toolbar-icon-btn::before {
+  content: "";
+  display: block;
+  width: 26px;
+  height: 26px;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  transform: translateY(-1px);
+  transition: opacity 140ms ease, transform 140ms ease, background-color 140ms ease;
+}
+
+.wall-editor-toolbar-icon-btn[data-icon="add"]::before {
+  width: 32px;
+  height: 32px;
+  -webkit-mask-image: url("./icons/add.png");
+  mask-image: url("./icons/add.png");
+  transform: translateY(-1px) rotate(90deg);
+}
+
+.wall-editor-toolbar-icon-btn[data-icon="import"]::before {
+  -webkit-mask-image: url("./icons/import.png");
+  mask-image: url("./icons/import.png");
+}
+
+.wall-editor-toolbar-icon-btn[data-icon="point-edit"]::before {
+  width: 30px;
+  height: 30px;
+  -webkit-mask-image: url("./icons/anchor-point.png");
+  mask-image: url("./icons/anchor-point.png");
+}
+
+.wall-editor-toolbar-icon-btn[data-icon="export-all"]::before {
+  -webkit-mask-image: url("./icons/export_all.png");
+  mask-image: url("./icons/export_all.png");
+}
+
+.wall-editor-toolbar-icon-btn.is-active {
+  opacity: 1;
+}
+
+.wall-editor-toolbar-icon-btn:hover,
+.wall-editor-toolbar-icon-btn:focus-visible {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.wall-editor-toolbar-icon-btn:active {
+  color: var(--accent);
+}
+
+.wall-editor-toolbar-icon-btn:active::before {
+  transform: translateY(0);
+}
+
+.wall-editor-toolbar-icon-btn-left {
+  margin-right: auto;
 }
 
 .wall-editor-trays {
@@ -1173,6 +1340,26 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  color: var(--ink);
+}
+
+.wall-editor-panel-rename::before,
+.wall-editor-panel-action::before {
+  content: "";
+  display: block;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  transform: translateY(-1px);
+  transition: background-color 140ms ease;
+}
+
+.wall-editor-panel-rename::before {
+  content: none;
 }
 
 .wall-editor-panel-rename img {
@@ -1197,14 +1384,18 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  color: #4d9f5a;
+}
+
+.wall-editor-panel-action::before {
+  width: 15px;
+  height: 15px;
+  -webkit-mask-image: url("./icons/download.png");
+  mask-image: url("./icons/download.png");
 }
 
 .wall-editor-panel-action img {
-  display: block;
-  width: 15px;
-  height: 15px;
-  transform: translateY(-1px);
-  filter: brightness(0) saturate(100%) invert(41%) sepia(55%) saturate(671%) hue-rotate(84deg) brightness(92%) contrast(94%);
+  display: none;
 }
 
 .wall-editor-panel-action:hover,
@@ -1218,11 +1409,11 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   padding: 0;
   border: 0;
   background: transparent;
-  color: #c73a3a;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  color: #c73a3a;
 }
 
 .wall-editor-panel-delete svg {
@@ -3225,69 +3416,99 @@ body.wall-edit-mode .tile-controls {
   cursor: pointer;
 }
 
-.wall-end-tile-toggle {
+.wall-editor-toggle-group {
   position: absolute;
-  left: 50%;
-  bottom: 10px;
-  transform: translateX(-50%);
-  min-width: 122px;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  line-height: 1;
-  border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.82);
-  color: #000;
+  top: -2px;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  width: auto;
   z-index: 30;
 }
 
-.wall-end-tile-toggle.is-on {
-  border-color: #bf2b41;
-  color: #000;
-  background: rgba(255, 242, 244, 0.94);
+.wall-editor-meta-toggle {
+  display: grid;
+  grid-template-columns: 52px 32px;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 700 0.78rem/1 "Avenir Next", "Segoe UI", sans-serif;
+  text-align: left;
 }
 
-.wall-portal-flag-toggle {
+.wall-editor-meta-toggle-icon {
+  display: none;
+}
+
+.wall-editor-meta-toggle.has-icon {
+  grid-template-columns: 18px 52px auto;
+}
+
+.wall-editor-meta-toggle.has-icon .wall-editor-meta-toggle-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.wall-editor-meta-toggle.has-icon .wall-editor-meta-toggle-icon img,
+.wall-editor-meta-toggle.has-icon .wall-editor-meta-toggle-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.wall-editor-meta-toggle-label {
+  display: inline-block;
+  white-space: nowrap;
+  text-align: left;
+  color: var(--ink);
+}
+
+.wall-editor-meta-toggle-switch {
+  position: relative;
+  width: 32px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wall-editor-meta-toggle-track {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  min-width: 126px;
-  height: 28px;
-  padding: 0 12px;
+  inset: 0;
   border-radius: 999px;
-  font-size: 0.8rem;
-  line-height: 1;
-  border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.82);
-  color: #000;
-  z-index: 30;
+  background: rgba(57, 67, 76, 0.22);
+  transition: background-color 140ms ease;
 }
 
-.wall-portal-flag-toggle.is-on {
-  border-color: #bf2b41;
-  color: #000;
-  background: rgba(255, 242, 244, 0.94);
+.wall-editor-meta-toggle-thumb {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(17, 24, 32, 0.26);
+  transition: transform 140ms ease;
 }
 
-.wall-end-tile-toggle:hover,
-.wall-end-tile-toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.82);
+.wall-editor-meta-toggle.is-on .wall-editor-meta-toggle-track {
+  background: #2f9e44;
 }
 
-.wall-end-tile-toggle.is-on:hover,
-.wall-end-tile-toggle.is-on:focus-visible {
-  background: rgba(255, 242, 244, 0.94);
+.wall-editor-meta-toggle.is-on .wall-editor-meta-toggle-thumb {
+  transform: translateX(16px);
 }
 
-.wall-portal-flag-toggle:hover,
-.wall-portal-flag-toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.wall-portal-flag-toggle.is-on:hover,
-.wall-portal-flag-toggle.is-on:focus-visible {
-  background: rgba(255, 242, 244, 0.94);
+.wall-editor-meta-toggle:hover,
+.wall-editor-meta-toggle:focus-visible {
+  background: transparent;
 }
 
 .tile-portal-flag {
@@ -3367,6 +3588,18 @@ body.show-portal-flags .tile-portal-flag {
     justify-content: stretch;
   }
 
+  .wall-editor-toolbar-right {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .wall-editor-toolbar-hint {
+    left: 12px;
+    bottom: 12px;
+    max-width: calc(100vw - 24px);
+  }
+
   .wall-editor-group-label {
     width: 100%;
   }
@@ -3378,6 +3611,10 @@ body.show-portal-flags .tile-portal-flag {
 
   .wall-editor-copy-btn {
     width: 100%;
+  }
+
+  .wall-editor-toolbar-icon-btn {
+    width: 30px;
   }
 
   .tile-set-wall-tray {
@@ -3693,9 +3930,9 @@ body.compact-sidepanel-mode .drawer-left .reserve-pile.edit-mode .reserve-card {
 body.compact-sidepanel-mode .drawer-left .boss-pile {
   height: auto;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  justify-items: center;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
   gap: 6px;
   overflow: visible;
 }

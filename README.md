@@ -132,7 +132,7 @@ Every tile set has paired light and dark UI themes — twelve total. Themes shif
 
 9. **Press `X` to reset** all tiles back to the tray and clear boss tokens.
 
-If you want to work with your own tile art instead of only the built-in sets, open `Quick Actions` and choose either `Add Custom Tile Set` or `Import Custom Tileset`, then continue in the editor described below.
+If you want to work with your own tile art instead of only the built-in sets, open `Tile Editor` and use the custom-set toolbar actions described below.
 
 ---
 
@@ -152,32 +152,33 @@ What the page is for:
 - mark portal tiles so auto-build can avoid placing portal-to-portal adjacency when possible
 - edit shared guide-point templates for `Entrance` and `Tile 01`
 - load or replace custom art for entrance, 9 regular tiles, reference card, and 2 boss cards
-- rename, export, or delete a custom tile set
-- import a custom tile-set package directly from the editor
+- create, import, bulk-export, rename, export, or delete custom tile sets
+- import a custom tile-set package directly from the editor toolbar
 
 How the page is laid out:
 
 - the top intro explains the current editing actions
-- `Tile Set Group` swaps between the built-in groupings and a dynamic `Custom Tile Sets` group when custom sets exist
-- `Point Edit: ON/OFF` enables guide-template handle editing
-- `Import Custom Tileset` opens the package picker
-- `Copy Guide Template JSON` exports the current shared guide-template data to the clipboard
+- the left toolbar icons handle `Add Custom Tile Set`, `Import Custom Tileset`, `Point Edit`, and `Export All Custom Tile Sets`
+- the right toolbar holds `Tile Set Group`, which swaps between the built-in groupings and a dynamic `Custom Tile Sets` group when custom sets exist
+- `Copy Guide Template JSON` remains available in the toolbar, but only when dev mode is enabled
 - each panel below shows one tile set and all of its editable tiles
 
 Working with built-in tile sets:
 
 1. Click any tile to make it the active tile.
 2. Click a highlighted face segment on the tile to toggle that face between wall and non-wall.
-3. Use `End Tile: ON/OFF` to decide whether that tile is allowed to be used as a dungeon endpoint during auto-build.
-4. Use `Portal Flag: ON/OFF` to add or remove portal metadata for that tile. This is not directional data; it simply marks the tile as a portal tile so auto-build can avoid portal-to-portal adjacency. When enabled, drag the portal marker to the correct spot on the tile art.
+3. Use `End Tile` to decide whether that tile is allowed to be used as a dungeon endpoint during auto-build.
+4. Use `Portal` to add or remove portal metadata for that tile. This is not directional data; it simply marks the tile as a portal tile so auto-build can avoid portal-to-portal adjacency. When enabled, drag the portal marker to the correct spot on the tile art.
+5. The entrance tile intentionally does not show `End Tile` or `Portal` controls.
 
 Working with custom tile sets:
 
-1. Open `Quick Actions` and choose `Add Custom Tile Set`, or import a package with `Import Custom Tileset`.
+1. Use the left toolbar icons to `Add Custom Tile Set` or `Import Custom Tileset`.
 2. The new set appears in the main selector and in the editor's `Custom Tile Sets` group.
 3. Use the asset slots to load or replace images for entrance, regular tiles, reference card, and boss cards.
 4. Edit walls, end-tile flags, portals, and guide points the same way you would for built-in sets.
 5. Use the panel actions to rename, export, or delete the custom set.
+6. Use the toolbar `Export All Custom Tile Sets` icon when you want a browser-wide backup zip containing one importable package per custom set.
 
 Naming and identity:
 
@@ -201,8 +202,9 @@ Persistence and backup behavior:
 - this is not the same thing as backup: clearing site data, switching browsers, changing browser profiles, or moving to another device can still lose local edits
 - the app now shows an in-app local-data notice after creating or editing custom sets and after editing built-in wall/portal/guide data
 - use custom tile-set export as the backup/transfer path for custom sets
-- single custom sets can be exported from the Tile Editor, and `Quick Actions` also provides `Export All Custom Tile Sets` for a browser-wide backup zip
-- built-in wall-edit data can be copied with `Export Debug Walls` and restored with `Import Debug Walls`
+- single custom sets can be exported from the Tile Editor, and the Tile Editor toolbar also provides `Export All Custom Tile Sets` for a browser-wide backup zip
+- the browser-wide backup zip is not itself a direct import target; unpack it first, then import the included per-tileset `.zip` packages one at a time
+- built-in wall-edit data can be copied with `Export Debug Walls` and restored with `Import Debug Walls`, but those controls are now dev-only
 
 Important behavior notes:
 
@@ -211,6 +213,7 @@ Important behavior notes:
 - regular entrance placement rules still apply in normal build mode after you return to `Build View`
 - built-in guide templates are still shared across the built-in sets
 - custom guide templates are isolated per custom tile set; editing guide points on a custom set does not change the built-in shared templates or another custom set
+- Tile Editor toolbar and custom-set action icons now show their help text in a bottom-left hint label instead of relying on browser hover titles
 
 Future editor planning notes live in [`docs/wall-editor-notes.md`](./docs/wall-editor-notes.md).
 
@@ -319,6 +322,7 @@ The application is a single-page vanilla JavaScript app — one HTML file, one C
 | `X` | Reset all tiles and boss tokens |
 | `B` | Spawn random boss |
 | `D` | Toggle left and right drawers |
+| `Z` | Reset zoom and board pan |
 
 Rotation targets the tile under the cursor. Entrance tiles rotate in 90° steps; regular tiles in 60° steps.
 
@@ -389,6 +393,30 @@ npx http-server -p 8000
 Then open `http://localhost:8000` in your browser.
 
 > **Note:** Opening `index.html` directly via `file://` may not work due to browser CORS restrictions on image loading. Use a local server.
+
+### Dev Mode
+
+Open the app with `?dev=1` when you want internal tools and QA helpers visible:
+
+```text
+http://localhost:8000/?dev=1
+```
+
+This enables dev-only controls such as:
+
+- `Export Debug Walls` / `Import Debug Walls`
+- `Clear Tile Walls`
+- `Show Numbers`
+- `Auto Build Tuning`
+- Tile Editor dev helpers like `Copy Guide Template JSON`
+
+There is also a separate live QA checklist page at:
+
+```text
+http://localhost:8000/qa-checks.html
+```
+
+Keep that page open beside the mapper and it will mark supported user actions as you trigger them. If the mapper and QA page are on different local origins (`localhost` vs `127.0.0.1`), use the same port and prefer matching origins for the simplest live updates.
 
 ---
 

@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QA Checks - Here to Slay DUNGEONS Mapper</title>
+    <link rel="icon" type="image/png" href="./icons/d20.png" />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      :root {
+        --qa-bg: #efe4d6;
+        --qa-panel: rgba(255, 249, 240, 0.94);
+        --qa-panel-strong: #fffdf9;
+        --qa-border: #d7c1aa;
+        --qa-border-strong: #bf9a73;
+        --qa-ink: #2f251e;
+        --qa-muted: #746455;
+        --qa-accent: #8e5224;
+        --qa-accent-soft: rgba(142, 82, 36, 0.12);
+        --qa-good: #2f7a4d;
+        --qa-good-soft: rgba(47, 122, 77, 0.14);
+        --qa-shadow: 0 18px 36px rgba(48, 31, 17, 0.12);
+        --qa-max: 1180px;
+      }
+      * { box-sizing: border-box; }
+      body.qa-page {
+        margin: 0;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        color: var(--qa-ink);
+        background:
+          radial-gradient(circle at top left, rgba(255,255,255,0.55), transparent 38%),
+          radial-gradient(circle at bottom right, rgba(181, 121, 66, 0.18), transparent 32%),
+          linear-gradient(155deg, #f5ede3 0%, var(--qa-bg) 48%, #e9d6c2 100%);
+      }
+      a { color: var(--qa-accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .page {
+        width: min(var(--qa-max), calc(100% - 28px));
+        margin: 0 auto;
+        padding: 24px 0 48px;
+      }
+      .hero,
+      .summary,
+      .category-card {
+        border: 1px solid var(--qa-border);
+        border-radius: 18px;
+        background: var(--qa-panel);
+        box-shadow: var(--qa-shadow);
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+        gap: 18px;
+        padding: 22px;
+        margin-bottom: 18px;
+      }
+      .eyebrow {
+        margin: 0 0 10px;
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--qa-muted);
+      }
+      h1, h2, p { margin: 0; }
+      h1, h2 { font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif; }
+      h1 {
+        margin-bottom: 10px;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+        color: var(--qa-accent);
+      }
+      .hero-copy p {
+        max-width: 62ch;
+        color: var(--qa-muted);
+        line-height: 1.5;
+      }
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .qa-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0 16px;
+        border: 1px solid var(--qa-border-strong);
+        border-radius: 999px;
+        background: var(--qa-panel-strong);
+        color: var(--qa-accent);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .qa-btn:hover { background: #fff7ef; }
+      .qa-btn.secondary {
+        border-color: var(--qa-border);
+        color: var(--qa-ink);
+      }
+      .summary {
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .summary-item {
+        padding: 14px;
+        border: 1px solid var(--qa-border);
+        border-radius: 14px;
+        background: var(--qa-panel-strong);
+      }
+      .summary-item strong {
+        display: block;
+        font-size: 1.45rem;
+        color: var(--qa-accent);
+      }
+      .summary-item span {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.9rem;
+        color: var(--qa-muted);
+      }
+      .summary-note {
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--qa-accent-soft);
+        color: var(--qa-muted);
+        line-height: 1.45;
+      }
+      .summary-source {
+        color: var(--qa-muted);
+        font-size: 0.88rem;
+      }
+      .categories {
+        display: grid;
+        gap: 16px;
+      }
+      .category-card { padding: 18px; }
+      .category-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .category-head h2 {
+        font-size: 1.45rem;
+        color: var(--qa-accent);
+      }
+      .category-progress {
+        color: var(--qa-muted);
+        font-size: 0.92rem;
+      }
+      .checks {
+        display: grid;
+        gap: 10px;
+      }
+      .check-row {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        padding: 14px;
+        border: 1px solid var(--qa-border);
+        border-radius: 14px;
+        background: var(--qa-panel-strong);
+      }
+      .check-row.is-complete {
+        border-color: color-mix(in srgb, var(--qa-good) 48%, var(--qa-border));
+        background: color-mix(in srgb, white 88%, var(--qa-good-soft) 12%);
+      }
+      .check-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 2px solid var(--qa-border-strong);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: 800;
+        color: transparent;
+      }
+      .check-row.is-complete .check-mark {
+        border-color: var(--qa-good);
+        color: var(--qa-good);
+        background: var(--qa-good-soft);
+      }
+      .check-copy strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 1rem;
+      }
+      .check-copy span {
+        color: var(--qa-muted);
+        font-size: 0.9rem;
+      }
+      .check-meta {
+        text-align: right;
+        color: var(--qa-muted);
+        font-size: 0.85rem;
+        white-space: nowrap;
+      }
+      .check-meta strong {
+        display: block;
+        color: var(--qa-ink);
+        font-size: 0.95rem;
+      }
+      @media (max-width: 860px) {
+        .hero { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 640px) {
+        .summary-grid { grid-template-columns: 1fr; }
+        .check-row { grid-template-columns: 40px minmax(0, 1fr); }
+        .check-meta {
+          grid-column: 2;
+          text-align: left;
+          white-space: normal;
+        }
+      }
+    </style>
+  </head>
+  <body class="qa-page">
+    <main class="page">
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">Live QA Tracker</div>
+          <h1>Development Checks</h1>
+          <p>
+            Keep this page open while testing the mapper. Each tracked action or interaction gets marked here as soon as it happens in the app tab.
+            The checklist stays in your browser until you reset it.
+          </p>
+          <div class="hero-actions">
+            <a class="qa-btn" href="./index.html" target="_blank" rel="noreferrer">Open Mapper</a>
+            <button id="reset-checks-btn" class="qa-btn secondary" type="button">Reset Checks</button>
+          </div>
+        </div>
+        <aside class="summary">
+          <div class="summary-grid">
+            <div class="summary-item">
+              <strong id="summary-complete">0 / 0</strong>
+              <span>Checks completed</span>
+            </div>
+            <div class="summary-item">
+              <strong id="summary-percent">0%</strong>
+              <span>Coverage this run</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <strong id="summary-updated">Never</strong>
+            <span>Last activity</span>
+          </div>
+          <div class="summary-source" id="summary-source">Watching current origin only.</div>
+          <div class="summary-note">
+            Interaction checks only tick when the app sees a real event, for example a tile actually landing on the board, the board zoom changing, or compact mode turning on after a resize.
+          </div>
+        </aside>
+      </section>
+      <section id="categories" class="categories" aria-label="QA categories"></section>
+    </main>
+    <script type="module">
+      import {
+        DEV_QA_CHECK_DEFINITIONS,
+        getDevQaProgress,
+        resetDevQaChecks,
+        subscribeDevQaChecks,
+      } from "./modules/dev-qa-checks.js";
+
+      const categoriesEl = document.getElementById("categories");
+      const resetBtn = document.getElementById("reset-checks-btn");
+      const summaryCompleteEl = document.getElementById("summary-complete");
+      const summaryPercentEl = document.getElementById("summary-percent");
+      const summaryUpdatedEl = document.getElementById("summary-updated");
+      const summarySourceEl = document.getElementById("summary-source");
+      let latestProgress = getDevQaProgress();
+      let latestSource = window.location.origin;
+
+      const groupedDefinitions = DEV_QA_CHECK_DEFINITIONS.reduce((map, entry) => {
+        if (!map.has(entry.category)) map.set(entry.category, []);
+        map.get(entry.category).push(entry);
+        return map;
+      }, new Map());
+
+      function formatTimestamp(value) {
+        if (!value) return "Never";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "Never";
+        return date.toLocaleString();
+      }
+
+      function render(progress) {
+        latestProgress = progress || latestProgress;
+        const checks = latestProgress?.checks || {};
+        const completedCount = DEV_QA_CHECK_DEFINITIONS.filter((entry) => checks[entry.id]?.count > 0).length;
+        const totalCount = DEV_QA_CHECK_DEFINITIONS.length;
+        const percent = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+        summaryCompleteEl.textContent = `${completedCount} / ${totalCount}`;
+        summaryPercentEl.textContent = `${percent}%`;
+        summaryUpdatedEl.textContent = formatTimestamp(latestProgress?.updatedAt);
+        summarySourceEl.textContent = `Active source: ${latestSource}`;
+
+        categoriesEl.innerHTML = "";
+        for (const [category, definitions] of groupedDefinitions) {
+          const categoryCompleted = definitions.filter((entry) => checks[entry.id]?.count > 0).length;
+          const card = document.createElement("section");
+          card.className = "category-card";
+
+          const head = document.createElement("div");
+          head.className = "category-head";
+          const title = document.createElement("h2");
+          title.textContent = category;
+          const progressEl = document.createElement("div");
+          progressEl.className = "category-progress";
+          progressEl.textContent = `${categoryCompleted} / ${definitions.length} complete`;
+          head.append(title, progressEl);
+          card.appendChild(head);
+
+          const list = document.createElement("div");
+          list.className = "checks";
+          for (const definition of definitions) {
+            const entry = checks[definition.id] || null;
+            const row = document.createElement("article");
+            row.className = "check-row";
+            if (entry?.count > 0) row.classList.add("is-complete");
+
+            const mark = document.createElement("div");
+            mark.className = "check-mark";
+            mark.textContent = "✓";
+
+            const copy = document.createElement("div");
+            copy.className = "check-copy";
+            const label = document.createElement("strong");
+            label.textContent = definition.label;
+            const detail = document.createElement("span");
+            detail.textContent = entry?.lastDetail
+              ? `Last detail: ${entry.lastDetail}`
+              : "Waiting for first use";
+            copy.append(label, detail);
+
+            const meta = document.createElement("div");
+            meta.className = "check-meta";
+            const count = document.createElement("strong");
+            count.textContent = entry?.count ? `${entry.count}x` : "0x";
+            const lastAt = document.createElement("span");
+            lastAt.textContent = formatTimestamp(entry?.lastAt || "");
+            meta.append(count, lastAt);
+
+            row.append(mark, copy, meta);
+            list.appendChild(row);
+          }
+          card.appendChild(list);
+          categoriesEl.appendChild(card);
+        }
+      }
+
+      resetBtn.addEventListener("click", () => {
+        resetDevQaChecks();
+      });
+
+      function maybeApplyProgress(progress, source) {
+        const currentUpdatedAt = Date.parse(latestProgress?.updatedAt || "") || 0;
+        const nextUpdatedAt = Date.parse(progress?.updatedAt || "") || 0;
+        if (nextUpdatedAt < currentUpdatedAt) return;
+        latestSource = source || latestSource;
+        render(progress);
+      }
+
+      function buildBridgeOrigins() {
+        if (!window.location.protocol.startsWith("http")) {
+          return [window.location.origin];
+        }
+        const port = window.location.port ? `:${window.location.port}` : "";
+        return Array.from(new Set([
+          window.location.origin,
+          `${window.location.protocol}//127.0.0.1${port}`,
+          `${window.location.protocol}//localhost${port}`,
+        ]));
+      }
+
+      function attachBridgeFrames() {
+        for (const origin of buildBridgeOrigins()) {
+          const frame = document.createElement("iframe");
+          frame.hidden = true;
+          frame.tabIndex = -1;
+          frame.src = `${origin}/qa-checks-bridge.html`;
+          document.body.appendChild(frame);
+        }
+      }
+
+      window.addEventListener("message", (event) => {
+        if (event?.data?.type !== "hts-dev-qa-progress") return;
+        maybeApplyProgress(event.data.progress, event.data.sourceOrigin || event.origin || "");
+      });
+
+      render(latestProgress);
+      subscribeDevQaChecks((progress) => {
+        maybeApplyProgress(progress, window.location.origin);
+      });
+      attachBridgeFrames();
+      window.setInterval(() => {
+        maybeApplyProgress(getDevQaProgress(), window.location.origin);
+      }, 1000);
+    </script>
+  </body>
+</html>

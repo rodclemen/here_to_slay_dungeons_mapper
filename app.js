@@ -135,6 +135,14 @@ import {
   sanitizeDarkUiThemeId,
   sanitizeLightUiThemeId,
 } from "./modules/ui-themes.js";
+import { markDevQaCheck } from "./modules/dev-qa-checks.js";
+
+const DEV_MODE_ENABLED = (() => {
+  const raw = new URLSearchParams(window.location.search).get("dev");
+  if (raw == null) return false;
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "" || normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+})();
 
 const SIDES = 16;
 const SQRT_3 = Math.sqrt(3);
@@ -289,6 +297,8 @@ let customTileSetEditorDataCache = new Map();
 function cloneBuiltInTileSetRegistry() {
   return BUILT_IN_TILE_SET_REGISTRY.map((tileSet) => ({ ...tileSet, source: "built_in" }));
 }
+
+document.body.classList.toggle("dev-mode", DEV_MODE_ENABLED);
 
 function buildNewCustomTileSetManifest(name) {
   return buildNewCustomTileSetManifestValue(name, {
@@ -610,6 +620,7 @@ async function importCustomTileSetPackage(file) {
     await renderWallEditorPage();
   }
   const importedAsCopy = rawBundle?.manifest?.id && rawBundle.manifest.id !== bundle.manifest.id;
+  markDevQaCheck("import_custom_tileset", { detail: bundle.manifest.id });
   showLocalDataNotice("custom", bundle.manifest.id);
   setStatus(
     importedAsCopy
@@ -650,6 +661,7 @@ async function promptAndCreateCustomTileSet() {
   state.wallEditorActiveTileId = manifest.entranceTileId;
   await rerenderWallEditorPreservingScroll();
   setActiveWallEditorTile(manifest.id, manifest.entranceTileId);
+  markDevQaCheck("add_custom_tileset", { detail: manifest.id });
   showLocalDataNotice("custom", manifest.id);
   setStatus(`Created custom tile set: ${manifest.label}. Load art in the editor slots.`);
 }
@@ -832,6 +844,7 @@ async function exportAllCustomTileSets() {
 
   const bundle = await createZipArchive(exportedEntries);
   downloadBlob(bundle, `custom-tile-sets-backup-${date}.zip`);
+  markDevQaCheck("export_all_custom_tilesets", { detail: `${exportedEntries.length - 1} exported` });
   if (skippedLabels.length) {
     setStatus(`Exported ${exportedEntries.length - 1} custom tile set(s). Skipped ${skippedLabels.length} without exportable data.`);
   } else {
@@ -1155,10 +1168,6 @@ const autoBuildBtn = document.getElementById("auto-build-btn");
 const exportPdfBtn = document.getElementById("export-pdf-btn");
 const rerollBtn = document.getElementById("reroll-btn");
 const resetAllBtn = document.getElementById("reset-all-btn");
-const resetTilesBtn = document.getElementById("reset-tiles-btn");
-const addCustomTileSetBtn = document.getElementById("add-custom-tileset-btn");
-const importCustomTileSetBtn = document.getElementById("import-custom-tileset-btn");
-const exportAllCustomTileSetsBtn = document.getElementById("export-all-custom-tilesets-btn");
 const importCustomTileSetInput = document.getElementById("import-custom-tileset-input");
 const copyShareLinkBtn = document.getElementById("copy-share-link-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
@@ -1183,6 +1192,7 @@ let leftDrawerClosingTimer = null;
 let compactModeTransitionTimer = null;
 let compactModeTransitionFrame = 0;
 let boardAutoCenterResizeTimer = null;
+let wallEditorToolbarHintHideTimer = null;
 let boardHexThemeCache = null;
 let boardHexLayoutCache = null;
 let boardContentLayer = null;
@@ -1861,6 +1871,7 @@ function bindGlobalControls() {
   }
   if (autoBuildBtn) {
     autoBuildBtn.addEventListener("click", () => {
+      markDevQaCheck("auto_build");
       triggerDiceSpin(autoBuildBtn);
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
@@ -1869,15 +1880,16 @@ function bindGlobalControls() {
       });
     });
   }
-  rerollBtn.addEventListener("click", () => rerollTrayTiles());
+  rerollBtn.addEventListener("click", () => {
+    markDevQaCheck("reroll_tiles");
+    rerollTrayTiles();
+  });
   if (resetAllBtn) {
     resetAllBtn.addEventListener("click", () => {
+      markDevQaCheck("reset_tiles_and_bosses");
       triggerResetSpin(resetAllBtn);
       resetTilesAndBossCards();
     });
-  }
-  if (resetTilesBtn) {
-    resetTilesBtn.addEventListener("click", () => resetTiles());
   }
   if (copyShareLinkBtn) {
     copyShareLinkBtn.addEventListener("click", () => {
@@ -1886,12 +1898,14 @@ function bindGlobalControls() {
   }
   if (exportPdfBtn) {
     exportPdfBtn.addEventListener("click", () => {
+      markDevQaCheck("export_pdf");
       exportCurrentLayoutPdf();
     });
   }
   if (toggleLabelsCheckbox) {
     toggleLabelsCheckbox.checked = state.showGuideLabels;
     toggleLabelsCheckbox.addEventListener("change", () => {
+      markDevQaCheck("show_numbers_toggle");
       state.showGuideLabels = toggleLabelsCheckbox.checked;
       document.body.classList.toggle("show-guide-labels", state.showGuideLabels);
     });
@@ -1899,6 +1913,7 @@ function bindGlobalControls() {
   if (toggleWallsCheckbox) {
     toggleWallsCheckbox.checked = state.showWallFaces;
     toggleWallsCheckbox.addEventListener("change", () => {
+      markDevQaCheck("show_walls_toggle");
       state.showWallFaces = toggleWallsCheckbox.checked;
       document.body.classList.toggle("show-wall-faces", state.showWallFaces);
     });
@@ -1906,6 +1921,7 @@ function bindGlobalControls() {
   if (togglePortalFlagsCheckbox) {
     togglePortalFlagsCheckbox.checked = state.showPortalFlags;
     togglePortalFlagsCheckbox.addEventListener("change", () => {
+      markDevQaCheck("show_portal_flags_toggle");
       state.showPortalFlags = togglePortalFlagsCheckbox.checked;
       document.body.classList.toggle("show-portal-flags", state.showPortalFlags);
       for (const tile of state.tiles.values()) {
@@ -1916,6 +1932,7 @@ function bindGlobalControls() {
   if (toggleIgnoreContactCheckbox) {
     toggleIgnoreContactCheckbox.checked = state.ignoreContactRule;
     toggleIgnoreContactCheckbox.addEventListener("change", () => {
+      markDevQaCheck("ignore_contact_toggle");
       state.ignoreContactRule = toggleIgnoreContactCheckbox.checked;
       if (state.ignoreContactRule) {
         for (const tile of state.tiles.values()) {
@@ -1933,6 +1950,7 @@ function bindGlobalControls() {
   if (toggleFaceFeedbackCheckbox) {
     toggleFaceFeedbackCheckbox.checked = state.useFaceFeedback;
     toggleFaceFeedbackCheckbox.addEventListener("change", () => {
+      markDevQaCheck("face_feedback_toggle");
       state.useFaceFeedback = toggleFaceFeedbackCheckbox.checked;
       applyFeedbackMode(state.useFaceFeedback);
       setStatus(
@@ -1945,6 +1963,7 @@ function bindGlobalControls() {
   if (toggleAllBossesCheckbox) {
     toggleAllBossesCheckbox.checked = state.useAllBosses;
     toggleAllBossesCheckbox.addEventListener("change", () => {
+      markDevQaCheck("all_bosses_toggle");
       state.useAllBosses = toggleAllBossesCheckbox.checked;
       renderBossPile();
       syncBossTileSetHeading();
@@ -1955,29 +1974,7 @@ function bindGlobalControls() {
       );
     });
   }
-  if (addCustomTileSetBtn) {
-    addCustomTileSetBtn.addEventListener("click", () => {
-      promptAndCreateCustomTileSet().catch((error) => {
-        console.error(error);
-        setStatus("Could not create custom tile set.", true);
-      });
-      closeAdvancedMenuForElement(addCustomTileSetBtn);
-    });
-  }
-  if (exportAllCustomTileSetsBtn) {
-    exportAllCustomTileSetsBtn.addEventListener("click", () => {
-      exportAllCustomTileSets().catch((error) => {
-        console.error(error);
-        setStatus(error?.message || "Could not export all custom tile sets.", true);
-      });
-      closeAdvancedMenuForElement(exportAllCustomTileSetsBtn);
-    });
-  }
-  if (importCustomTileSetBtn && importCustomTileSetInput) {
-    importCustomTileSetBtn.addEventListener("click", () => {
-      openCustomTileSetImportPicker();
-      closeAdvancedMenuForElement(importCustomTileSetBtn);
-    });
+  if (importCustomTileSetInput) {
     importCustomTileSetInput.addEventListener("change", async (event) => {
       const file = event.target.files?.[0];
       event.target.value = "";
@@ -1992,6 +1989,7 @@ function bindGlobalControls() {
   }
   if (toggleWallEditBtn) {
     toggleWallEditBtn.addEventListener("click", () => {
+      markDevQaCheck("toggle_tile_editor");
       setWallEditMode(!state.wallEditMode);
       closeAdvancedMenuForElement(toggleWallEditBtn);
     });
@@ -2025,6 +2023,7 @@ function bindGlobalControls() {
         return;
       }
       await runTileSetCrossfade(() => applyTileSet(nextTileSetId, true));
+      markDevQaCheck("tile_set_change", { detail: nextTileSetId });
       syncTileSetMenuOptions();
       setTileSetMenuOpen(false);
     });
@@ -2047,6 +2046,7 @@ function bindGlobalControls() {
   if (uiThemeSelect) {
     uiThemeSelect.addEventListener("change", (event) => {
       const nextUiThemeId = event.target.value || DEFAULT_UI_THEME_ID;
+      markDevQaCheck("ui_theme_change", { detail: nextUiThemeId });
       if (isDarkUiTheme(nextUiThemeId)) {
         state.lastDarkUiThemeId = sanitizeDarkUiThemeId(nextUiThemeId);
         saveLastDarkUiThemeId(state.lastDarkUiThemeId);
@@ -2085,6 +2085,7 @@ function bindGlobalControls() {
       const option = event.target.closest("[data-appearance-mode]");
       if (!option) return;
       const nextMode = option.dataset.appearanceMode || DEFAULT_APPEARANCE_MODE;
+      markDevQaCheck("appearance_mode_change", { detail: nextMode });
       applyAppearanceMode(nextMode);
       setAppearanceModeMenuOpen(false);
     });
@@ -2103,6 +2104,7 @@ function bindGlobalControls() {
   if (autoThemeToggleCheckbox) {
     autoThemeToggleCheckbox.checked = state.autoThemeByTileSet;
     autoThemeToggleCheckbox.addEventListener("change", () => {
+      markDevQaCheck("auto_theme_toggle");
       setAutoThemeByTileSet(autoThemeToggleCheckbox.checked, {
         save: true,
         showStatus: true,
@@ -2229,6 +2231,12 @@ function bindGlobalControls() {
       event.preventDefault();
       if (resetAllBtn) triggerResetSpin(resetAllBtn);
       resetTilesAndBossCards();
+      return;
+    }
+
+    if (key === "z") {
+      event.preventDefault();
+      resetBoardView();
       return;
     }
 
@@ -2414,6 +2422,9 @@ function setCompactSidePanelMode(enabled) {
   let restoreZoom = DEFAULT_BOARD_ZOOM;
   let restoreRawZoom = DEFAULT_BOARD_ZOOM;
   state.compactSidePanelMode = useCompact;
+  if (useCompact) {
+    markDevQaCheck("compact_mode");
+  }
   document.body.classList.toggle("compact-sidepanel-mode", useCompact);
   if (useCompact) {
     clearBoardAutoCenterResizeTimer();
@@ -3263,6 +3274,7 @@ function zoomBoardAtPoint(delta, anchorBoardX, anchorBoardY) {
   applyBoardZoom(nextZoom, { syncScene: false, rawZoom: nextRawZoom });
   translateBoardContent(worldXAfter - worldXBefore, worldYAfter - worldYBefore, { syncScene: false });
   syncBoardSceneTransforms();
+  markDevQaCheck("zoom_board", { detail: `${Math.round(nextZoom * 100)}%` });
 }
 
 function translateBoardContent(dx, dy, options = {}) {
@@ -3588,17 +3600,21 @@ async function copyShareLayoutLink() {
         const { bundle, filename } = await buildCustomShareBundleArchive(activeTileSet.id, url);
         downloadBlob(bundle, filename);
         setStatus(`Share link copied. Matching share bundle exported for ${activeTileSet.label}.`);
+        markDevQaCheck("copy_share_link", { detail: activeTileSet.id });
         return true;
       } catch (error) {
         console.error(error);
         setStatus("Share link copied, but exporting the matching custom-set share bundle failed.", true);
+        markDevQaCheck("copy_share_link", { detail: activeTileSet.id });
         return true;
       }
     }
     setStatus(`Share link copied. The receiver still needs the matching custom tile set installed, or they can only use fallback restore.`);
+    markDevQaCheck("copy_share_link", { detail: activeTileSet.id });
     return true;
   }
   setStatus("Share link copied.");
+  markDevQaCheck("copy_share_link", { detail: state.selectedTileSetId });
   return true;
 }
 
@@ -6077,8 +6093,9 @@ function beginBossTokenDrag(token, event) {
   const handleUp = (upEvent) => {
     if (upEvent.pointerId !== pointerId) return;
     const droppedInsideBossPile = isPointInsideElement(upEvent.clientX, upEvent.clientY, bossPile);
+    const droppedInsideLeftDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, leftDrawer);
     const droppedInsideInfoDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, rightDrawer);
-    if (droppedInsideBossPile || droppedInsideInfoDrawer) {
+    if (droppedInsideBossPile || droppedInsideLeftDrawer || droppedInsideInfoDrawer) {
       pushBossBackToPile(token.bossKey, state.selectedTileSetId);
       state.bossTokens = state.bossTokens.filter((entry) => entry.id !== token.id);
       token.dom.remove();
@@ -7963,6 +7980,76 @@ async function renderWallEditorPage() {
 
   const toolbar = document.createElement("div");
   toolbar.className = "wall-editor-toolbar";
+  const toolbarHint = document.createElement("div");
+  toolbarHint.className = "wall-editor-toolbar-hint";
+  toolbarHint.setAttribute("aria-hidden", "true");
+
+  const addCustomBtn = document.createElement("button");
+  addCustomBtn.type = "button";
+  addCustomBtn.className = "wall-editor-toolbar-icon-btn";
+  addCustomBtn.dataset.icon = "add";
+  addCustomBtn.setAttribute("aria-label", "Add Custom Tile Set");
+  addCustomBtn.addEventListener("click", () => {
+    promptAndCreateCustomTileSet().catch((error) => {
+      console.error(error);
+      setStatus("Could not create custom tile set.", true);
+    });
+  });
+  attachWallEditorToolbarHint(addCustomBtn, toolbarHint, "Add new custom tileset");
+  toolbar.appendChild(addCustomBtn);
+
+  const importCustomBtn = document.createElement("button");
+  importCustomBtn.type = "button";
+  importCustomBtn.className = "wall-editor-toolbar-icon-btn";
+  importCustomBtn.dataset.icon = "import";
+  importCustomBtn.setAttribute("aria-label", "Import Custom Tileset");
+  importCustomBtn.addEventListener("click", () => {
+    openCustomTileSetImportPicker();
+  });
+  attachWallEditorToolbarHint(importCustomBtn, toolbarHint, "Import custom tile set");
+  toolbar.appendChild(importCustomBtn);
+
+  const pointEditToggleBtn = document.createElement("button");
+  pointEditToggleBtn.type = "button";
+  pointEditToggleBtn.className = "wall-editor-toolbar-icon-btn";
+  pointEditToggleBtn.dataset.icon = "point-edit";
+  pointEditToggleBtn.setAttribute("aria-label", "Point Edit");
+  const syncPointEditToggle = () => {
+    pointEditToggleBtn.setAttribute("aria-pressed", String(state.wallEditorPointEditMode));
+    pointEditToggleBtn.classList.toggle("is-active", state.wallEditorPointEditMode);
+  };
+  pointEditToggleBtn.addEventListener("click", () => {
+    state.wallEditorPointEditMode = !state.wallEditorPointEditMode;
+    syncWallEditorPointEditModeClass();
+    syncPointEditToggle();
+    refreshAllGuideTemplateConsumers();
+    setStatus(
+      state.wallEditorPointEditMode
+        ? "Point edit mode on: drag handles on Entrance or Tile 01 to edit guide templates."
+        : "Point edit mode off.",
+    );
+  });
+  syncPointEditToggle();
+  attachWallEditorToolbarHint(pointEditToggleBtn, toolbarHint, "Point edit mode");
+  toolbar.appendChild(pointEditToggleBtn);
+
+  const exportAllCustomBtn = document.createElement("button");
+  exportAllCustomBtn.type = "button";
+  exportAllCustomBtn.className = "wall-editor-toolbar-icon-btn";
+  exportAllCustomBtn.dataset.icon = "export-all";
+  exportAllCustomBtn.setAttribute("aria-label", "Export All Custom Tile Sets");
+  exportAllCustomBtn.addEventListener("click", () => {
+    exportAllCustomTileSets().catch((error) => {
+      console.error(error);
+      setStatus(error?.message || "Could not export all custom tile sets.", true);
+    });
+  });
+  attachWallEditorToolbarHint(exportAllCustomBtn, toolbarHint, "Export all custom tile sets");
+  toolbar.appendChild(exportAllCustomBtn);
+
+  const toolbarRightGroup = document.createElement("div");
+  toolbarRightGroup.className = "wall-editor-toolbar-right";
+  toolbar.appendChild(toolbarRightGroup);
 
   const groupLabel = document.createElement("label");
   groupLabel.className = "wall-editor-group-label";
@@ -7990,49 +8077,19 @@ async function renderWallEditorPage() {
     });
   });
   groupLabel.appendChild(groupSelect);
-  toolbar.appendChild(groupLabel);
-
-  const pointEditToggleBtn = document.createElement("button");
-  pointEditToggleBtn.type = "button";
-  pointEditToggleBtn.className = "wall-editor-copy-btn";
-  const syncPointEditToggle = () => {
-    pointEditToggleBtn.textContent = `Point Edit: ${state.wallEditorPointEditMode ? "ON" : "OFF"}`;
-    pointEditToggleBtn.setAttribute("aria-pressed", String(state.wallEditorPointEditMode));
-    pointEditToggleBtn.classList.toggle("is-active", state.wallEditorPointEditMode);
-  };
-  pointEditToggleBtn.addEventListener("click", () => {
-    state.wallEditorPointEditMode = !state.wallEditorPointEditMode;
-    syncWallEditorPointEditModeClass();
-    syncPointEditToggle();
-    refreshAllGuideTemplateConsumers();
-    setStatus(
-      state.wallEditorPointEditMode
-        ? "Point edit mode on: drag handles on Entrance or Tile 01 to edit guide templates."
-        : "Point edit mode off.",
-    );
-  });
-  syncPointEditToggle();
-  toolbar.appendChild(pointEditToggleBtn);
-
-  const importCustomBtn = document.createElement("button");
-  importCustomBtn.type = "button";
-  importCustomBtn.className = "wall-editor-copy-btn";
-  importCustomBtn.textContent = "Import Custom Tileset";
-  importCustomBtn.addEventListener("click", () => {
-    openCustomTileSetImportPicker();
-  });
-  toolbar.appendChild(importCustomBtn);
+  toolbarRightGroup.appendChild(groupLabel);
 
   const copyTemplatesBtn = document.createElement("button");
   copyTemplatesBtn.type = "button";
-  copyTemplatesBtn.className = "wall-editor-copy-btn";
+  copyTemplatesBtn.className = "wall-editor-copy-btn dev-only";
   copyTemplatesBtn.textContent = "Copy Guide Template JSON";
   copyTemplatesBtn.addEventListener("click", () => {
     copyGuidePointTemplateExport();
   });
-  toolbar.appendChild(copyTemplatesBtn);
+  toolbarRightGroup.appendChild(copyTemplatesBtn);
 
   wallEditorPage.appendChild(toolbar);
+  wallEditorPage.appendChild(toolbarHint);
 
   const trays = document.createElement("div");
   trays.className = "wall-editor-trays";
@@ -8169,6 +8226,7 @@ async function buildWallEditorTileSetPanel(tileSet) {
   const panel = document.createElement("section");
   panel.className = "tile-set-wall-panel";
   panel.dataset.tileSetId = tileSet.id;
+  const wallEditorToolbarHint = wallEditorPage?.querySelector(".wall-editor-toolbar-hint");
 
   const header = document.createElement("div");
   header.className = "tile-set-wall-panel-header";
@@ -8181,8 +8239,8 @@ async function buildWallEditorTileSetPanel(tileSet) {
     const renameBtn = document.createElement("button");
     renameBtn.type = "button";
     renameBtn.className = "wall-editor-panel-rename";
+    renameBtn.dataset.icon = "rename";
     renameBtn.setAttribute("aria-label", `Rename ${tileSet.label}`);
-    renameBtn.setAttribute("title", `Rename ${tileSet.label}`);
     renameBtn.innerHTML = '<img src="./icons/pencil.png" alt="" aria-hidden="true" />';
     renameBtn.addEventListener("click", async () => {
       try {
@@ -8192,14 +8250,14 @@ async function buildWallEditorTileSetPanel(tileSet) {
         setStatus("Could not rename custom tile set.", true);
       }
     });
+    attachWallEditorToolbarHint(renameBtn, wallEditorToolbarHint, `Rename ${tileSet.label}`);
     titleGroup.appendChild(renameBtn);
 
     const exportBtn = document.createElement("button");
     exportBtn.type = "button";
     exportBtn.className = "wall-editor-panel-action";
+    exportBtn.dataset.icon = "export";
     exportBtn.setAttribute("aria-label", `Export ${tileSet.label}`);
-    exportBtn.setAttribute("title", `Export ${tileSet.label}`);
-    exportBtn.innerHTML = '<img src="./icons/download.png" alt="" aria-hidden="true" />';
     exportBtn.addEventListener("click", async () => {
       try {
         await exportCustomTileSet(tileSet.id);
@@ -8208,13 +8266,13 @@ async function buildWallEditorTileSetPanel(tileSet) {
         setStatus(error?.message || "Could not export custom tile set.", true);
       }
     });
+    attachWallEditorToolbarHint(exportBtn, wallEditorToolbarHint, `Export ${tileSet.label}`);
     titleGroup.appendChild(exportBtn);
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "wall-editor-panel-delete";
     deleteBtn.setAttribute("aria-label", `Delete ${tileSet.label}`);
-    deleteBtn.setAttribute("title", `Delete ${tileSet.label}`);
     deleteBtn.innerHTML = `
       <svg width="16" height="16" viewBox="0 0 448 512" aria-hidden="true">
         <path fill="currentColor" d="M135.2 17.7C140.6 7.1 151.5 0 163.5 0h121c12 0 22.9 7.1 28.3 17.7L328 32h88c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 96 0 81.7 0 64S14.3 32 32 32h88l15.2-14.3zM53.2 128H394.8L376.6 435.1c-1.7 29.4-26 52.9-55.4 52.9H126.8c-29.4 0-53.7-23.5-55.4-52.9L53.2 128zm90.8 64c-13.3 0-24 10.7-24 24V400c0 13.3 10.7 24 24 24s24-10.7 24-24V216c0-13.3-10.7-24-24-24zm80 0c-13.3 0-24 10.7-24 24V400c0 13.3 10.7 24 24 24s24-10.7 24-24V216c0-13.3-10.7-24-24-24zm80 0c-13.3 0-24 10.7-24 24V400c0 13.3 10.7 24 24 24s24-10.7 24-24V216c0-13.3-10.7-24-24-24z"/>
@@ -8228,6 +8286,7 @@ async function buildWallEditorTileSetPanel(tileSet) {
         setStatus("Could not delete custom tile set.", true);
       }
     });
+    attachWallEditorToolbarHint(deleteBtn, wallEditorToolbarHint, `Delete ${tileSet.label}`);
     titleGroup.appendChild(deleteBtn);
   }
   header.appendChild(titleGroup);
@@ -8297,64 +8356,82 @@ function createWallEditorTileElement(tileSetId, tile) {
   tileEl.appendChild(body);
   syncWallEditorPortalFlag(tile);
 
-  const endToggle = document.createElement("button");
-  endToggle.type = "button";
-  endToggle.className = "wall-end-tile-toggle";
-  const syncEndToggle = () => {
-    const allowed = Boolean(tile.allowAsEndTile);
-    endToggle.classList.toggle("is-on", allowed);
-    endToggle.setAttribute("aria-pressed", String(allowed));
-    endToggle.textContent = allowed ? "End Tile: ON" : "End Tile: OFF";
-  };
-  endToggle.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  });
-  endToggle.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    assignActive();
-    tile.allowAsEndTile = !tile.allowAsEndTile;
-    persistAllowAsEndTile(tileSetId, tile.tileId, tile.allowAsEndTile);
-    syncEndToggle();
-    setStatus(
-      `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} end-tile allowance: ${tile.allowAsEndTile ? "ON" : "OFF"}.`,
-    );
-  });
-  syncEndToggle();
-  tileEl.appendChild(endToggle);
-
-  const portalToggle = document.createElement("button");
-  portalToggle.type = "button";
-  portalToggle.className = "wall-portal-flag-toggle";
-  const syncPortalToggle = () => {
-    const enabled = hasPortalFlag(tile);
-    portalToggle.classList.toggle("is-on", enabled);
-    portalToggle.setAttribute("aria-pressed", String(enabled));
-    portalToggle.textContent = enabled ? "Portal Flag: ON" : "Portal Flag: OFF";
-  };
-  portalToggle.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  });
-  portalToggle.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    assignActive();
-    tile.portalFlag = hasPortalFlag(tile) ? null : { x: 0, y: 0 };
-    persistPortalFlag(tileSetId, tile.tileId, tile.portalFlag);
-    syncWallEditorPortalFlag(tile);
-    syncPortalToggle();
-    setStatus(
-      hasPortalFlag(tile)
-        ? `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: ON. Drag the portal marker to position it.`
-        : `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: OFF.`,
-    );
-  });
-  syncPortalToggle();
-  tileEl.appendChild(portalToggle);
-
   const assignActive = () => setActiveWallEditorTile(tileSetId, tile.tileId);
+  const wallEditorToolbarHint = wallEditorPage?.querySelector(".wall-editor-toolbar-hint");
+  if (!isEntranceTile(tile)) {
+    const toggleGroup = document.createElement("div");
+    toggleGroup.className = "wall-editor-toggle-group";
+    tileEl.appendChild(toggleGroup);
+
+    const endToggle = createWallEditorMetaToggle({
+      className: "wall-end-tile-toggle",
+      label: "End Tile",
+      iconMarkup: "",
+    });
+    const syncEndToggle = () => {
+      const allowed = Boolean(tile.allowAsEndTile);
+      endToggle.classList.toggle("is-on", allowed);
+      endToggle.setAttribute("aria-checked", String(allowed));
+    };
+    endToggle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    endToggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      assignActive();
+      tile.allowAsEndTile = !tile.allowAsEndTile;
+      persistAllowAsEndTile(tileSetId, tile.tileId, tile.allowAsEndTile);
+      syncEndToggle();
+      setStatus(
+        `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} end-tile allowance: ${tile.allowAsEndTile ? "ON" : "OFF"}.`,
+      );
+    });
+    syncEndToggle();
+    attachWallEditorToolbarHint(
+      endToggle,
+      wallEditorToolbarHint,
+      "Use End Tile to allow or disallow endpoint placement.",
+    );
+    toggleGroup.appendChild(endToggle);
+
+    const portalToggle = createWallEditorMetaToggle({
+      className: "wall-portal-flag-toggle",
+      label: "Portal",
+      iconMarkup: "",
+    });
+    const syncPortalToggle = () => {
+      const enabled = hasPortalFlag(tile);
+      portalToggle.classList.toggle("is-on", enabled);
+      portalToggle.setAttribute("aria-checked", String(enabled));
+    };
+    portalToggle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    portalToggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      assignActive();
+      tile.portalFlag = hasPortalFlag(tile) ? null : { x: 0, y: 0 };
+      persistPortalFlag(tileSetId, tile.tileId, tile.portalFlag);
+      syncWallEditorPortalFlag(tile);
+      syncPortalToggle();
+      setStatus(
+        hasPortalFlag(tile)
+          ? `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: ON. Drag the portal marker to position it.`
+          : `${getTileSetConfig(tileSetId).label} ${getTileDisplayLabel(tile.tileId)} portal flag: OFF.`,
+      );
+    });
+    syncPortalToggle();
+    attachWallEditorToolbarHint(
+      portalToggle,
+      wallEditorToolbarHint,
+      "Use Portal Flag to mark portal tiles so auto-build avoids portal-to-portal adjacency when possible, then drag the portal marker onto the art.",
+    );
+    toggleGroup.appendChild(portalToggle);
+  }
   tileEl.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
     if (event.target.closest(".tile-portal-flag")) {
@@ -8381,6 +8458,25 @@ function createWallEditorTileElement(tileSetId, tile) {
   tileEl.addEventListener("click", assignActive);
 
   return tileEl;
+}
+
+function createWallEditorMetaToggle({ className, label, iconMarkup }) {
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = `wall-editor-meta-toggle ${className}`;
+  if (iconMarkup?.trim()) toggle.classList.add("has-icon");
+  toggle.setAttribute("role", "switch");
+  toggle.setAttribute("aria-checked", "false");
+  toggle.setAttribute("aria-label", label);
+  toggle.innerHTML = `
+    <span class="wall-editor-meta-toggle-icon" aria-hidden="true">${iconMarkup}</span>
+    <span class="wall-editor-meta-toggle-label">${label}</span>
+    <span class="wall-editor-meta-toggle-switch" aria-hidden="true">
+      <span class="wall-editor-meta-toggle-track"></span>
+      <span class="wall-editor-meta-toggle-thumb"></span>
+    </span>
+  `;
+  return toggle;
 }
 
 function setActiveWallEditorTile(tileSetId, tileId) {
@@ -8433,6 +8529,44 @@ function updatePlacedProgress() {
   updatePlacementFeedbackChecklist();
 }
 
+function showWallEditorToolbarHint(hintEl, message) {
+  if (!hintEl) return;
+  if (wallEditorToolbarHintHideTimer) {
+    clearTimeout(wallEditorToolbarHintHideTimer);
+    wallEditorToolbarHintHideTimer = null;
+  }
+  hintEl.textContent = message || "";
+  hintEl.classList.toggle("is-visible", Boolean(message));
+}
+
+function hideWallEditorToolbarHintWithDelay(hintEl, delayMs = 1000) {
+  if (!hintEl) return;
+  if (wallEditorToolbarHintHideTimer) {
+    clearTimeout(wallEditorToolbarHintHideTimer);
+  }
+  wallEditorToolbarHintHideTimer = window.setTimeout(() => {
+    hintEl.classList.remove("is-visible");
+    hintEl.textContent = "";
+    wallEditorToolbarHintHideTimer = null;
+  }, delayMs);
+}
+
+function attachWallEditorToolbarHint(button, hintEl, message) {
+  if (!button || !hintEl || !message) return;
+  button.addEventListener("mouseenter", () => {
+    showWallEditorToolbarHint(hintEl, message);
+  });
+  button.addEventListener("focus", () => {
+    showWallEditorToolbarHint(hintEl, message);
+  });
+  button.addEventListener("mouseleave", () => {
+    hideWallEditorToolbarHintWithDelay(hintEl);
+  });
+  button.addEventListener("blur", () => {
+    hideWallEditorToolbarHintWithDelay(hintEl);
+  });
+}
+
 function updatePlacementFeedbackChecklist() {
   const placedCount = state.autoBuildPreviewPlacedCount ?? getPlacedRegularTileCount();
   const tilesComplete = placedCount >= 6;
@@ -8469,6 +8603,7 @@ function beginDrag(tile, event) {
   const tileRect = tile.dom.getBoundingClientRect();
   const startedFromCompactTray = state.compactSidePanelMode && !startedFromBoard;
   const compactDragGrowAnchorX = leftDrawer.getBoundingClientRect().right;
+  const compactTraySize = getCompactTrayTileSize(tile);
   const pointerOffsetX = event.clientX - (tileRect.left + tileRect.width / 2);
   const pointerOffsetY = event.clientY - (tileRect.top + tileRect.height / 2);
   const placedTilesExcludingSelf = getPlacedTilesExcluding(tile);
@@ -8494,9 +8629,11 @@ function beginDrag(tile, event) {
     boardRect,
     startedFromCompactTray,
     compactDragGrowAnchorX,
-    compactDragProgress: 0,
+    compactDragProgress: startedFromBoard ? 1 : 0,
     compactStartWidth: tileRect.width * COMPACT_DRAG_START_SIZE_BOOST,
     compactStartHeight: tileRect.height * COMPACT_DRAG_START_SIZE_BOOST,
+    compactTrayWidth: compactTraySize.width,
+    compactTrayHeight: compactTraySize.height,
     placedTilesExcludingSelf,
     feedbackRafId: null,
     feedbackCache: new Map(),
@@ -8567,7 +8704,7 @@ function beginDrag(tile, event) {
     const x = moveEvent.clientX - parentRect.left - tile.drag.offsetX;
     const y = moveEvent.clientY - parentRect.top - tile.drag.offsetY;
     const pointerInsideBoard = isPointOverBoardSurface(moveEvent.clientX, moveEvent.clientY, boardRect);
-    if (tile.drag.startedFromCompactTray) {
+    if (state.compactSidePanelMode && (tile.drag.startedFromCompactTray || tile.drag.startedFromBoard)) {
       tile.drag.compactDragProgress = clamp(
         (moveEvent.clientX - tile.drag.compactDragGrowAnchorX) / COMPACT_DRAG_GROW_DISTANCE_PX,
         0,
@@ -8671,6 +8808,7 @@ function finishDrop(tile, placedTiles = null) {
 
   if (isEntranceTile(tile)) {
     tile.placed = true;
+    markDevQaCheck("drag_tile_to_board", { detail: tile.tileId });
     syncRegularTileActivityFromSlotOrder();
     setEntranceFadeAnchorFromTile(tile);
     scheduleBoardHexGridRender();
@@ -8706,6 +8844,7 @@ function finishDrop(tile, placedTiles = null) {
   }
 
   tile.placed = true;
+  markDevQaCheck("drag_tile_to_board", { detail: tile.tileId });
   syncRegularTileActivityFromSlotOrder();
   const entrance = state.tiles.get(ENTRANCE_TILE_ID);
   const placedRegularTiles = Array.from(state.tiles.values()).filter(
@@ -9394,6 +9533,14 @@ function updateTileTransform(tile) {
     const targetHeight = baseHeight * zoom;
     explicitScreenWidth = startWidth + ((targetWidth - startWidth) * progress);
     explicitScreenHeight = startHeight + ((targetHeight - startHeight) * progress);
+  } else if (isBoardDrag && state.compactSidePanelMode) {
+    const progress = clamp(tile.drag?.compactDragProgress ?? 1, 0, 1);
+    const compactWidth = tile.drag?.compactTrayWidth ?? getCompactTrayTileSize(tile).width;
+    const compactHeight = tile.drag?.compactTrayHeight ?? getCompactTrayTileSize(tile).height;
+    const boardWidth = baseWidth * zoom;
+    const boardHeight = baseHeight * zoom;
+    explicitScreenWidth = compactWidth + ((boardWidth - compactWidth) * progress);
+    explicitScreenHeight = compactHeight + ((boardHeight - compactHeight) * progress);
   }
   tile.dom.style.left = `${screenX}px`;
   tile.dom.style.top = `${screenY}px`;
@@ -9411,6 +9558,19 @@ function updateTileTransform(tile) {
   if (tile.bodyDom) {
     tile.bodyDom.style.transform = `rotate(${tile.rotation}deg)`;
   }
+}
+
+function getCompactTrayTileSize(tile) {
+  const fallbackSize = 40;
+  const slot = tile?.traySlot;
+  const parsedSize = slot
+    ? Number.parseFloat(getComputedStyle(slot).getPropertyValue("--tile-size"))
+    : Number.NaN;
+  const baseSize = Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : fallbackSize;
+  return {
+    width: isEntranceTile(tile) ? baseSize - 3 : baseSize,
+    height: baseSize,
+  };
 }
 
 function setStatus(message, warn = false) {
@@ -9436,6 +9596,10 @@ function showLocalDataNotice(kind, tileSetId = "") {
     tileSetLabel: tileSet?.label || "",
   });
   if (!notice) return;
+  if (!DEV_MODE_ENABLED && notice.actionContext?.type === "export_debug_walls") {
+    notice.actionLabel = null;
+    notice.actionContext = null;
+  }
 
   localDataNoticeTitleEl.textContent = notice.title;
   localDataNoticeBodyEl.textContent = notice.body;

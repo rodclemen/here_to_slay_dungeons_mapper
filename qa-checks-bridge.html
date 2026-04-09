@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QA Checks Bridge</title>
+  </head>
+  <body>
+    <script type="module">
+      import {
+        getDevQaProgress,
+        subscribeDevQaChecks,
+      } from "./modules/dev-qa-checks.js";
+
+      function sendProgress(progress) {
+        if (!window.parent || window.parent === window) return;
+        window.parent.postMessage({
+          type: "hts-dev-qa-progress",
+          progress,
+          sourceOrigin: window.location.origin,
+        }, "*");
+      }
+
+      sendProgress(getDevQaProgress());
+      subscribeDevQaChecks((progress) => {
+        sendProgress(progress);
+      });
+      window.setInterval(() => {
+        sendProgress(getDevQaProgress());
+      }, 1000);
+    </script>
+  </body>
+</html>
