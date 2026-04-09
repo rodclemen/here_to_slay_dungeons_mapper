@@ -1789,6 +1789,8 @@ async function applyTileSet(tileSetId, showStatus = true) {
   const previousTileSetId = state.selectedTileSetId;
   try {
     state.selectedTileSetId = nextTileSet.id;
+    if (tileSetSelect) tileSetSelect.value = nextTileSet.id;
+    syncTileSetMenuOptions();
     state.wallEditorGroupId = getWallEditorGroupIdForTileSet(nextTileSet.id);
     syncSelectedTileSetHeading();
     syncBossTileSetHeading();

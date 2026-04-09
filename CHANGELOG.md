@@ -8,6 +8,7 @@
 - Fixed custom asset replacement in `app.js` so swapping a tile/reference/boss image patches the active editor slot in place without forcing a full Wall Editor rerender that could drop the user out of the panel they were editing.
 - Fixed Tile Editor tileset switching in `app.js` so changing tile sets while already in editor mode updates the active editor group and entrance selection immediately instead of leaving the editor panels on the previous tileset.
 - Fixed a shared-layout restore race in `app.js` by cancelling pending compact-mode board zoom resets before applying a shared snapshot; built-in share links were otherwise restoring the correct layout data and then being overwritten back to `Zoom 75%`.
+- Fixed custom shared-layout restore selector sync in `app.js` so restoring an installed custom layout now updates the main tile-set selector/menu to the restored custom set instead of leaving the UI labeled `Molten` while the board is already showing the custom tileset.
 - Session note: Verified one more “exact restore” bug that turned out to be exact right up until another animation frame decided otherwise.
 
 ## 2026-04-08
