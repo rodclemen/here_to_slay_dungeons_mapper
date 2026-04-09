@@ -1,6 +1,20 @@
 import { buildCustomTileAssetStorageKey } from "./custom-tileset-storage.js";
 import { getZipEntryBlob, getZipEntryText, readZipArchive } from "./zip-reader.js";
 
+const DEFAULT_CUSTOM_ENTRANCE_TILE_ID = "entrance";
+const DEFAULT_CUSTOM_TILE_IDS = [
+  "tile_01",
+  "tile_02",
+  "tile_03",
+  "tile_04",
+  "tile_05",
+  "tile_06",
+  "tile_07",
+  "tile_08",
+  "tile_09",
+];
+const DEFAULT_CUSTOM_REFERENCE_CARD_ID = "reference_card";
+
 function sanitizeTileAssetPathMap(input) {
   if (!input || typeof input !== "object") return null;
   const sanitized = {};
@@ -39,9 +53,9 @@ export function normalizeCustomTileSetRecord(
   record,
   {
     includeAssetPaths = false,
-    tileIds,
-    entranceTileId,
-    referenceCardId,
+    tileIds = DEFAULT_CUSTOM_TILE_IDS,
+    entranceTileId = DEFAULT_CUSTOM_ENTRANCE_TILE_ID,
+    referenceCardId = DEFAULT_CUSTOM_REFERENCE_CARD_ID,
   } = {},
 ) {
   if (!record || typeof record !== "object") return null;

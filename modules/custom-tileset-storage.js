@@ -59,6 +59,15 @@ export function buildCustomTileAssetStorageKey(tileSetId, assetKind, assetId) {
   return `${tileSetId}:${assetKind}:${assetId}`;
 }
 
+async function listStoredAssetKeysForTileSet(db, tileSetId) {
+  const transaction = db.transaction(ASSET_STORE, "readonly");
+  const assetStore = transaction.objectStore(ASSET_STORE);
+  const assetIndex = assetStore.index(TILE_SET_ID_INDEX);
+  const keys = await wrapRequest(assetIndex.getAllKeys(tileSetId));
+  await waitForTransaction(transaction);
+  return keys;
+}
+
 export async function listStoredCustomTileSetBundles() {
   const db = await openDatabase();
   const tileSetTx = db.transaction(TILE_SET_STORE, "readonly");
@@ -91,11 +100,10 @@ export async function getStoredCustomTileSetBundle(tileSetId) {
 
 export async function saveStoredCustomTileSetBundle(manifest, assetEntries) {
   const db = await openDatabase();
+  const existingKeys = await listStoredAssetKeysForTileSet(db, manifest.id);
   const transaction = db.transaction([TILE_SET_STORE, ASSET_STORE], "readwrite");
   const tileSetStore = transaction.objectStore(TILE_SET_STORE);
   const assetStore = transaction.objectStore(ASSET_STORE);
-  const assetIndex = assetStore.index(TILE_SET_ID_INDEX);
-  const existingKeys = await wrapRequest(assetIndex.getAllKeys(manifest.id));
 
   for (const key of existingKeys) {
     assetStore.delete(key);
@@ -110,12 +118,11 @@ export async function saveStoredCustomTileSetBundle(manifest, assetEntries) {
 
 export async function deleteStoredCustomTileSetBundle(tileSetId) {
   const db = await openDatabase();
+  const existingKeys = await listStoredAssetKeysForTileSet(db, tileSetId);
   const transaction = db.transaction([TILE_SET_STORE, ASSET_STORE, EDITOR_DATA_STORE], "readwrite");
   const tileSetStore = transaction.objectStore(TILE_SET_STORE);
   const assetStore = transaction.objectStore(ASSET_STORE);
   const editorDataStore = transaction.objectStore(EDITOR_DATA_STORE);
-  const assetIndex = assetStore.index(TILE_SET_ID_INDEX);
-  const existingKeys = await wrapRequest(assetIndex.getAllKeys(tileSetId));
 
   tileSetStore.delete(tileSetId);
   editorDataStore.delete(tileSetId);

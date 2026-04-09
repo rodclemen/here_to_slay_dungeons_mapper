@@ -639,6 +639,10 @@ async function promptAndCreateCustomTileSet() {
   await refreshRuntimeTileSetRegistry(null, { reloadActiveTileSet: false });
   state.selectedTileSetId = manifest.id;
   state.wallEditorGroupId = getWallEditorGroupIdForTileSet(manifest.id);
+  if (tileSetSelect) tileSetSelect.value = manifest.id;
+  syncTileSetMenuOptions();
+  syncSelectedTileSetHeading();
+  syncBossTileSetHeading();
   if (!state.wallEditMode) {
     setWallEditMode(true);
   }
@@ -676,7 +680,10 @@ async function replaceCustomTileSetAsset(tileSetId, assetKind, assetId, file) {
   const manifestIndex = customTileSetManifestCache.findIndex((entry) => entry.id === tileSetId);
   if (manifestIndex >= 0) customTileSetManifestCache[manifestIndex] = cachedManifest;
   else customTileSetManifestCache.push(cachedManifest);
-  await refreshRuntimeTileSetRegistry(buildRuntimeCustomTileSetRecordsFromCache(), { reloadActiveTileSet: false });
+  await refreshRuntimeTileSetRegistry(buildRuntimeCustomTileSetRecordsFromCache(), {
+    reloadActiveTileSet: false,
+    rerenderWallEditor: false,
+  });
   state.selectedTileSetId = tileSetId;
   state.wallEditorGroupId = getWallEditorGroupIdForTileSet(tileSetId);
   state.wallEditorActiveTileSetId = tileSetId;
@@ -1174,6 +1181,7 @@ workspace.appendChild(dragLayer);
 let boardHexRenderRaf = 0;
 let leftDrawerClosingTimer = null;
 let compactModeTransitionTimer = null;
+let compactModeTransitionFrame = 0;
 let boardAutoCenterResizeTimer = null;
 let boardHexThemeCache = null;
 let boardHexLayoutCache = null;
@@ -1373,7 +1381,7 @@ function hasTileSetId(tileSetId) {
 
 async function refreshRuntimeTileSetRegistry(
   customTileSetRecords = null,
-  { reloadActiveTileSet = false, statusMessage = "" } = {},
+  { reloadActiveTileSet = false, rerenderWallEditor = true, statusMessage = "" } = {},
 ) {
   const previousSelectedTileSetId = state.selectedTileSetId;
   const runtimeCustomTileSetRecords = Array.isArray(customTileSetRecords)
@@ -1400,7 +1408,7 @@ async function refreshRuntimeTileSetRegistry(
   if (reloadActiveTileSet && getTileSetConfig(nextTileSetId)?.status === "ready") {
     await applyTileSet(nextTileSetId, false);
   }
-  if (state.wallEditMode) {
+  if (state.wallEditMode && rerenderWallEditor) {
     await renderWallEditorPage();
   }
 
@@ -1781,10 +1789,21 @@ async function applyTileSet(tileSetId, showStatus = true) {
   const previousTileSetId = state.selectedTileSetId;
   try {
     state.selectedTileSetId = nextTileSet.id;
+    state.wallEditorGroupId = getWallEditorGroupIdForTileSet(nextTileSet.id);
     syncSelectedTileSetHeading();
     syncBossTileSetHeading();
     state.referenceTileSrc = getReferenceTileSrc(nextTileSet.id);
     await loadTiles(nextTileSet.id);
+    if (state.wallEditMode) {
+      if (state.wallEditorActiveTileSetId !== nextTileSet.id) {
+        state.wallEditorActiveTileSetId = nextTileSet.id;
+        state.wallEditorActiveTileId = nextTileSet.entranceTileId;
+      }
+      await renderWallEditorPage();
+      if (state.wallEditorActiveTileSetId && state.wallEditorActiveTileId) {
+        setActiveWallEditorTile(state.wallEditorActiveTileSetId, state.wallEditorActiveTileId);
+      }
+    }
     applyBoardZoom(DEFAULT_BOARD_ZOOM);
     resetBoardPan();
     updateBoardAutoCenterViewportAnchor();
@@ -2376,6 +2395,17 @@ function updateCompactSidePanelMode() {
   setCompactSidePanelMode(shouldCompact);
 }
 
+function clearCompactModeBoardReset() {
+  if (compactModeTransitionFrame) {
+    cancelAnimationFrame(compactModeTransitionFrame);
+    compactModeTransitionFrame = 0;
+  }
+  if (compactModeTransitionTimer) {
+    clearTimeout(compactModeTransitionTimer);
+    compactModeTransitionTimer = null;
+  }
+}
+
 function setCompactSidePanelMode(enabled) {
   const useCompact = Boolean(enabled);
   const compactZoom = 0.75;
@@ -2443,11 +2473,9 @@ function setCompactSidePanelMode(enabled) {
     state.preCompactBoardZoomRaw = null;
   }
 
-  if (compactModeTransitionTimer) {
-    clearTimeout(compactModeTransitionTimer);
-    compactModeTransitionTimer = null;
-  }
-  requestAnimationFrame(() => {
+  clearCompactModeBoardReset();
+  compactModeTransitionFrame = requestAnimationFrame(() => {
+    compactModeTransitionFrame = 0;
     resetBoardViewToZoom(restoreZoom, restoreRawZoom);
     scheduleBoardHexGridRender();
   });
@@ -3637,6 +3665,7 @@ function restoreBuildViewLayout(snapshot) {
 
   const byId = new Map((snapshot.tiles || []).map((t) => [t.tileId || t.id, t]));
   if (!byId.size) return false;
+  clearCompactModeBoardReset();
   const restoredOrder = Array.isArray(snapshot.regularTileOrder)
     ? snapshot.regularTileOrder.map((tileId) => migrateLegacyTileId(tileId))
     : deriveLegacyRegularTileOrder(snapshot, state.selectedTileSetId);

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-04-09
+- Ran the custom-tileset QA checklist against the new workflow in `docs/custom-tileset-qa-checklist.md` and pushed the pass through creation, zip import, duplicate-ID reimport, custom asset replacement, custom metadata persistence, built-in metadata isolation, single-set export/import round trip, bulk backup export, and delete cleanup.
+- Fixed IndexedDB custom-set save/delete writes in `modules/custom-tileset-storage.js` so asset-key lookups happen in a separate readonly transaction before the readwrite transaction starts; this stops the browser from invalidating long-running custom-set save/delete operations mid-flight.
+- Hardened custom package normalization in `modules/custom-tileset-package.js` by supplying default entrance/tile/reference IDs when older or partially-populated stored manifests are loaded, preventing startup crashes from missing normalization options.
+- Updated custom-set creation in `app.js` so creating a new custom tileset immediately updates the main tile-set selector and related headings instead of leaving the UI pointed at the previous built-in set.
+- Fixed custom asset replacement in `app.js` so swapping a tile/reference/boss image patches the active editor slot in place without forcing a full Wall Editor rerender that could drop the user out of the panel they were editing.
+- Fixed Tile Editor tileset switching in `app.js` so changing tile sets while already in editor mode updates the active editor group and entrance selection immediately instead of leaving the editor panels on the previous tileset.
+- Fixed a shared-layout restore race in `app.js` by cancelling pending compact-mode board zoom resets before applying a shared snapshot; built-in share links were otherwise restoring the correct layout data and then being overwritten back to `Zoom 75%`.
+- Session note: Verified one more “exact restore” bug that turned out to be exact right up until another animation frame decided otherwise.
+
 ## 2026-04-08
 - Built the first full custom tileset workflow into the app: custom sets can now be created from `Add Custom Tile Set`, named immediately, opened directly in Wall Edit, and managed as real runtime tilesets instead of debug-only records.
 - Added IndexedDB-backed custom tileset storage in `modules/custom-tileset-storage.js`, including persisted manifests and image blobs, runtime object-URL asset resolution, and migration away from the earlier local debug-record approach.
