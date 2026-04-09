@@ -392,6 +392,7 @@
       <a class="toc-link" href="#what-it-is">What It Is</a>
       <a class="toc-link" href="#getting-started">Getting Started</a>
       <a class="toc-link" href="#build-dungeon">Build Your Dungeon</a>
+      <a class="toc-link" href="#tile-editor">Tile Editor</a>
       <a class="toc-link" href="#boss-cards">Boss Cards</a>
       <a class="toc-link" href="#controls">Controls</a>
       <a class="toc-link" href="#known-issues">Known Issues</a>
@@ -450,7 +451,7 @@
         <div class="card">
           <h3>Top Bar</h3>
           <p>The top bar contains the tile set selector, appearance mode control, advanced tools menu, quick actions menu, and the Guide link. Advanced Tools includes options like theme selection, face-based placement feedback, Random Boss: All Sets, and debug controls. Quick Actions currently contains Copy Share Link, Export PDF, and Reset Tiles.</p>
-          <p>Copy Share Link creates a URL that restores the current build when opened, including the selected tile set, entrance and reference-card setup, placed tile positions and rotations, tray and reserve order, boss placements, and board zoom and pan.</p>
+          <p>Copy Share Link creates a URL that restores the current build when opened, including the selected tile set, entrance and reference-card setup, placed tile positions and rotations, tray and reserve order, boss placements, and board zoom and pan. If the layout depends on a custom tile set, the mapper can also export a matching custom-set package and helper HTML so the receiver can import the custom data before opening the link.</p>
         </div>
         <div class="card">
           <h3>Left Drawer</h3>
@@ -546,6 +547,43 @@
       <p>Select a reserve tile, then select a tray tile to swap them. This gives you more control without wiping the whole layout.</p>
       <h3>Reset Layout</h3>
       <p>The reset button on the board clears placed dungeon tiles and boss cards and puts the setup back at its starting state.</p>
+    </section>
+
+    <section class="section" id="tile-editor">
+      <h2>Tile Editor &amp; Custom Tile Sets</h2>
+      <div class="section-grid">
+        <div>
+          <p>The Tile Editor is where tile metadata and custom tile sets are managed. Use it when you need to adjust walls, endpoint rules, portals, guide points, or build a full custom tile set with your own art.</p>
+          <p>You can open the editor for built-in sets to fine-tune placement data, or create a new custom tile set and manage everything from one page.</p>
+          <ul>
+            <li>Use <strong>Add Custom Tile Set</strong> to create a new browser-local custom set and jump straight into the editor.</li>
+            <li>Use <strong>Import Custom Tile Set</strong> to load a `.zip` package that contains `manifest.json`, assets, and optional `wall_editor.json` data.</li>
+            <li>Replace art for the entrance tile, all nine regular tiles, the reference card, and both boss cards directly inside the editor.</li>
+            <li>Edit wall faces, end-tile flags, portal flags, and guide points without leaving the editor screen.</li>
+            <li>Use the same page to rename, export, or delete the current custom tile set.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>What the editor changes</h3>
+          <p>Wall faces affect placement validation. End-tile flags control whether a tile is allowed to act as a dead end. Portal flags mark the special tile behavior used by the placement logic. Guide points define the draggable outline handles that control how tile faces are interpreted.</p>
+          <p>For built-in sets, guide point templates are shared across the built-in catalog just like before. For custom sets, guide point templates are isolated per custom tile set, so editing one custom set will not rewrite the built-in defaults or another custom set's point layout.</p>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <h3>Rename and duplicate import behavior</h3>
+          <p>Renaming a custom tile set changes its display label only. It does not rewrite the internal ID stored inside the package.</p>
+          <p>If you later import a package whose internal custom ID already exists locally, the mapper adds it as a new copy instead of overwriting the old one.</p>
+        </div>
+        <div class="card">
+          <h3>Local persistence and backups</h3>
+          <p>Custom tile sets are stored locally in this browser. They usually survive reloads, restarts, and crashes, but they are not the same thing as an external backup.</p>
+          <p>If browser site data is cleared, those local custom sets can be removed. Use <strong>Export This Custom Set</strong> or the Quick Actions <strong>Export All Custom Tile Sets</strong> backup zip if you want a portable copy.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <p><strong>Important:</strong> Built-in tile metadata edits also stay local to this browser. If you adjust built-in walls, portals, or guide points and want to keep that work safe, use <strong>Export Debug Walls</strong> instead of assuming browser storage is permanent.</p>
+      </div>
     </section>
 
     <section class="section" id="boss-cards">
@@ -742,45 +780,13 @@
     </section>
   </main>
 
-  <script>
-    (() => {
-      const themeIds = [
-        "molten", "molten_dark",
-        "overgrown", "overgrown_dark",
-        "submerged", "submerged_dark",
-        "deep_freeze", "deep_freeze_dark",
-        "dreamscape", "dreamscape_dark",
-        "nightmare", "nightmare_dark"
-      ];
-      const UI_THEME_STORAGE_KEY = "hts_ui_theme_v1";
-      const APPEARANCE_MODE_STORAGE_KEY = "hts_appearance_mode_v1";
-      const LAST_LIGHT_UI_THEME_STORAGE_KEY = "hts_last_light_ui_theme_v1";
-      const LAST_DARK_UI_THEME_STORAGE_KEY = "hts_last_dark_ui_theme_v1";
-      const DEFAULT_LIGHT_THEME = "molten";
-      const DEFAULT_DARK_THEME = "overgrown_dark";
+  <script type="module">
+    import { applyUiThemeClass, getAppliedAboutPageThemeId } from "./modules/ui-themes.js";
 
-      const body = document.body;
-      themeIds.forEach((id) => body.classList.remove(`ui-theme-${id.replace(/_/g, "-")}`));
-
-      let savedTheme = null;
-      const explicitTheme = localStorage.getItem(UI_THEME_STORAGE_KEY);
-      if (explicitTheme && themeIds.includes(explicitTheme)) {
-        savedTheme = explicitTheme;
-      } else {
-        const appearanceMode = localStorage.getItem(APPEARANCE_MODE_STORAGE_KEY);
-        if (appearanceMode === "dark") {
-          const darkTheme = localStorage.getItem(LAST_DARK_UI_THEME_STORAGE_KEY);
-          savedTheme = themeIds.includes(darkTheme) ? darkTheme : DEFAULT_DARK_THEME;
-        } else if (appearanceMode === "light") {
-          const lightTheme = localStorage.getItem(LAST_LIGHT_UI_THEME_STORAGE_KEY);
-          savedTheme = themeIds.includes(lightTheme) ? lightTheme : DEFAULT_LIGHT_THEME;
-        }
-      }
-
-      if (savedTheme) {
-        body.classList.add(`ui-theme-${savedTheme.replace(/_/g, "-")}`);
-      }
-    })();
+    const savedTheme = getAppliedAboutPageThemeId();
+    if (savedTheme) {
+      applyUiThemeClass(document.body, savedTheme);
+    }
   </script>
 </body>
 </html>

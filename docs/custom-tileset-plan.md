@@ -26,9 +26,25 @@ The intended user workflow is:
 Implications:
 
 - zip import is not the primary entry point anymore; it is one action inside the custom-tileset editor workflow
-- the current Wall Editor page should later be renamed, because it becomes the full custom-tileset editor
+- the current Wall Editor page is now renamed to `Tile Editor`, because it became the full custom-tileset editor
 - custom-set creation should pre-seed the current guide-point template counts automatically, but point handles should only render for tiles that already have an image loaded
 - the editor should show entrance + 9 regular tiles + reference card + boss cards in one place so art loading and tile-data editing stay together
+
+## Status snapshot
+
+As of `2026-04-09`, the main refactor is effectively complete for v1:
+
+- package import/export is implemented
+- custom tile sets persist locally in IndexedDB
+- custom wall, end-tile, portal, and guide-point data persist with the custom set
+- the runtime registry merges built-in and custom sets
+- Tile Editor is the main custom-set workflow
+- local backup notices and bulk custom export are implemented
+- custom-share helper export and missing-custom fallback restore are implemented
+
+What remains is mostly QA and deferred cleanup, not missing core workflow.
+
+The Phase 1 verification pass now lives in [custom-tileset-qa-checklist.md](./custom-tileset-qa-checklist.md).
 
 ## Current v1 assumptions
 
@@ -39,7 +55,7 @@ Keep these constraints for the first custom-tileset version:
 - exactly 1 reference card
 - exactly 2 boss cards in the editor UI
 - boss support stays tied to the existing runtime `bossIds` array, with v1 custom sets expected to provide exactly 2 boss IDs
-- custom tilesets reuse an existing built-in `uiThemeId`
+- custom tilesets do not carry their own theme setting in v1
 - no custom CSS theme system in v1
 
 UI note for boss cards:
@@ -86,7 +102,6 @@ Recommended contents:
   - `version`
   - `schemaVersion`
   - `gameSetId`
-  - `uiThemeId`
   - `entranceTileId`
   - `referenceCardId`
   - `tileIds`
@@ -101,9 +116,8 @@ Recommended contents:
 Notes to lock down now:
 
 - The manifest should match the fields the runtime already expects in the tile set registry, not a second parallel shape
-- `uiThemeId` should be constrained to supported built-in theme IDs unless custom UI theming is added later
 - `tileIds` should stay at exactly 9 for now because the current tray, reserve, share-link, and wall editor logic all assume 9 regular tiles
-- `wall_editor.json` should explicitly define whether guide templates are per tileset or global; the current app treats guide templates as global
+- `wall_editor.json` should carry guide templates per custom tileset; built-in sets can keep their shared template behavior
 - `asset file mapping` should cover entrance, regular tiles, reference card, and boss cards so runtime code does not need filename assumptions
 
 Definition of done:
@@ -194,6 +208,7 @@ Creation behavior:
 - default guide-point template counts should already exist for the set
 - guide-point handles should only render when a tile image exists
 - the set should be editable even before every image has been loaded
+- the name entered here is the display label, not the internal tile set ID
 
 Definition of done:
 
@@ -267,7 +282,6 @@ Validation should catch:
 - bad file names or missing mappings
 - malformed wall editor data
 - duplicate custom tileset IDs
-- unsupported `uiThemeId`
 - invalid registry fields needed by the current app runtime
 - malformed or duplicate boss asset mappings
 
@@ -275,6 +289,11 @@ Import behavior to decide explicitly:
 
 - whether importing an existing custom `id` is blocked, replaces in place, or offers an overwrite flow
 - whether slot assignment is reused on overwrite or treated as a new import
+
+Chosen behavior:
+
+- renaming a custom tile set in the editor changes only its display label, not its internal ID
+- importing a package whose custom `id` already exists locally should create a new copy with a fresh generated ID, not overwrite the existing local set
 
 Definition of done:
 
@@ -290,10 +309,18 @@ What this step does:
 - save image replacements done through the editor back to the custom asset store
 - keep package defaults separate from user-local changes if we want cleaner re-export behavior
 
+Important scope note:
+
+- This step is about durable browser-local persistence, not cross-browser or post-clear recovery
+- The target is that custom tile sets survive reloads, browser restarts, and normal crashes on the same browser profile
+- Clearing site data, switching browser profiles, or moving to another device will still lose browser-local custom data unless the user exported a backup package
+
 Recommended rule:
 
 - Imported `wall_editor.json` becomes the custom set's initial defaults
 - Later edits overwrite the local saved version for that custom set
+- custom wall faces, end-tile flags, and portal flags should live with the custom tileset in `IndexedDB`, not only in the generic built-in wall override storage
+- built-in wall-editor overrides can stay in the existing browser-local storage path for now
 
 Needs one extra decision:
 
@@ -302,6 +329,7 @@ Needs one extra decision:
 Definition of done:
 
 - custom tiles can be created, loaded with art, edited, and reopened later in the same editor flow
+- the app restores those custom sets from browser storage on next launch in the same browser profile
 
 ## Step 9. Add export and delete for custom tilesets
 
@@ -385,6 +413,32 @@ Definition of done:
 
 - The workflow is documented clearly enough that users do not need to read the code
 
+## Step 12. Add unsaved-local-data and backup notices
+
+What this step does:
+
+- Detect when the user has browser-local changes that are easy to lose without export or backup awareness
+- Show a clear notice after:
+  - adding a custom tile set
+  - changing a custom tile set
+  - changing wall-editor data on a built-in tile set
+- explain that these edits are stored in this browser, but are not protected against site-data clearing or moving to another browser/device
+- point custom-tile users toward export as the backup path
+- point built-in-wall-edit users toward the existing debug/export path or the final backup path we choose
+
+Why this is a later step:
+
+- local persistence should exist first, so the warnings are accurate
+- the wording should reflect the final custom export/import flow, not a temporary state
+- this is guardrail/polish work, not a blocker for the core runtime refactor
+
+Definition of done:
+
+- users get an explicit in-app warning that browser-local edits are not the same thing as backed-up data
+- the warning appears at the moments where loss would be most surprising
+- the warning copy distinguishes normal browser persistence from true backup/export
+- custom export should support both per-tileset export and a browser-wide backup export for all local custom tile sets
+
 ## Recommended implementation order
 
 1. Step 1
@@ -398,6 +452,7 @@ Definition of done:
 9. Step 9
 10. Step 10
 11. Step 11
+12. Step 12
 
 ## Good stopping points
 
@@ -405,3 +460,4 @@ Definition of done:
 - After Step 5: the editor shell is in place
 - After Step 7: import works inside the editor flow
 - After Step 9: the full portable custom tileset workflow exists
+- After Step 12: persistence warnings and backup guidance are in place

@@ -2904,6 +2904,55 @@ body.reserve-swap-pending .reserve-card.swap-target .reserve-guide-outline {
   color: var(--warn);
 }
 
+.local-data-notice {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--status-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 78%, var(--accent) 22%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+.local-data-notice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.local-data-notice-body {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.local-data-notice-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.local-data-notice-action,
+.local-data-notice-dismiss {
+  border: 1px solid var(--status-border);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.5);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.local-data-notice-action:hover,
+.local-data-notice-dismiss:hover {
+  background: rgba(255,255,255,0.72);
+}
+
 .feedback-checklist {
   display: grid;
   gap: 4px;

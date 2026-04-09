@@ -8,128 +8,76 @@ The goal is not just "support import". The goal is:
 - built-in and custom tilesets use the same runtime model
 - image loading, wall data, boss data, share links, and UI theme selection do not depend on repo-only file paths
 
-Use this together with [custom-tileset-plan.md](./custom-tileset-plan.md).
+Use this together with [custom-tileset-plan.md](./custom-tileset-plan.md) and [custom-tileset-qa-checklist.md](./custom-tileset-qa-checklist.md).
 
 ## Progress log
 
-### 2026-04-08
+### 2026-04-09
 
-Implemented Slice A foundation in code:
+Implemented in code since the original audit:
 
-- `TILE_SET_REGISTRY` was renamed to `BUILT_IN_TILE_SET_REGISTRY`
-- a module-level runtime registry was added in `app.js`
-- `state.tileSetRegistry` now mirrors the runtime registry
-- direct registry reads in selector hydration, readiness audit, boss-pile aggregation, boss source lookup, and wall-storage deps now go through runtime registry helpers
-
-Still not done:
-
-- there is not yet a setter or merge path for custom tilesets
-- asset resolution is still repo-path based
-- theme handling is still built-in-only
-- wall-editor grouping is still built-in-only
-
-Implemented first part of Slice B in code:
-
-- tile, reference-card, readiness, and boss asset URLs now go through shared resolver helpers
-- direct path construction was removed from `buildTileDefs(...)`, reference-card lookup, readiness asset collection, and boss source generation
-- built-in behavior should still be unchanged because the resolver currently falls back to the built-in repo path pattern
-
-Still not done for Slice B:
-
-- boss identity still uses image `src` instead of a stable logical key
-- there is not yet any blob/object-URL path for custom assets
-- there is not yet an object-URL lifecycle/cache layer
-
-Implemented next asset step in code:
-
-- boss pile order and placed boss-token identity now use stable boss keys internally
-- boss rendering resolves those keys to image URLs only at render time
-- new share links now include boss keys, while old share links using only boss image `src` should still restore
-
-Still not done after this boss-key step:
-
-- helper naming is still transitional in some places, for example `getBossTileSources(...)`
-- custom asset blobs/object URLs are still not implemented
-- boss export/render still carries resolved `src` for output, which is fine for now
-
-Implemented theme-catalog cleanup in code:
-
-- the main app now defines one `UI_THEME_CATALOG` in `app.js`
-- the main app theme select is populated from that catalog instead of hardcoded HTML options
-- auto-theme now follows `tileSet.uiThemeId` instead of assuming the tileset ID is the theme ID
-
-Still not done for the theme step:
-
-- the About page still has its own local theme ID list
-- there is still no custom UI theme support, only reuse of supported built-in theme IDs
-
-Implemented the wall-editor runtime grouping step in code:
-
-- wall-editor groups now derive from the runtime tileset registry instead of only a fixed hardcoded list
-- the existing three built-in groups are preserved
-- a `Custom Tile Sets` group will appear automatically once runtime custom sets exist
-
-Still not done for wall-editor integration:
-
-- wall data still lives in existing browser storage, not IndexedDB
-
-Implemented the runtime custom-tileset merge path in code:
-
-- a persisted custom-record storage key now exists for runtime-only custom tileset records
-- `runtimeTileSetRegistry` now has a real setter/merge path that rebuilds built-in plus custom entries
-- app startup now loads built-in sets plus stored custom records before readiness audit and selector hydration
-- wall-storage sanitizers and default wall-face fallback now refresh against the merged runtime registry
-- a small debug API is exposed on `window.__HTS_CUSTOM_TILESETS__` so custom sets can be injected, replaced, removed, and refreshed without zip import
-
-Implemented IndexedDB-backed custom asset storage in code:
-
+- built-in and custom sets now share one runtime tileset registry
+- asset lookup now routes through shared resolver helpers instead of assuming repo-only paths
+- boss identity now uses stable logical keys internally instead of raw image `src`
 - custom manifests and asset blobs now persist in IndexedDB
-- runtime custom asset resolution now serves object URLs created from stored blobs
-- legacy local-storage debug records are migrated forward into IndexedDB on startup
-- the debug custom-tileset API now stores fetched asset blobs instead of keeping repo-path strings as runtime state
+- app startup reloads stored custom sets into the runtime registry
+- custom wall, end-tile, and portal editor data now persist with each custom tileset in IndexedDB
+- custom guide-point templates now persist per custom tileset, while built-in guide templates remain shared
+- legacy custom wall/end/portal overrides are migrated out of generic browser storage into the custom IndexedDB path
+- custom zip import is implemented and validated against `manifest.json` plus optional `wall_editor.json`
+- `Add Custom Tile Set` now creates a record immediately and routes the user into the editor flow
+- the current Wall Editor page now shows custom asset slots for entrance, 9 regular tiles, reference card, and 2 boss cards
+- custom sets can be renamed, exported, and deleted from the editor UI
+- rename changes the custom set's display label only; duplicate-ID imports now come in as new copies instead of overwriting the existing local set
+- custom asset replacement now patches the changed slot in place instead of rerendering the full editor page
+- custom-share flow now offers matching zip export plus helper HTML, and restore can fall back to `Molten` when a custom set is missing
+- the app now shows local-data backup notices after creating/editing custom sets and after editing built-in tile metadata
+- Quick Actions now supports bulk export of all browser-local custom tile sets into one backup zip
+- the About page guide and README now document the Tile Editor workflow, local backup rules, rename behavior, duplicate import behavior, and custom-share fallback flow
 
-Implemented first user-facing custom import step in code:
+Still intentionally deferred:
 
-- the quick-actions menu now includes `Import Custom Tileset`
-- the app can read a custom tileset `.zip` package with `manifest.json`, package assets, and optional `wall_editor.json`
-- imported manifests/assets are validated and stored in the existing IndexedDB-backed custom-set storage
-- after import, the runtime registry refreshes and the imported set can be selected like any other runtime tileset
-- imported wall editor defaults now map into the current wall/end/portal storage model, with guide templates still following the current global-template limitation
-
-Still not done after the import step:
-
-- custom wall data still lives in the existing browser wall-data storage model, not a custom IndexedDB store
-- the dropdown still shows runtime entries directly; custom slot naming/persistence is a later step
-- the About page theme list is still separate from the main theme catalog
+- built-in wall-editor overrides still use the existing browser wall-data storage path instead of moving into a broader IndexedDB refactor
+- boss export still carries resolved image `src` for output compatibility even though runtime identity now uses stable boss keys
+- v1 still assumes exactly 9 regular tiles and 2 boss cards per custom tileset
+- no custom CSS theme system in v1
 
 ### Next recommended step
 
-Continue by finishing the Wall Editor to custom-tileset editor transition:
+Do a final QA sweep rather than another structural refactor:
 
-- rename the page/UI language away from `Wall Editor`
-- keep import/export/delete discoverable on that page as the primary custom-set workflow
-- reduce the full-panel rerender blink after each image replacement by patching only the changed slot in place
-- refine the new missing/custom-set share restore copy and test the edge cases
-- confirm the custom-share export helper flow is good enough for non-technical users
-- decide whether the helper HTML should stay a simple link wrapper or become a fuller instruction page
+- test custom create/import/edit/export/delete end to end in the browser
+- test duplicate-ID import behavior and confirm rename expectations in the UI
+- test custom-share bundle export, helper HTML, exact restore, and `Molten` fallback restore
+- test bulk custom backup export with a mix of complete and incomplete local custom sets
+- verify the local-data notice triggers and backup actions after built-in and custom edits
+
+Use [custom-tileset-qa-checklist.md](./custom-tileset-qa-checklist.md) as the working Phase 1 verification pass.
 
 Working note:
 
-- image replacement now keeps scroll position correctly, but still causes a brief full-panel blink because the editor rerenders the whole panel after each upload
+- image replacement now patches the changed slot in place instead of rerendering the full editor panel
 - shared layout URLs still only carry layout state; they do not embed custom tileset assets, wall overrides, portal flags, or guide-point template data
 - current share flow now prompts for optional custom-tileset zip export + helper HTML when sharing a custom layout, and missing custom sets can fall back to `Molten` on restore
+- custom asset/image persistence should be treated as browser-local durability, not guaranteed recovery after site-data clearing; backup/export messaging and notice UX are now in place, but should still be validated in-browser
+- single custom tilesets can be exported directly, and Quick Actions now offers a bulk backup export for all local custom tile sets
 
 ## Current status
 
-The app is mostly registry-driven, but several important systems still assume:
+The app is now far past the original foundation slices. In plan terms:
 
-- built-in assets still follow the `./tiles/<set>/<set>_*.png` pattern
-- the About page theme list is still fixed separately from the main app catalog
-- the wall editor still depends on the existing browser wall-data storage model
+- Steps 1 through 4 are effectively done
+- Steps 5 through 10 are mostly done, with polish and storage/doc caveats still open
+- Step 11 docs/guardrails are mostly in place, and Step 12 notice UX is implemented
+
+The main remaining gaps are:
+
+- built-in wall-editor overrides still depend on the existing browser wall-data storage model, while custom wall/end/portal/guide data now lives with the custom tileset in IndexedDB
 - boss export still carries resolved image `src` for output compatibility, even though runtime identity now uses stable boss keys
+- browser-local persistence exists, now has in-app warning UX, and now supports both per-tileset export and bulk custom backup export, but it still is not true backup without exported files
 - regular tile count is always 9
 
-That means custom tilesets are not blocked by one bug. They are blocked by several architectural assumptions.
+That means the remaining work is no longer "make custom tilesets possible." It is mostly polish, guardrails, documentation, and a few storage/theme cleanup decisions.
 
 ## Scope decisions to keep for now
 
@@ -139,7 +87,6 @@ To keep the refactor manageable, lock these constraints in for the first custom-
 - a custom tileset must still have exactly 9 regular tiles
 - a custom tileset must still have exactly 1 reference card
 - a custom tileset must still have exactly 2 boss cards in v1, even if the runtime keeps using a boss ID array internally
-- custom tilesets should reuse an existing built-in UI theme ID
 - no custom CSS theme system in v1
 
 If those constraints change later, more of the tray, reserve, theme, and wall-editor code will need redesign.

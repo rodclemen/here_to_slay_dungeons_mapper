@@ -19,7 +19,7 @@ Plan your dungeon. Randomize the crawl. See every layout before you play.
 - [Highlights](#highlights)
 - [Feature Tour](#feature-tour)
 - [How To Use It](#how-to-use-it)
-- [Wall Edit Mode](#wall-edit-mode)
+- [Tile Editor & Custom Tile Sets](#tile-editor--custom-tile-sets)
 - [Technical Blueprint](#technical-blueprint)
 - [Architecture Notes](#architecture-notes)
 - [Controls & Shortcuts](#controls--shortcuts)
@@ -57,9 +57,10 @@ The core problem it solves: **seeing the dungeon before you build it**. Whether 
 - **Hex-snapped tile placement** with real-time contact validation and visual feedback
 - **Auto Build** — generates a complete, rule-legal dungeon layout in one action
 - **Six dungeon tile sets** with matching UI themes that shift the entire interface
+- **Custom tile sets** you can create, import, edit, export, and delete in the browser
 - **Reserve tile swapping** — swap any active tile with a reserve tile without losing board state
 - **Boss selection and magnetic placement** — boss tokens snap to reference card positions
-- **Shareable layout links** — copy the current dungeon state into a URL
+- **Shareable layout links** — copy the current dungeon state into a URL, with custom-set fallback/export help
 - **Light and dark themes** per tile set, with automatic or manual switching
 - **Zero dependencies** — pure vanilla JavaScript, HTML, and CSS. No build step, no framework
 
@@ -72,6 +73,8 @@ The core problem it solves: **seeing the dungeon before you build it**. Whether 
 Six dungeon sets, each with its own entrance tile, nine regular tiles, a reference card, and two boss cards. The app audits each set at startup for asset completeness and wall data, so only fully ready sets are selectable.
 
 **Available sets:** Molten · Overgrown · Dreamscape · Nightmare · Submerged · Deep Freeze
+
+The app also supports browser-local custom tile sets. A custom set follows the same v1 shape as a built-in set: one entrance tile, nine regular tiles, one reference card, and two boss cards. Custom sets appear in the main tile set selector after you create or import them.
 
 ### Manual Placement
 
@@ -92,6 +95,8 @@ Each tile set includes two boss options. The boss pile in the side panel lets yo
 ### Share Links
 
 Use `Copy Share Link` in Quick Actions to copy a URL that recreates the current layout when opened. The link captures the full current board state: the selected tile set, entrance tile state, placed-tile positions and rotations, tray/reserve ordering, reference-card position, boss placements, and board zoom/pan.
+
+If the active layout uses a custom tile set, the app can also export a matching share bundle that includes the custom-tile-set `.zip` plus a helper HTML file with import/open instructions for the receiver. The URL still carries layout state only; it does not embed custom assets or wall metadata directly. If the receiver opens the link without the matching custom set installed, the app can offer a best-effort `Molten` fallback that restores layout positions where possible, but not the original custom art or exact tile metadata.
 
 ### Placement Feedback
 
@@ -127,55 +132,87 @@ Every tile set has paired light and dark UI themes — twelve total. Themes shif
 
 9. **Press `X` to reset** all tiles back to the tray and clear boss tokens.
 
+If you want to work with your own tile art instead of only the built-in sets, open `Quick Actions` and choose either `Add Custom Tile Set` or `Import Custom Tileset`, then continue in the editor described below.
+
 ---
 
-## Wall Edit Mode
+## Tile Editor & Custom Tile Sets
 
-Wall Edit mode is the app's per-tile rules editor. Open `Advanced Tools` and click `Wall Editor` to switch from the normal board view into the wall editing page. The same button changes to `Build View` while active, which takes you back to the regular mapper.
+This page serves two jobs:
+
+- per-tile metadata editing for built-in sets
+- the main create/import/edit/export workflow for custom tile sets
+
+Open `Advanced Tools` and click `Tile Editor` to switch from the normal board view into the editor page. The same button changes to `Build View` while active, which takes you back to the mapper.
 
 What the page is for:
 
-- Mark which tile faces are treated as walls and therefore ignored by contact validation
-- Allow or disallow specific tiles as legal endpoint tiles (to avoid empty/boring tiles to be at the end of a branch, which would make it moot to go there.)
-- Mark portal tiles so auto-build can avoid placing two portal tiles next to each other.
-- Edit shared guide-point templates for `Entrance` and `Tile 01` (Tile 01 points is shared to all tiles)
+- mark which tile faces are treated as walls and therefore ignored by contact validation
+- allow or disallow specific tiles as legal endpoint tiles
+- mark portal tiles so auto-build can avoid placing portal-to-portal adjacency when possible
+- edit shared guide-point templates for `Entrance` and `Tile 01`
+- load or replace custom art for entrance, 9 regular tiles, reference card, and 2 boss cards
+- rename, export, or delete a custom tile set
+- import a custom tile-set package directly from the editor
 
 How the page is laid out:
 
-- The top intro explains the current editing actions
-- `Tile Set Group` swaps between paired tile-set views so you can review multiple sets from one screen
+- the top intro explains the current editing actions
+- `Tile Set Group` swaps between the built-in groupings and a dynamic `Custom Tile Sets` group when custom sets exist
 - `Point Edit: ON/OFF` enables guide-template handle editing
+- `Import Custom Tileset` opens the package picker
 - `Copy Guide Template JSON` exports the current shared guide-template data to the clipboard
-- Each panel below shows one tile set and all of its editable tiles
+- each panel below shows one tile set and all of its editable tiles
 
-How to edit a tile:
+Working with built-in tile sets:
 
 1. Click any tile to make it the active tile.
 2. Click a highlighted face segment on the tile to toggle that face between wall and non-wall.
 3. Use `End Tile: ON/OFF` to decide whether that tile is allowed to be used as a dungeon endpoint during auto-build.
 4. Use `Portal Flag: ON/OFF` to add or remove portal metadata for that tile. This is not directional data; it simply marks the tile as a portal tile so auto-build can avoid portal-to-portal adjacency. When enabled, drag the portal marker to the correct spot on the tile art.
 
+Working with custom tile sets:
+
+1. Open `Quick Actions` and choose `Add Custom Tile Set`, or import a package with `Import Custom Tileset`.
+2. The new set appears in the main selector and in the editor's `Custom Tile Sets` group.
+3. Use the asset slots to load or replace images for entrance, regular tiles, reference card, and boss cards.
+4. Edit walls, end-tile flags, portals, and guide points the same way you would for built-in sets.
+5. Use the panel actions to rename, export, or delete the custom set.
+
+Naming and identity:
+
+- `Rename` changes the custom tile set's display label only
+- the internal tile set ID stays stable so existing local references, exports, and share-related data do not silently break
+- if you export a custom tile set and later import that package while the original ID already exists locally, the app now imports it as a new copy with a fresh ID instead of overwriting the existing set
+
 Guide template editing:
 
-- Turn on `Point Edit`
-- Edit `Entrance` or `Tile 01`
-- Drag the visible point handles to adjust the shared guide template
-- Changes propagate to tiles that consume those shared templates
+- turn on `Point Edit`
+- edit `Entrance` or `Tile 01`
+- drag the visible point handles to adjust the shared guide template
+- changes propagate to tiles that consume those shared templates
 
-Persistence and debug tools:
+Persistence and backup behavior:
 
-- Wall data, endpoint permissions, portal flags, and guide-template edits are saved per tile set + tile in local storage
-- `Clear Tile Walls` clears the wall-face list for the currently active tile
-- `Export Debug Walls` writes the current wall-editor override data to JSON
-- `Import Debug Walls` restores that JSON back into the app
+- custom tile-set manifests and image assets are stored in browser-local IndexedDB
+- custom wall data, endpoint permissions, portal flags, and guide-template edits are stored with the custom tile set in browser-local IndexedDB
+- built-in wall data, endpoint permissions, portal flags, and shared built-in guide-template edits are still stored locally in browser storage
+- this local persistence survives normal reloads, browser restarts, and likely even crashes in the same browser profile
+- this is not the same thing as backup: clearing site data, switching browsers, changing browser profiles, or moving to another device can still lose local edits
+- the app now shows an in-app local-data notice after creating or editing custom sets and after editing built-in wall/portal/guide data
+- use custom tile-set export as the backup/transfer path for custom sets
+- single custom sets can be exported from the Tile Editor, and `Quick Actions` also provides `Export All Custom Tile Sets` for a browser-wide backup zip
+- built-in wall-edit data can be copied with `Export Debug Walls` and restored with `Import Debug Walls`
 
 Important behavior notes:
 
-- Wall editing is for tile metadata, not for building a dungeon layout
-- Auto Build is disabled while Wall Editor is open
-- Regular entrance placement rules still apply in normal build mode after you return to `Build View`
+- this page edits tile metadata; it is not the main dungeon-building view
+- Auto Build is disabled while the editor page is open
+- regular entrance placement rules still apply in normal build mode after you return to `Build View`
+- built-in guide templates are still shared across the built-in sets
+- custom guide templates are isolated per custom tile set; editing guide points on a custom set does not change the built-in shared templates or another custom set
 
-Future Wall Editor planning notes live in [`docs/wall-editor-notes.md`](./docs/wall-editor-notes.md).
+Future editor planning notes live in [`docs/wall-editor-notes.md`](./docs/wall-editor-notes.md).
 
 ---
 
@@ -266,7 +303,7 @@ The application is a single-page vanilla JavaScript app — one HTML file, one C
 
 **Caching.** Performance-sensitive paths cache aggressively: hex layout metrics by viewport size, hex vertex paths by radius, side-direction geometry per tile and rotation, placement evaluations during auto-build, and theme-derived grid colors per active theme. DOM updates batch through `DocumentFragment` where possible.
 
-**Persistence.** UI preferences (theme, appearance mode, auto-theme toggle, drawer state) persist to `localStorage`. Wall face overrides and guide-point template edits also persist locally with import/export support. Board layouts are ephemeral by design.
+**Persistence.** UI preferences (theme, appearance mode, auto-theme toggle, drawer state) persist to `localStorage`. Custom tile-set manifests and image assets persist in browser-local IndexedDB. Wall face overrides, portal flags, endpoint permissions, and guide-point template edits also persist locally. Board layouts are ephemeral by design except when encoded into a share link.
 
 ---
 
@@ -330,6 +367,8 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 
 Each tile set folder contains: entrance tile, nine regular tiles, a reference card, and boss card images — all PNG, all following a strict naming convention (`{setId}_{tileId}.png`).
 
+Custom tile sets do not need to live in the repository. They are imported/exported as `.zip` packages and stored in the browser at runtime.
+
 ---
 
 ## Running Locally
@@ -359,6 +398,8 @@ Then open `http://localhost:8000` in your browser.
 - **Entrance rotation locks** after the first regular tile is placed. This matches the intended gameplay flow but can surprise new users.
 - **Auto-build is bounded.** The generator retries up to 600 attempts and 120 novelty checks. In rare edge cases with unusual wall configurations, it may not find a layout.
 - **No built-in save library yet.** Layouts can now be shared and restored through `Copy Share Link`, but the app still does not provide named local save slots or a layout browser.
+- **Custom tile sets are browser-local by default.** They persist on this browser, but clearing site data or moving to a different browser/device will lose them unless you exported a backup package.
+- **Built-in wall-edit changes are also local.** Portal flags, wall overrides, endpoint flags, and guide-template edits are not synced anywhere unless you export/import them manually.
 - **Bridge-tile disconnects are possible.** If you move a placed tile that was acting as a bridge between two parts of the dungeon, you can leave behind a disconnected island of tiles. The mapper does not currently prevent that state.
 - **Tile set readiness varies.** Not all six sets may have complete assets and wall data at any given time. The app audits readiness at startup and disables incomplete sets.
 - **Current art is not final.** The tile, reference-card, and boss-card graphics currently in use are placeholders or interim assets while official releases are still incomplete. The framework is being built now so final art can be dropped in later with minimal friction.

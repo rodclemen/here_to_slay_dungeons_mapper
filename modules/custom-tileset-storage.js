@@ -1,7 +1,8 @@
 const DB_NAME = "here_to_slay_custom_tilesets";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const TILE_SET_STORE = "customTileSets";
 const ASSET_STORE = "customTileAssets";
+const EDITOR_DATA_STORE = "customTileSetEditorData";
 const TILE_SET_ID_INDEX = "tileSetId";
 
 let dbPromise = null;
@@ -19,6 +20,9 @@ function openDatabase() {
       if (!db.objectStoreNames.contains(ASSET_STORE)) {
         const assetStore = db.createObjectStore(ASSET_STORE, { keyPath: "key" });
         assetStore.createIndex(TILE_SET_ID_INDEX, "tileSetId", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(EDITOR_DATA_STORE)) {
+        db.createObjectStore(EDITOR_DATA_STORE, { keyPath: "tileSetId" });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -106,13 +110,15 @@ export async function saveStoredCustomTileSetBundle(manifest, assetEntries) {
 
 export async function deleteStoredCustomTileSetBundle(tileSetId) {
   const db = await openDatabase();
-  const transaction = db.transaction([TILE_SET_STORE, ASSET_STORE], "readwrite");
+  const transaction = db.transaction([TILE_SET_STORE, ASSET_STORE, EDITOR_DATA_STORE], "readwrite");
   const tileSetStore = transaction.objectStore(TILE_SET_STORE);
   const assetStore = transaction.objectStore(ASSET_STORE);
+  const editorDataStore = transaction.objectStore(EDITOR_DATA_STORE);
   const assetIndex = assetStore.index(TILE_SET_ID_INDEX);
   const existingKeys = await wrapRequest(assetIndex.getAllKeys(tileSetId));
 
   tileSetStore.delete(tileSetId);
+  editorDataStore.delete(tileSetId);
   for (const key of existingKeys) {
     assetStore.delete(key);
   }
@@ -122,8 +128,42 @@ export async function deleteStoredCustomTileSetBundle(tileSetId) {
 
 export async function clearStoredCustomTileSetBundles() {
   const db = await openDatabase();
-  const transaction = db.transaction([TILE_SET_STORE, ASSET_STORE], "readwrite");
+  const transaction = db.transaction([TILE_SET_STORE, ASSET_STORE, EDITOR_DATA_STORE], "readwrite");
   transaction.objectStore(TILE_SET_STORE).clear();
   transaction.objectStore(ASSET_STORE).clear();
+  transaction.objectStore(EDITOR_DATA_STORE).clear();
+  await waitForTransaction(transaction);
+}
+
+export async function listStoredCustomTileSetEditorData() {
+  const db = await openDatabase();
+  const transaction = db.transaction(EDITOR_DATA_STORE, "readonly");
+  const records = await wrapRequest(transaction.objectStore(EDITOR_DATA_STORE).getAll());
+  await waitForTransaction(transaction);
+  return records.map((record) => ({ ...record }));
+}
+
+export async function getStoredCustomTileSetEditorData(tileSetId) {
+  const db = await openDatabase();
+  const transaction = db.transaction(EDITOR_DATA_STORE, "readonly");
+  const record = await wrapRequest(transaction.objectStore(EDITOR_DATA_STORE).get(tileSetId));
+  await waitForTransaction(transaction);
+  return record ? { ...record } : null;
+}
+
+export async function saveStoredCustomTileSetEditorData(tileSetId, editorData) {
+  const db = await openDatabase();
+  const transaction = db.transaction(EDITOR_DATA_STORE, "readwrite");
+  transaction.objectStore(EDITOR_DATA_STORE).put({
+    tileSetId,
+    ...editorData,
+  });
+  await waitForTransaction(transaction);
+}
+
+export async function deleteStoredCustomTileSetEditorData(tileSetId) {
+  const db = await openDatabase();
+  const transaction = db.transaction(EDITOR_DATA_STORE, "readwrite");
+  transaction.objectStore(EDITOR_DATA_STORE).delete(tileSetId);
   await waitForTransaction(transaction);
 }

@@ -107,7 +107,7 @@ export function getRegistryIssues(tileSet, seenIds) {
   if (!tileSet?.id) issues.push("missing id");
   if (!tileSet?.label) issues.push("missing label");
   if (!tileSet?.gameSetId) issues.push("missing gameSetId");
-  if (!tileSet?.uiThemeId) issues.push("missing uiThemeId");
+  if (tileSet?.source !== "custom" && !tileSet?.uiThemeId) issues.push("missing uiThemeId");
   if (!tileSet?.entranceTileId) issues.push("missing entranceTileId");
   if (!Array.isArray(tileSet?.tileIds) || tileSet.tileIds.length !== 9) issues.push("invalid tileIds");
   if (!tileSet?.referenceCardId) issues.push("missing referenceCardId");
