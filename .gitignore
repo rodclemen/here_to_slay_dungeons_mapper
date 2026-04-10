@@ -1,6 +1,10 @@
 .DS_Store
 .claude
 .gitignore
+/node_modules/
+/dist/
+/src-tauri/gen/schemas/
+/src-tauri/target/
 /slay info/
 /unused/
 /gfx/

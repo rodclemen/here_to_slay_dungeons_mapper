@@ -12,11 +12,28 @@ function readUint32(view, offset) {
 }
 
 async function inflateRaw(bytes) {
+  const inflateWithTauri = async () => {
+    const tauriInvoke = globalThis.__TAURI__?.core?.invoke;
+    if (typeof tauriInvoke !== "function") return null;
+    const inflated = await tauriInvoke("inflate_raw_deflate", {
+      bytes: Array.from(bytes),
+    });
+    return new Uint8Array(inflated);
+  };
+
   if (typeof DecompressionStream !== "function") {
+    const tauriInflated = await inflateWithTauri();
+    if (tauriInflated) return tauriInflated;
     throw new Error("This browser does not support zip import yet.");
   }
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  try {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch (error) {
+    const tauriInflated = await inflateWithTauri();
+    if (tauriInflated) return tauriInflated;
+    throw error;
+  }
 }
 
 function decodeUtf8(bytes) {

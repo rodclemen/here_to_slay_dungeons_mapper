@@ -139,4 +139,21 @@ Start with the smallest non-invasive desktop wrapper:
 3. Build a local macOS `.app`.
 4. Do not change storage yet.
 
+## 2026-04-10 Status
+
+- Added the first Tauri v2 scaffold under `src-tauri/`.
+- Added `package.json` scripts:
+  - `npm run build:tauri-web`
+  - `npm run tauri:dev`
+  - `npm run tauri:build`
+- Added a static copy step that writes only the runtime browser app files to `dist/tauri/` so Tauri does not bundle docs, local working folders, or repo metadata.
+- Confirmed `npm run build:tauri-web` copies the runtime files successfully.
+- Confirmed the installed Tauri CLI reports `tauri-cli 2.10.1`.
+- Installed Rust through rustup after confirming the local machine did not have Cargo or rustc available.
+- Confirmed `npm run tauri -- build --debug` completes and produces:
+  - `src-tauri/target/debug/bundle/macos/Here to Slay Dungeon Mapper.app`
+  - `src-tauri/target/debug/bundle/dmg/Here to Slay Dungeon Mapper_0.1.0_aarch64.dmg`
+
+Next step: launch `npm run tauri:dev` for webview QA, then test module loading, image paths, IndexedDB/localStorage, drag/drop, board panning, custom tile editor, and share links inside the desktop shell.
+
 Once that works, add folder open/save as a second slice.

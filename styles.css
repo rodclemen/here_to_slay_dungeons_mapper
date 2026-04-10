@@ -910,6 +910,61 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   font-size: 0.76rem;
 }
 
+.text-input-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(12, 18, 24, 0.42);
+}
+
+.text-input-modal {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--menu-border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--menu-shadow);
+}
+
+.text-input-modal h2,
+.text-input-modal p {
+  margin: 0;
+}
+
+.text-input-modal h2 {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.text-input-modal p {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.text-input-modal input {
+  width: 100%;
+  min-height: 38px;
+  box-sizing: border-box;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--control-text);
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.text-input-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .wall-edit-only {
   display: none;
 }
@@ -1301,8 +1356,29 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   mask-image: url("./icons/export_all.png");
 }
 
+.wall-editor-toolbar.is-point-edit-mode .wall-editor-toolbar-icon-btn[data-icon="add"],
+.wall-editor-toolbar.is-point-edit-mode .wall-editor-toolbar-icon-btn[data-icon="import"],
+.wall-editor-toolbar.is-point-edit-mode .wall-editor-toolbar-icon-btn[data-icon="export-all"] {
+  color: var(--muted);
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+.wall-editor-toolbar-icon-btn:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.32;
+}
+
+.wall-editor-toolbar-icon-btn:disabled:hover,
+.wall-editor-toolbar-icon-btn:disabled:focus-visible {
+  color: var(--muted);
+  opacity: 0.32;
+}
+
 .wall-editor-toolbar-icon-btn.is-active {
   opacity: 1;
+  color: var(--accent);
 }
 
 .wall-editor-toolbar-icon-btn:hover,
@@ -3014,7 +3090,7 @@ body.boss-edit-mode .boss-card:active {
   -webkit-filter: none;
 }
 
-.board-content .boss-token:not(.boss-token-dragging) img {
+.drag-layer .boss-token img {
   filter: drop-shadow(0 8px 12px rgba(16, 27, 35, 0.24));
   -webkit-filter: drop-shadow(0 8px 12px rgba(16, 27, 35, 0.24));
 }
@@ -3023,7 +3099,9 @@ body.boss-edit-mode .boss-card:active {
   pointer-events: none;
   z-index: 26000;
   cursor: grabbing;
-  transform: translate(-50%, -50%);
+  will-change: left, top, transform;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
 }
 
 .boss-token.boss-token-dragging {
@@ -3164,6 +3242,10 @@ body.reserve-swap-pending .reserve-card.swap-target .reserve-guide-outline {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
 }
 
+.local-data-notice[hidden] {
+  display: none !important;
+}
+
 .local-data-notice-head {
   display: flex;
   align-items: center;
@@ -3195,9 +3277,9 @@ body.reserve-swap-pending .reserve-card.swap-target .reserve-guide-outline {
 
 .local-data-notice-action,
 .local-data-notice-dismiss {
-  border: 1px solid var(--status-border);
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, var(--status-border) 42%);
   border-radius: 8px;
-  background: rgba(255,255,255,0.5);
+  background: color-mix(in srgb, var(--accent) 72%, white 28%);
   color: var(--ink);
   font: inherit;
   font-size: 0.8rem;
@@ -3208,7 +3290,7 @@ body.reserve-swap-pending .reserve-card.swap-target .reserve-guide-outline {
 
 .local-data-notice-action:hover,
 .local-data-notice-dismiss:hover {
-  background: rgba(255,255,255,0.72);
+  background: color-mix(in srgb, var(--accent) 82%, white 18%);
 }
 
 .feedback-checklist {
@@ -3313,8 +3395,8 @@ body.reserve-swap-pending .reserve-card.swap-target .reserve-guide-outline {
   object-fit: contain;
   user-select: none;
   pointer-events: none;
-  filter: drop-shadow(0 8px 12px rgba(16, 27, 35, 0.24));
-  -webkit-filter: drop-shadow(0 8px 12px rgba(16, 27, 35, 0.24));
+  filter: none;
+  -webkit-filter: none;
 }
 
 .tray-slot .tile img {
@@ -3426,6 +3508,12 @@ body.wall-editor-point-edit-mode .tile-guide-face-hit {
 .tile-guide-point-handle {
   cursor: grab;
   pointer-events: auto;
+}
+
+.tile-guide-point-hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
 }
 
 .tile-guide-point-ring {

@@ -6,7 +6,7 @@ export const AUTO_THEME_BY_TILE_SET_STORAGE_KEY = "hts_auto_theme_by_tile_set_v1
 
 export const DEFAULT_UI_THEME_ID = "molten";
 export const DEFAULT_LIGHT_THEME = "molten";
-export const DEFAULT_DARK_THEME = "overgrown_dark";
+export const DEFAULT_DARK_THEME = "molten_dark";
 
 export const UI_THEME_CATALOG = [
   { id: "molten", label: "Molten - Light", mode: "light", className: "ui-theme-molten" },
@@ -46,19 +46,32 @@ export function sanitizeDarkUiThemeId(uiThemeId) {
   return DEFAULT_DARK_THEME;
 }
 
+function getStoredUiThemeValue(storage, key) {
+  try {
+    return storage?.getItem(key) || null;
+  } catch (error) {
+    console.warn(`Could not read UI theme storage key ${key}.`, error);
+    return null;
+  }
+}
+
+function resolveSystemAppearanceMode() {
+  return globalThis.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+}
+
 export function getAppliedAboutPageThemeId(storage = globalThis.localStorage) {
-  if (!storage) return null;
-  const explicitTheme = storage.getItem(UI_THEME_STORAGE_KEY);
+  if (!storage) return DEFAULT_UI_THEME_ID;
+  const explicitTheme = getStoredUiThemeValue(storage, UI_THEME_STORAGE_KEY);
   if (isSupportedUiThemeId(explicitTheme)) return explicitTheme;
 
-  const appearanceMode = storage.getItem(APPEARANCE_MODE_STORAGE_KEY);
-  if (appearanceMode === "dark") {
-    return sanitizeDarkUiThemeId(storage.getItem(LAST_DARK_UI_THEME_STORAGE_KEY));
+  const appearanceMode = getStoredUiThemeValue(storage, APPEARANCE_MODE_STORAGE_KEY);
+  const effectiveMode = appearanceMode === "dark" || appearanceMode === "light"
+    ? appearanceMode
+    : resolveSystemAppearanceMode();
+  if (effectiveMode === "dark") {
+    return sanitizeDarkUiThemeId(getStoredUiThemeValue(storage, LAST_DARK_UI_THEME_STORAGE_KEY));
   }
-  if (appearanceMode === "light") {
-    return sanitizeLightUiThemeId(storage.getItem(LAST_LIGHT_UI_THEME_STORAGE_KEY));
-  }
-  return null;
+  return sanitizeLightUiThemeId(getStoredUiThemeValue(storage, LAST_LIGHT_UI_THEME_STORAGE_KEY));
 }
 
 export function applyUiThemeClass(target, uiThemeId) {

@@ -1,6 +1,9 @@
 # Changelog
 
 ## 2026-04-10
+- Fixed PDF export print button in Tauri: replaced the broken `window.print()` path with Tauri's native `getCurrentWebview().print()` API, granted the preview window proper capabilities (`core:window:allow-close`, `core:webview:allow-print`), and removed the iframe in favor of direct DOM injection so WKWebView can actually print the content.
+- Removed the stale "Use your browser's Save as PDF" instruction from the PDF export output since Tauri now uses its own native print dialog.
+- Added `docs/optimization-plan.md` covering architecture audit, quick wins, medium-effort refactors, Tauri hardening, and long-term module extraction priorities.
 - Reworked the PDF preview window so it now shows a toolbar with Print/Close controls and renders the layout inside the frame, which removes the stale loading text and avoids relying on a Tauri right-click menu that never showed up.
 - Switched PDF export to a dedicated preview page that works in both the browser and Tauri, so the export now opens from a real window instead of stalling on the old popup path.
 - Granted the Tauri shell webview window creation permission so the PDF export preview can actually open instead of falling back to a hidden iframe.

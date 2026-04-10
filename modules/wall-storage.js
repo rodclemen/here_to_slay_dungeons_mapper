@@ -1,3 +1,5 @@
+import { saveDataSetting } from "./data-folder-store.js";
+
 function loadJsonStorage(storageKey, warnMessage, fallback = {}) {
   try {
     const raw = localStorage.getItem(storageKey);
@@ -12,11 +14,9 @@ function loadJsonStorage(storageKey, warnMessage, fallback = {}) {
 }
 
 export function saveJsonStorage(storageKey, value, warnMessage) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(value));
-  } catch (error) {
+  void saveDataSetting(storageKey, value).catch((error) => {
     console.warn(warnMessage, error);
-  }
+  });
 }
 
 export function sanitizeWallOverrides(input, { tileSetRegistry, buildTileDefs }) {

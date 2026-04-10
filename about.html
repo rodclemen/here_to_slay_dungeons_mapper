@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>About &amp; Manual — Here to Slay DUNGEONS Mapper</title>
+  <title>Guide — Here to Slay DUNGEONS Mapper</title>
   <link rel="icon" type="image/png" href="./icons/d20.png" />
   <link rel="stylesheet" href="./styles.css" />
   <style>
@@ -200,6 +200,25 @@
     .toc-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
     .tiles-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
+    .layout-overview-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .layout-overview-grid .card {
+      min-height: 100%;
+    }
+
+    .layout-overview-primary {
+      grid-row: span 3;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 320px;
+    }
+
     .card,
     .toc-card,
     .callout {
@@ -369,8 +388,14 @@
       .section-grid,
       .two-col,
       .three-col,
+      .layout-overview-grid,
       .tiles-grid {
         grid-template-columns: 1fr;
+      }
+
+      .layout-overview-primary {
+        grid-row: auto;
+        min-height: 0;
       }
 
       .page {
@@ -447,23 +472,25 @@
 
     <section class="section">
       <h2>Understanding the Layout</h2>
-      <div class="two-col">
-        <div class="card">
+      <div class="layout-overview-grid">
+        <div class="card layout-overview-primary">
           <h3>Top Bar</h3>
-          <p>The top bar contains the tile set selector, appearance mode control, advanced tools menu, quick actions menu, and the Guide link. Advanced Tools includes options like theme selection, face-based placement feedback, Random Boss: All Sets, and debug controls. Quick Actions currently contains Copy Share Link, Export PDF, and Reset Tiles.</p>
+          <p>The top bar contains the app title, appearance mode control, Advanced Tools menu, Tile Editor / Build View button, Quick Actions menu, Guide link, and Tile Set menu. The Tile Set menu is on the far right.</p>
+          <p>Advanced Tools contains placement-feedback options, Random Boss: All Sets, Show Walls, Show Portals, and the ignore-contact-rule toggle. The theme selector appears there when Auto Theme is turned off. In Tile Editor, this menu also includes Reset Tile Points for built-in tile sets.</p>
+          <p>Quick Actions contains Auto Theme, Copy Share Link, and Export PDF. Reset Tiles and Boss Cards lives on the board as the reset icon, not inside the Quick Actions menu.</p>
           <p>Copy Share Link creates a URL that restores the current build when opened, including the selected tile set, entrance and reference-card setup, placed tile positions and rotations, tray and reserve order, boss placements, and board zoom and pan. If the layout depends on a custom tile set, the mapper can also export a matching custom-set package and helper HTML so the receiver can import the custom data before opening the link.</p>
         </div>
         <div class="card">
-          <h3>Left Drawer</h3>
-          <p>This is the Info Drawer. It contains the Boss Selection pile and the Placement Feedback area, including checklist progress and status messages.</p>
+          <h3>Board</h3>
+          <p>The board is the main workspace. It includes the hex grid, entrance tile, reference card, placed dungeon tiles, boss tokens, Auto Build button, Reset Tiles and Boss Cards button, and zoom badge.</p>
         </div>
         <div class="card">
-          <h3>Board</h3>
-          <p>The board is the main workspace. It includes the hex grid, entrance tile, reference card, placed dungeon tiles, boss tokens, auto-build button, reset button, and zoom badge.</p>
+          <h3>Left Drawer</h3>
+          <p>This is the Info Drawer. It sits on the left side in the standard desktop layout and contains the Boss Selection pile plus Placement Feedback, including checklist progress and status messages.</p>
         </div>
         <div class="card">
           <h3>Right Drawer</h3>
-          <p>In the standard desktop layout, this is the Tile Drawer. It contains the six selected tiles for the current build and the reserve pile for inactive tiles. In compact mode, the compact tile rail stays on the left and the Info Drawer is hidden.</p>
+          <p>In the standard desktop layout, this is the Tile Drawer. It sits on the right side and contains the six selected tiles for the current build and the reserve pile for inactive tiles. In compact mode, the Tile Drawer becomes a compact rail on the left and the Info Drawer is hidden.</p>
         </div>
       </div>
       <div class="callout">
@@ -477,7 +504,7 @@
       <div class="two-col">
         <div class="card">
           <h3>Entrance Tile</h3>
-          <p>The entrance tile is always placed first and cannot be sent back to the tray. Once another dungeon tile is placed, entrance rotation is locked.</p>
+          <p>The entrance tile is always placed first, cannot be sent back to the tray, and cannot be rotated.</p>
         </div>
         <div class="card">
           <h3>Reference Card</h3>
@@ -491,7 +518,7 @@
       <h3>Placing Tiles</h3>
       <p>Drag a tile from the tray to the board. As it moves over the play area, the mapper snaps it to the nearest hex position and checks whether the current spot is valid. If the tile meets the placement rules, it stays. If it fails, the feedback panel tells you why.</p>
       <h3>Rotating Tiles</h3>
-      <p>Hovering over a tile reveals the rotate controls. You can rotate tiles in either direction to line up faces and improve legal contact. Already placed tiles are re-validated immediately: if a tile was connected to only one neighbor, the mapper will keep rotating in the same direction until it finds the next valid orientation; if a tile was connected to two or more neighbors and rotation breaks it, the tile is highlighted red so you can fix it manually.</p>
+      <p>Hovering over a rotatable tile reveals the rotate controls. You can rotate regular tiles in either direction to line up faces and improve legal contact. Already placed tiles are re-validated immediately: if a tile was connected to only one neighbor, the mapper will keep rotating in the same direction until it finds the next valid orientation; if a tile was connected to two or more neighbors and rotation breaks it, the tile is highlighted red so you can fix it manually.</p>
       <h3>Legal Placement</h3>
       <p>The mapper enforces the dungeon placement rules in normal use. A tile needs enough valid contact with the current layout, overlaps are rejected, and blocked faces on the entrance tile are respected.</p>
       <h3>What Happens When Something Fails</h3>
@@ -511,7 +538,7 @@
         </div>
         <div class="card">
           <h3>Status Messages</h3>
-          <p>The left drawer explains why a tile is valid, invalid, returning to the tray, or causing some other change in state.</p>
+          <p>The left-side Info Drawer explains why a tile is valid, invalid, returning to the tray, or causing some other change in state.</p>
         </div>
         <div class="card">
           <h3>Checklist</h3>
@@ -524,7 +551,7 @@
       <h2>Auto Build</h2>
       <div class="section-grid">
         <div>
-          <p>If you want a complete dungeon quickly, use the Auto Build button on the board. The mapper selects and places the six active tiles in a valid arrangement around the entrance tile, then also places a random boss.</p>
+          <p>If you want a complete dungeon quickly, use the Auto Build button on the board. The mapper chooses six regular tiles for the round, places them in a valid arrangement around the entrance tile, then also places a random boss.</p>
           <p>Auto Build is useful when you want a fast starting point, a random layout to play from, or just a break from dragging and rotating everything manually.</p>
           <p>If the auto-builder cannot find a legal result, the status panel will tell you and suggest trying again or rerolling the tile selection.</p>
         </div>
@@ -565,7 +592,7 @@
         </div>
         <div class="card">
           <h3>What the editor changes</h3>
-          <p>Wall faces affect placement validation. End-tile flags control whether a tile is allowed to act as a dead end. Portal flags mark the special tile behavior used by the placement logic. Guide points define the draggable outline handles that control how tile faces are interpreted.</p>
+          <p>Wall faces affect placement validation. End-tile flags control whether Auto Build can use a tile as a dead end. Portal flags tell Auto Build to avoid portal-to-portal adjacency when possible. Guide points define the draggable outline handles that control how tile faces are interpreted.</p>
           <p>For built-in sets, guide point templates are shared across the built-in catalog just like before. For custom sets, guide point templates are isolated per custom tile set, so editing one custom set will not rewrite the built-in defaults or another custom set's point layout.</p>
         </div>
       </div>
@@ -578,11 +605,11 @@
         <div class="card">
           <h3>Local persistence and backups</h3>
           <p>Custom tile sets are stored locally in this browser. They usually survive reloads, restarts, and crashes, but they are not the same thing as an external backup.</p>
-          <p>If browser site data is cleared, those local custom sets can be removed. Use <strong>Export This Custom Set</strong> or the Quick Actions <strong>Export All Custom Tile Sets</strong> backup zip if you want a portable copy.</p>
+          <p>If browser site data is cleared, those local custom sets can be removed. Use the custom set's export button or the Tile Editor toolbar's <strong>Export All Custom Tile Sets</strong> button if you want a portable copy.</p>
         </div>
       </div>
       <div class="callout">
-        <p><strong>Important:</strong> Built-in tile metadata edits also stay local to this browser. If you adjust built-in walls, portals, or guide points and want to keep that work safe, use <strong>Export Debug Walls</strong> instead of assuming browser storage is permanent.</p>
+        <p><strong>Important:</strong> Built-in tile metadata edits also stay local to this browser. Reset Tile Points is available only for built-in tile sets and clears guide-point edits back to the baked defaults. Custom-set backups should use the Tile Editor export controls.</p>
       </div>
     </section>
 
@@ -590,7 +617,7 @@
       <h2>Boss Cards</h2>
       <div class="section-grid">
         <div>
-          <p>The Boss Selection pile is in the left drawer during the standard layout. In compact mode it moves into the compact tile rail. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
+          <p>The Boss Selection pile is in the left-side Info Drawer during the standard layout. In compact mode it moves into the compact tile rail. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
           <p>Once placed, boss tokens snap to magnet positions around the reference card. They can be moved later, and dragging a placed boss back to the pile or info drawer returns it cleanly.</p>
         </div>
         <div class="card">
@@ -605,12 +632,12 @@
       <div class="section-grid">
         <div>
           <p>The appearance mode control lets you switch between Light, Dark, and System mode. The mapper remembers light and dark preferences separately, so changing modes does not scramble your style choices.</p>
-          <p>The theme selector in Advanced Tools lets you choose a specific UI theme. Each dungeon set has light and dark theme variants, but you can pick another one if you prefer.</p>
+          <p>Auto Theme is in Quick Actions. When Auto Theme is on, the UI follows the current tile set. When Auto Theme is off, the theme selector appears in Advanced Tools so you can choose a specific UI theme. Each dungeon set has light and dark theme variants, but you can pick another one if you prefer.</p>
           <p>Both side drawers can also be collapsed independently. That makes the board much easier to work with when you want maximum layout space.</p>
         </div>
         <div class="card">
           <h3>Theme-aware page styling</h3>
-          <p>This page is set up to use the same core CSS variables as the main app, so the About page can follow the chosen color theme instead of feeling like it belongs to a completely different website.</p>
+          <p>This page is set up to use the same core CSS variables as the main app, so the Guide can follow the chosen color theme instead of feeling like it belongs to a completely different website.</p>
         </div>
       </div>
     </section>
@@ -796,12 +823,35 @@
   </main>
 
   <script type="module">
-    import { applyUiThemeClass, getAppliedAboutPageThemeId } from "./modules/ui-themes.js";
+    import {
+      APPEARANCE_MODE_STORAGE_KEY,
+      LAST_DARK_UI_THEME_STORAGE_KEY,
+      LAST_LIGHT_UI_THEME_STORAGE_KEY,
+      UI_THEME_STORAGE_KEY,
+      applyUiThemeClass,
+      getAppliedAboutPageThemeId,
+    } from "./modules/ui-themes.js";
 
-    const savedTheme = getAppliedAboutPageThemeId();
-    if (savedTheme) {
-      applyUiThemeClass(document.body, savedTheme);
+    const guideThemeStorageKeys = new Set([
+      APPEARANCE_MODE_STORAGE_KEY,
+      LAST_DARK_UI_THEME_STORAGE_KEY,
+      LAST_LIGHT_UI_THEME_STORAGE_KEY,
+      UI_THEME_STORAGE_KEY,
+    ]);
+
+    function applyCurrentGuideTheme() {
+      applyUiThemeClass(document.body, getAppliedAboutPageThemeId());
     }
+
+    applyCurrentGuideTheme();
+
+    window.addEventListener("storage", (event) => {
+      if (event.key === null || guideThemeStorageKeys.has(event.key)) {
+        applyCurrentGuideTheme();
+      }
+    });
+
+    window.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", applyCurrentGuideTheme);
   </script>
 </body>
 </html>
