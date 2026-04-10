@@ -2353,14 +2353,14 @@ function bindGlobalControls() {
     toggleLeftDrawerBtn.addEventListener("click", () => {
       state.leftDrawerCollapsed = !state.leftDrawerCollapsed;
       applyDrawerCollapseState({ preserveBoardScreenPosition: true });
-      setStatus(state.leftDrawerCollapsed ? "Left drawer collapsed." : "Left drawer expanded.");
+      setStatus(state.leftDrawerCollapsed ? "Tile drawer collapsed." : "Tile drawer expanded.");
     });
   }
   if (toggleRightDrawerBtn) {
     toggleRightDrawerBtn.addEventListener("click", () => {
       state.rightDrawerCollapsed = !state.rightDrawerCollapsed;
       applyDrawerCollapseState({ preserveBoardScreenPosition: true });
-      setStatus(state.rightDrawerCollapsed ? "Right drawer collapsed." : "Right drawer expanded.");
+      setStatus(state.rightDrawerCollapsed ? "Info drawer collapsed." : "Info drawer expanded.");
     });
   }
   if (bossRandomBtn) {
@@ -2386,6 +2386,22 @@ function bindGlobalControls() {
     }
 
     const key = event.key.toLowerCase();
+
+    if (key === "a") {
+      event.preventDefault();
+      state.rightDrawerCollapsed = !state.rightDrawerCollapsed;
+      applyDrawerCollapseState({ preserveBoardScreenPosition: true });
+      setStatus(state.rightDrawerCollapsed ? "Info drawer collapsed." : "Info drawer expanded.");
+      return;
+    }
+
+    if (key === "s") {
+      event.preventDefault();
+      state.leftDrawerCollapsed = !state.leftDrawerCollapsed;
+      applyDrawerCollapseState({ preserveBoardScreenPosition: true });
+      setStatus(state.leftDrawerCollapsed ? "Tile drawer collapsed." : "Tile drawer expanded.");
+      return;
+    }
 
     if (key === "d") {
       event.preventDefault();

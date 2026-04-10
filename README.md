@@ -114,9 +114,11 @@ Every tile set has paired light and dark UI themes — twelve total. Themes shif
 
 ## How To Use It
 
+In the standard desktop layout, the Info Drawer is on the left and the Tile Drawer is on the right. Compact mode keeps the compact tile rail on the left and hides the Info Drawer.
+
 1. **Choose a tile set** from the dropdown in the top bar. The interface theme shifts to match.
 
-2. **Six tiles appear in the tray.** These are your active tiles for this round, drawn from the set's nine regular tiles. Three more sit in reserve below.
+2. **Six tiles appear in the right-side tray.** These are your active tiles for this round, drawn from the set's nine regular tiles. Three more sit in reserve below.
 
 3. **Start from the entrance tile** already placed on the board. It snaps to the hex grid automatically at round start. You can rotate it in 90° steps with `W`/`E` — but only before placing the first regular tile.
 
@@ -316,12 +318,14 @@ The application is a single-page vanilla JavaScript app — one HTML file, one C
 
 | Key | Action |
 |-----|--------|
+| `A` | Toggle the left-side Info Drawer |
+| `S` | Toggle the right-side Tile Drawer |
 | `W` | Rotate tile counter-clockwise |
 | `E` | Rotate tile clockwise |
 | `R` | Auto Build (random layout) |
 | `X` | Reset all tiles and boss tokens |
 | `B` | Spawn random boss |
-| `D` | Toggle left and right drawers |
+| `D` | Toggle both drawers |
 | `Z` | Reset zoom and board pan |
 
 Rotation targets the tile under the cursor. Entrance tiles rotate in 90° steps; regular tiles in 60° steps.

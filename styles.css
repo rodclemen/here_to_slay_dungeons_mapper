@@ -982,19 +982,8 @@ button:hover {
 }
 
 .drawer-right {
-  right: 0;
-  width: var(--right-drawer-width);
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-radius: 0;
-  background: var(--drawer-side-bg-right);
-  box-shadow: var(--drawer-side-shadow-right);
-}
-
-.drawer-left {
   left: 0;
-  width: var(--left-drawer-width);
+  width: var(--right-drawer-width);
   border-top: 0;
   border-left: 0;
   border-bottom: 0;
@@ -1003,12 +992,24 @@ button:hover {
   box-shadow: var(--drawer-side-shadow-left);
 }
 
+.drawer-left {
+  right: 0;
+  width: var(--left-drawer-width);
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  background: var(--drawer-side-bg-right);
+  box-shadow: var(--drawer-side-shadow-right);
+}
+
 .drawer-left .drawer-toolbar {
   position: absolute;
   top: 10px;
   left: 10px;
   right: 10px;
   z-index: 20;
+  flex-direction: row-reverse;
 }
 
 .drawer-left .drawer-content {
@@ -1108,7 +1109,7 @@ body.right-drawer-collapsed .drawer-right .drawer-toolbar h2 {
 
 body.left-drawer-collapsed .drawer-left .drawer-toolbar {
   top: 10px;
-  left: 0;
+  right: 0;
   z-index: 20;
   pointer-events: auto;
 }
@@ -1125,7 +1126,7 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left .drawer-toolbar h2 {
 body.right-drawer-collapsed .drawer-right .drawer-toolbar {
   position: absolute;
   top: 10px;
-  right: 0;
+  left: 0;
   z-index: 20;
   pointer-events: auto;
 }
@@ -1844,8 +1845,8 @@ body.multi-set-preview-mode .board {
   backface-visibility: visible;
 }
 
-body:not(.right-drawer-collapsed) .board-zoom-indicator {
-  right: calc(var(--right-drawer-width) + 10px);
+body:not(.left-drawer-collapsed) .board-zoom-indicator {
+  right: calc(var(--left-drawer-width) + 10px);
 }
 
 .board .board-zoom-indicator {
@@ -3905,6 +3906,15 @@ body.compact-sidepanel-mode .drawer {
 body.compact-sidepanel-mode .drawer-left {
   width: 72px !important;
   left: 0;
+  right: auto;
+  border-left: 0;
+  border-right: 1px solid var(--drawer-border);
+  background: var(--drawer-side-bg-left);
+  box-shadow: var(--drawer-side-shadow-left);
+}
+
+body.compact-sidepanel-mode .board-zoom-indicator {
+  right: 12px;
 }
 
 body.compact-sidepanel-mode .drawer-right {

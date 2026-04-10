@@ -427,12 +427,12 @@
       <h2>Getting Started</h2>
       <div class="section-grid">
         <div>
-          <p>When you open the mapper, the board sits in the middle, the tile tray is on the left, and the boss and feedback area is on the right. The entrance tile is placed automatically together with the dungeon reference card. The tool then selects six random dungeon tiles and keeps the remaining three in reserve.</p>
+          <p>When you open the mapper, the board sits in the middle, the boss and feedback area is on the left, and the tile tray is on the right. The entrance tile is placed automatically together with the dungeon reference card. The tool then selects six random dungeon tiles and keeps the remaining three in reserve.</p>
           <p>The visual assets shown here are currently framework-first placeholders for ongoing development. As official graphics are finalized and released, they can be swapped into the existing structure without having to rebuild the placement logic around them.</p>
           <p>Your first job is simple: build a dungeon around the entrance tile. You can do that manually by dragging tiles from the tray, or you can let the Auto Build button do the heavy lifting.</p>
           <ul>
             <li>Choose a tile set from the top bar.</li>
-            <li>Review the six selected tiles in the left drawer.</li>
+            <li>Review the six selected tiles in the right drawer.</li>
             <li>Drag tiles onto the board and rotate them as needed.</li>
             <li>When placing a tile, a green or red outline will tell you if the placement is allowed.</li>
             <li>The feedback panel will give info for placement success or warnings.</li>
@@ -455,7 +455,7 @@
         </div>
         <div class="card">
           <h3>Left Drawer</h3>
-          <p>This is the Tile Drawer. It contains the six selected tiles for the current build and the reserve pile for inactive tiles.</p>
+          <p>This is the Info Drawer. It contains the Boss Selection pile and the Placement Feedback area, including checklist progress and status messages.</p>
         </div>
         <div class="card">
           <h3>Board</h3>
@@ -463,7 +463,7 @@
         </div>
         <div class="card">
           <h3>Right Drawer</h3>
-          <p>In the standard desktop layout, this drawer contains the Boss Selection pile and the Placement Feedback area, including checklist progress and status messages. In compact mode, the boss section moves into the left drawer and the right drawer is collapsed away.</p>
+          <p>In the standard desktop layout, this is the Tile Drawer. It contains the six selected tiles for the current build and the reserve pile for inactive tiles. In compact mode, the compact tile rail stays on the left and the Info Drawer is hidden.</p>
         </div>
       </div>
       <div class="callout">
@@ -511,7 +511,7 @@
         </div>
         <div class="card">
           <h3>Status Messages</h3>
-          <p>The right drawer explains why a tile is valid, invalid, returning to the tray, or causing some other change in state.</p>
+          <p>The left drawer explains why a tile is valid, invalid, returning to the tray, or causing some other change in state.</p>
         </div>
         <div class="card">
           <h3>Checklist</h3>
@@ -590,7 +590,7 @@
       <h2>Boss Cards</h2>
       <div class="section-grid">
         <div>
-          <p>The Boss Selection pile is in the right drawer during the standard layout. In compact mode it moves into the left drawer. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
+          <p>The Boss Selection pile is in the left drawer during the standard layout. In compact mode it moves into the compact tile rail. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
           <p>Once placed, boss tokens snap to magnet positions around the reference card. They can be moved later, and dragging a placed boss back to the pile or info drawer returns it cleanly.</p>
         </div>
         <div class="card">
@@ -627,6 +627,11 @@
         </thead>
         <tbody>
           <tr>
+            <td><span class="kbd">A</span></td>
+            <td>Collapse or expand the left-side Info Drawer.</td>
+            <td>When you are not typing into an input.</td>
+          </tr>
+          <tr>
             <td><span class="kbd">B</span></td>
             <td>Spawn a random boss.</td>
             <td>When you are not typing into an input.</td>
@@ -650,6 +655,11 @@
             <td><span class="kbd">W</span></td>
             <td>Rotate the hovered or selected tile counter-clockwise.</td>
             <td>When a tile is hovered or selected and you are not typing into an input.</td>
+          </tr>
+          <tr>
+            <td><span class="kbd">S</span></td>
+            <td>Collapse or expand the right-side Tile Drawer.</td>
+            <td>When you are not typing into an input.</td>
           </tr>
           <tr>
             <td><span class="kbd">X</span></td>
