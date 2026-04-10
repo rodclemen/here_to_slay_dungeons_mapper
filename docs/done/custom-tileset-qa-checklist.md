@@ -20,8 +20,8 @@ Focus:
 
 Use this together with:
 
-- [custom-tileset-plan.md](./done/custom-tileset-plan.md)
-- [custom-tileset-refactor-checklist.md](./done/custom-tileset-refactor-checklist.md)
+- [custom-tileset-plan.md](./custom-tileset-plan.md)
+- [custom-tileset-refactor-checklist.md](./custom-tileset-refactor-checklist.md)
 
 ## Test setup
 

@@ -44,7 +44,7 @@ As of `2026-04-09`, the main refactor is effectively complete for v1:
 
 What remains is mostly QA and deferred cleanup, not missing core workflow.
 
-The Phase 1 verification pass now lives in [custom-tileset-qa-checklist.md](../custom-tileset-qa-checklist.md).
+The Phase 1 verification pass now lives in [custom-tileset-qa-checklist.md](./custom-tileset-qa-checklist.md).
 
 ## Current v1 assumptions
 
