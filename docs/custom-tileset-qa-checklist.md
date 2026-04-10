@@ -2,6 +2,8 @@
 
 This checklist is the Phase 1 cleanup pass for the custom-tileset refactor.
 
+Status: completed and working, confirmed by manual QA.
+
 Focus:
 
 - verify the end-to-end user workflow in the browser
@@ -10,8 +12,8 @@ Focus:
 
 Use this together with:
 
-- [custom-tileset-plan.md](./custom-tileset-plan.md)
-- [custom-tileset-refactor-checklist.md](./custom-tileset-refactor-checklist.md)
+- [custom-tileset-plan.md](./done/custom-tileset-plan.md)
+- [custom-tileset-refactor-checklist.md](./done/custom-tileset-refactor-checklist.md)
 
 ## Test setup
 

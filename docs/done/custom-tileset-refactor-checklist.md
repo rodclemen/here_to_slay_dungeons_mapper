@@ -8,7 +8,9 @@ The goal is not just "support import". The goal is:
 - built-in and custom tilesets use the same runtime model
 - image loading, wall data, boss data, share links, and UI theme selection do not depend on repo-only file paths
 
-Use this together with [custom-tileset-plan.md](./custom-tileset-plan.md) and [custom-tileset-qa-checklist.md](./custom-tileset-qa-checklist.md).
+Use this together with [custom-tileset-plan.md](./custom-tileset-plan.md) and [custom-tileset-qa-checklist.md](../custom-tileset-qa-checklist.md).
+
+Status: completed and archived after the custom tileset QA pass was confirmed working.
 
 ## Progress log
 
@@ -52,7 +54,7 @@ Do a final QA sweep rather than another structural refactor:
 - test bulk custom backup export with a mix of complete and incomplete local custom sets
 - verify the local-data notice triggers and backup actions after built-in and custom edits
 
-Use [custom-tileset-qa-checklist.md](./custom-tileset-qa-checklist.md) as the working Phase 1 verification pass.
+Use [custom-tileset-qa-checklist.md](../custom-tileset-qa-checklist.md) as the working Phase 1 verification pass.
 
 Working note:
 
