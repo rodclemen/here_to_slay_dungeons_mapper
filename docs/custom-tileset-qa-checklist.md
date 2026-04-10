@@ -4,6 +4,14 @@ This checklist is the Phase 1 cleanup pass for the custom-tileset refactor.
 
 Status: completed and working, confirmed by manual QA.
 
+## QA Result
+
+Completed manually on 2026-04-10.
+
+Result: passed.
+
+Notes: custom create/import/edit/export/delete, local persistence, duplicate import handling, bulk backup export, share fallback, helper HTML, and built-in/custom editor separation were confirmed working.
+
 Focus:
 
 - verify the end-to-end user workflow in the browser
