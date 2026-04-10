@@ -47,11 +47,6 @@
                 <div id="ui-theme-dropdown" class="ui-theme-dropdown" role="menu" hidden></div>
                 <select id="ui-theme-select" aria-label="UI Theme" hidden></select>
               </div>
-              <button id="toggle-wall-edit-btn" type="button">Tile Editor</button>
-              <label for="auto-theme-toggle-checkbox">
-                <input id="auto-theme-toggle-checkbox" type="checkbox" />
-                <span>Auto Theme</span>
-              </label>
               <label>
                 <input id="toggle-face-feedback-checkbox" type="checkbox" />
                 <span>Placement feedback: Faces</span>
@@ -79,7 +74,7 @@
               </label>
               <label>
                 <input id="toggle-ignore-contact-checkbox" type="checkbox" />
-                <span>Ignore 2-Face Rule</span>
+                <span>Ignore 2 face connection rule</span>
               </label>
               </div>
               <details class="auto-build-tuning-panel dev-only" id="auto-build-tuning-panel">
@@ -98,6 +93,7 @@
               </details>
             </div>
           </details>
+          <button id="toggle-wall-edit-btn" class="topbar-editor-btn" type="button">Tile Editor</button>
           <div class="quick-actions-menu" id="quick-actions-menu">
             <button
               id="quick-actions-trigger"
@@ -116,6 +112,7 @@
               </svg>
             </button>
             <div id="quick-actions-dropdown" class="quick-actions-dropdown" role="menu" hidden>
+              <button id="auto-theme-toggle-btn" class="quick-action-option" type="button" role="menuitem" aria-pressed="false">Auto Theme: Off</button>
               <button id="copy-share-link-btn" class="quick-action-option" type="button" role="menuitem">Copy Share Link</button>
               <button id="export-pdf-btn" class="quick-action-option" type="button" role="menuitem">Export PDF</button>
             </div>
@@ -276,18 +273,18 @@
                   <span>Boss selected</span>
                 </div>
               </div>
-              <div id="local-data-notice" class="local-data-notice" role="note" hidden>
-                <div class="local-data-notice-head">
-                  <strong id="local-data-notice-title">Local Data Notice</strong>
-                  <button id="local-data-notice-dismiss-btn" class="local-data-notice-dismiss" type="button" aria-label="Dismiss local data notice">Dismiss</button>
-                </div>
-                <p id="local-data-notice-body" class="local-data-notice-body"></p>
-                <div class="local-data-notice-actions">
-                  <button id="local-data-notice-action-btn" class="local-data-notice-action" type="button" hidden></button>
-                </div>
-              </div>
               <div id="status" class="status" role="status" aria-live="polite" aria-label="Placement Feedback"></div>
             </section>
+            <div id="local-data-notice" class="local-data-notice" role="note" hidden>
+              <div class="local-data-notice-head">
+                <strong id="local-data-notice-title">Local Data Notice</strong>
+              </div>
+              <p id="local-data-notice-body" class="local-data-notice-body"></p>
+              <div class="local-data-notice-actions">
+                <button id="local-data-notice-action-btn" class="local-data-notice-action" type="button" hidden></button>
+                <button id="local-data-notice-dismiss-btn" class="local-data-notice-dismiss" type="button" aria-label="Dismiss local data notice">Dismiss</button>
+              </div>
+            </div>
           </div>
         </aside>
       </section>

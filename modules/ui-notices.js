@@ -1,13 +1,19 @@
 export function buildLocalDataNotice(kind, options = {}) {
   const tileSetLabel = String(options.tileSetLabel || "").trim();
+  const tileSetLabels = Array.isArray(options.tileSetLabels)
+    ? options.tileSetLabels.map((label) => String(label || "").trim()).filter(Boolean)
+    : [];
 
   if (kind === "custom") {
     return {
       title: "Custom Tile Set Saved Locally",
-      body: `${tileSetLabel || "This custom tile set"} is stored only in this browser. Reloads and browser restarts are fine, but clearing site data or moving to another browser/device can lose it. Export the custom tile set if you want a backup or something you can share.`,
-      actionLabel: "Export This Custom Set",
+      bodyParts: [
+        { text: "Custom tile sets are only stored in this browser. Reloads and browser restarts are fine, but clearing site data or moving to another browser/device can lose them. Export custom tile sets if you want a backup or something you can share." },
+      ],
+      attentionLabels: tileSetLabels.length ? tileSetLabels : (tileSetLabel ? [tileSetLabel] : []),
+      actionLabel: "Save",
       actionContext: options.tileSetId
-        ? { type: "export_custom_tile_set", tileSetId: options.tileSetId }
+        ? { type: "open_tile_editor_backup", tileSetId: options.tileSetId }
         : null,
     };
   }
