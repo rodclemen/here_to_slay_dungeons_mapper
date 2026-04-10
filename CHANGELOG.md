@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-04-10
+- Reworked the PDF preview window so it now shows a toolbar with Print/Close controls and renders the layout inside the frame, which removes the stale loading text and avoids relying on a Tauri right-click menu that never showed up.
+- Switched PDF export to a dedicated preview page that works in both the browser and Tauri, so the export now opens from a real window instead of stalling on the old popup path.
+- Granted the Tauri shell webview window creation permission so the PDF export preview can actually open instead of falling back to a hidden iframe.
+- Made the Tauri PDF export follow the same preview-first flow as the web app so it opens the generated layout page instead of trying to print immediately.
+- Made the web-app PDF preview window taller so the generated export page opens with more vertical room before you choose print/save.
+- Restored the web-app PDF export to preview-first behavior: it now opens the generated export page in a browser window and leaves printing to the user instead of auto-triggering the print dialog.
+- Granted the Tauri desktop shell the webview print permission so the existing PDF export flow can actually open the print dialog instead of failing silently in the app.
+- Fixed the Local Data Notice container itself so the dismissed box now actually disappears, and persisted the suppression in session storage so a browser refresh does not immediately bring the same notice back.
+- Fixed the Local Data Notice dismissal flow so the box stays hidden after dismissing it and only reappears after the next real custom edit explicitly re-enables notices.
+- Made the Local Data Notice a true one-shot panel: it now stays hidden after dismissal and only reappears after the next real custom edit clears the suppression state.
+- Kept the Local Data Notice box fully hidden unless a real notice is being shown, and clear its stale title/body text again when it hides so both the web app and Tauri app stop reserving space for an empty notice panel.
+- Aligned the Tauri data-folder seed with the requested defaults so a fresh profile now writes `system` appearance mode, `molten_dark` UI theme, `molten` light fallback, `molten_dark` dark fallback, the requested board toggles, and the current auto-build tuning instead of inheriting stale local state.
+- Moved the Tauri data-folder prompt out of the startup critical path so the app renders first, then asks once per session instead of re-opening the picker every time the user visits Guide or switches back to Build View.
+- Fixed the startup-breaking PDF export typo that was preventing the rebuilt bundle from loading, and kept PDF export working by falling back from a popup window to a hidden print frame when the popup path is blocked.
+- Persisted the remaining cogwheel toggles in the data-folder settings so Show Numbers, Show Walls, Show Portal Flags, Ignore Contact Rule, Face Feedback, and All Bosses survive relaunches, and moved PDF export onto a hidden print frame so it works without relying on a popup window.
+- Removed the hard startup stop that left the Tauri board empty when tile-set readiness came back wrong after a data-folder switch; the app now tries to load the selected set anyway and falls back to another built-in set if the first load fails.
+- Hardened Tauri startup so the app no longer stops on a false "no ready tile sets" pass after choosing a data folder; it now falls back to a built-in set instead of leaving the board empty, and the active tile-set choice is stored in the folder settings.
+- Added a Tauri-only data folder profile so the desktop app can store settings and custom tile sets outside webview storage, reload that folder on launch, recreate missing settings files with defaults, and let users pick a new folder when they want to move the live data.
+- Disabled and greyed out the Tile Editor `Export All Custom Tile Sets` toolbar button when no custom tile sets exist, instead of leaving an unavailable export action active.
+- Added the explicit Tauri dialog permission and stopped desktop exports from silently falling back to Downloads when the save dialog fails.
+- Added a Tauri save-location picker for custom tile-set exports so desktop users can choose where zip files are written instead of always saving to `~/Downloads`.
+- Made Tile Editor point-edit handles easier to grab by adding a larger invisible hit target around each guide point without changing the visible guide shape.
+- Removed dev-only control references from the Guide copy so normal users only see documented controls that are meant for them.
+- Audited the Guide copy against the current mapper UI and corrected stale descriptions for the top bar, Quick Actions, Advanced Tools, drawer positions, Auto Build behavior, Tile Editor export/reset behavior, and entrance rotation.
+- Reworked the Guide page's Understanding the Layout section so the Top Bar explanation gets a taller primary card while Board, Left Drawer, and Right Drawer sit together in the opposite column.
+- Updated the Guide page theme hookup so it resolves the same saved/current light or dark theme as the mapper, including system appearance mode, and refreshes when theme preferences change in another tab.
+- Added the Tauri window-state plugin so the desktop app remembers window size and position between launches instead of always reopening at the default dimensions.
+- Increased the Tauri app's default opening window height from 1000px to 1150px so the desktop shell starts with more vertical room.
+- Added transparent padding to `HtSD_mapper_icon.png`, regenerated the Tauri desktop icon set, and rebuilt the macOS `.app` so the Dock icon reads closer to standard app icon sizing.
+- Swapped the Tauri app icon over to `HtSD_mapper_icon.png` by generating the standard desktop icon assets under `src-tauri/icons/` and pointing the bundle config at them.
+- Fixed Tauri custom tile-set actions: replaced `window.prompt()` with an in-app naming dialog, added a Rust zip-inflate fallback for compressed custom-set imports, and added a Tauri download fallback that writes exported zip blobs to `~/Downloads`.
+- Dimmed the Tile Editor add/import/export toolbar actions while Point Edit mode is active and highlighted the active Point Edit icon so the mode is visible without shifting toolbar layout.
+- Added a Tile Editor-only `Reset Tile Points` action to the cogwheel menu that clears built-in guide-point templates back to the current baked defaults, while leaving custom tile sets untouched.
+- Removed the board reference-card drop shadow so resting support cards match the flatter placed boss-card treatment.
+- Reduced boss-card ghosting when dragging from the drawer by moving boss-pile drag previews onto the same `translate3d`/composited rendering path used by already-placed boss tokens.
+- Matched boss-card depth to tile behavior by showing the boss token drop shadow only while dragging, not while the boss card is placed on the board.
+- Locked the Entrance Tile against manual rotation: entrance tiles no longer render rotate controls, and the shared rotation handler now blocks keyboard/control rotation attempts while resetting any attempted entrance rotation back to 0 degrees.
+- Started the Tauri desktop-app wrapper as the first non-invasive slice: added `package.json` scripts for `tauri dev` and `tauri build`, a static runtime copy step into `dist/tauri`, and a minimal `src-tauri/` Tauri v2 shell that points at the copied browser app instead of bundling the whole repo.
+- Added Tauri bundle metadata for the macOS app name, identifier, app/dmg targets, window sizing, and existing `icons/d20.png` icon source so the first desktop build has project-specific defaults.
+- Installed the minimal Rust toolchain with rustup and completed the first debug Tauri build, producing both a local macOS `.app` and debug `.dmg` from the existing browser app shell.
+- Documented the current Tauri status and next QA step in `docs/tauri-app-plan.md`, including the build outputs and the remaining webview checks.
+- Ignored generated Tauri web output, installed Node dependencies, generated Tauri schema output, and Rust build artifacts with `/dist/`, `/node_modules/`, `/src-tauri/gen/schemas/`, and `/src-tauri/target/` so local desktop builds do not pollute the working tree.
+- Session note: Rust was missing, which is one way for a desktop app to remain extremely theoretical.
+- Session note: Spent the afternoon teaching the app where it lives. The folder complied eventually.
+- Session note: One extra parenthesis, several broken launches, and a stubborn print path later, the app remembered how to breathe.
+- Session note: One fallback theme was still freelancing as Overgrown. It has been recalled.
+
 ## 2026-04-09
 - Added a browser-local QA checklist tracker: `modules/dev-qa-checks.js` now records supported user actions and interactions, `qa-checks.html` renders them on a separate page, and `qa-checks-bridge.html` plus polling/BroadcastChannel/localStorage syncing keep the checklist updated across tabs while testing.
 - Instrumented the main app in `app.js` so the QA tracker marks real user-facing actions such as Auto Build, reroll, reset, tile-set changes, share/export actions, settings toggles, compact-mode activation, board zoom changes, and successful tile placement.
