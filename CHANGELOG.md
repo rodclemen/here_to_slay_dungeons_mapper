@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-11
+- Refreshed the bundled `about_banner.png` and `mapper_logo.png` image assets so the Guide banner and collapsed-logo branding use the latest artwork revisions instead of the older exported graphics.
 - Fixed the left/right drawer refactor properly instead of relying on inverted internal naming: the left drawer markup/CSS/JS now maps to the visual Info Drawer, the right drawer now maps to the visual Tile Drawer, collapse labels and keyboard shortcuts (`A` left / `S` right) now match the real layout, and compact mode still keeps the Tile Drawer rail on the left while hiding the Info Drawer.
 - Tightened the compact-mode top bar so the main `Here to Slay: DUNGEONS Mapper` title renders smaller, `Guide` abbreviates to `G`, and `Tile Editor` abbreviates to `TE` while preserving full `title` / `aria-label` text for clarity.
 - Moved the completed maintenance and drawer refactor planning docs into `docs/done/` so finished implementation guides stop sitting beside active planning notes, while leaving the still-open optimization, Tauri, and wall-editor planning files in the main `docs/` folder.
