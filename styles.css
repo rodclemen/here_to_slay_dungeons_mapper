@@ -689,8 +689,10 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
 }
 
 .advanced-menu-panel .menu-text-action {
-  display: block;
-  width: calc(100% - 22px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -699,11 +701,17 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   line-height: 1.2;
   padding: 2px 0 0;
   margin: 4px 0 0;
-  margin-left: 22px;
   cursor: pointer;
   text-align: left;
   appearance: none;
   -webkit-appearance: none;
+}
+
+.advanced-menu-panel .menu-text-action::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
 }
 
 .advanced-menu-panel .menu-text-action:hover,
