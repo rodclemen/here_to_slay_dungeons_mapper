@@ -162,6 +162,56 @@ import {
   setActiveWallEditorTile as setActiveWallEditorTileUI,
   syncWallEditorPortalFlag as syncWallEditorPortalFlagUI,
 } from "./modules/wall-editor-ui.js";
+import {
+  applyPlacementFeedbackFromResult as applyPlacementFeedbackFromResultTP,
+  computeBestSnap as computeBestSnapTP,
+  countSideContacts as countSideContactsTP,
+  evaluatePlacementAt as evaluatePlacementAtTP,
+  findBestContact as findBestContactTP,
+  findBestOpenHex as findBestOpenHexTP,
+  getAlphaMask as getAlphaMaskTP,
+  getCachedDragPlacementResult as getCachedDragPlacementResultTP,
+  getCandidateClearanceMetrics as getCandidateClearanceMetricsTP,
+  getContactFaces as getContactFacesTP,
+  getContactMatchDetails as getContactMatchDetailsTP,
+  getFaceGeometry as getFaceGeometryTP,
+  getInvalidContactReason as getInvalidContactReasonTP,
+  getInvalidPlacedTileRotationReason as getInvalidPlacedTileRotationReasonTP,
+  getMatchAlignmentCorrection as getMatchAlignmentCorrectionTP,
+  getMinFaceDistanceToTiles as getMinFaceDistanceToTilesTP,
+  getNearestTile as getNearestTileTP,
+  getOverlapWorldPolygon as getOverlapWorldPolygonTP,
+  getPlacedRegularTileCount as getPlacedRegularTileCountTP,
+  getPlacedTileConnectedNeighbors as getPlacedTileConnectedNeighborsTP,
+  getPlacedTileRotationState as getPlacedTileRotationStateTP,
+  getPlacedTiles as getPlacedTilesTP,
+  getPlacedTilesExcluding as getPlacedTilesExcludingTP,
+  getPlacementFeedbackFaceIndices as getPlacementFeedbackFaceIndicesTP,
+  getSideDirections as getSideDirectionsTP,
+  getSideSamples as getSideSamplesTP,
+  getTileGuideLocalCenter as getTileGuideLocalCenterTP,
+  getTilePoseGeometry as getTilePoseGeometryTP,
+  getTileSnapAnchorForRotation as getTileSnapAnchorForRotationTP,
+  getWorldPolygon as getWorldPolygonTP,
+  handleInvalidDrop as handleInvalidDropTP,
+  hasAnyOverlap as hasAnyOverlapTP,
+  isBlockedContactFace as isBlockedContactFaceTP,
+  isTouchingMoltenEntranceBlockedPoints as isTouchingMoltenEntranceBlockedPointsTP,
+  isTouchingTileStartBlockedPoints as isTouchingTileStartBlockedPointsTP,
+  isWorldPointOnOpaquePixel as isWorldPointOnOpaquePixelTP,
+  moveAwayFromPlacedTiles as moveAwayFromPlacedTilesTP,
+  positionTile as positionTileTP,
+  quantizeSnapCoord as quantizeSnapCoordTP,
+  refreshPlacementGuideDom as refreshPlacementGuideDomTP,
+  revertToTray as revertToTrayTP,
+  rotateTile as rotateTileTP,
+  setPlacementFeedback as setPlacementFeedbackTP,
+  snapTileCenterToHex as snapTileCenterToHexTP,
+  tilesAlphaOverlap as tilesAlphaOverlapTP,
+  updatePlacementFeedback as updatePlacementFeedbackTP,
+  buildInsetPolygon as buildInsetPolygonTP,
+  clearInvalidReturnTimer as clearInvalidReturnTimerTP,
+} from "./modules/tile-placement.js";
 
 const DEV_MODE_ENABLED = (() => {
   const raw = new URLSearchParams(window.location.search).get("dev");
@@ -1421,6 +1471,76 @@ function getWallEditorCtx() {
 function getWallEditorGroups() {
   return getWallEditorGroupsUI(getWallEditorCtx());
 }
+
+function getTilePlacementCtx() {
+  return {
+    state,
+    board,
+    get boardWidth() { return board.clientWidth; },
+    get boardHeight() { return board.clientHeight; },
+    // Constants
+    TILE_SIZE,
+    SIDES,
+    SNAP_SEARCH_RADIUS,
+    SNAP_VISUAL_GAP,
+    SNAP_POINT_GAP,
+    SNAP_COORD_QUANTUM,
+    OPPOSITE_NORMAL_THRESHOLD,
+    CONTACT_DISTANCE_RATIO,
+    FACE_TANGENT_ALIGNMENT,
+    MIN_CONTACT_POINTS,
+    END_TILE_MAX_CONNECTED_FACES,
+    ROTATION_STEP,
+    ENTRANCE_BLOCKED_FACE_INDICES,
+    BLOCKED_POINT_TOUCH_RADIUS,
+    ENTRANCE_TILE_ID,
+    OVERLAP_POLYGON_INSET_PX,
+    TILE_POSE_GEOMETRY_CACHE_LIMIT,
+    INVALID_RETURN_DELAY_MS,
+    INVALID_DROP_PUSH_PX,
+    // Caches
+    tilePoseGeometryCache,
+    tileSideDirectionsCache,
+    // Module values (unwrapped)
+    getTilePoseGeometryValue,
+    getSideDirectionsValue,
+    buildInsetPolygonValue,
+    hasAnyOverlapValue,
+    findBestContactValue,
+    countSideContactsValue,
+    getContactMatchDetailsValue,
+    isWorldPointOnOpaquePixelValue,
+    getAlphaMaskValue,
+    getFaceGeometryValue,
+    getSideSamplesValue,
+    getMatchAlignmentCorrectionValue,
+    // Geometry
+    normalizeAngle,
+    getPolygonBounds,
+    boundsOverlap,
+    pointInPolygonStrict,
+    polygonsOverlap,
+    clamp,
+    // Tile helpers
+    isEntranceTile,
+    hasPortalFlag,
+    getGuideFacePoints,
+    getWallFaceSignature,
+    getTileDisplayLabel,
+    snapBoardPointToHex,
+    getBoardHexLayout,
+    // UI / DOM
+    setStatus,
+    updateTileTransform,
+    scheduleBoardHexGridRender,
+    updateTileParent,
+    selectTile,
+    placeTileInTray,
+    updatePlacedProgress,
+    syncRegularTileActivityFromSlotOrder,
+  };
+}
+
 let defaultWallFaceData = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
@@ -8960,588 +9080,155 @@ function finishDrop(tile, placedTiles = null) {
 }
 
 function snapTileCenterToHex(tile, tileCenterX, tileCenterY) {
-  const anchor = getTileSnapAnchorForRotation(tile, tile.rotation || 0);
-  const desiredGuideX = tileCenterX + anchor.x;
-  const desiredGuideY = tileCenterY + anchor.y;
-  const snappedGuide = snapBoardPointToHex(desiredGuideX, desiredGuideY);
-  const entranceYOffset = isEntranceTile(tile) ? 12 : 0;
-  return {
-    x: quantizeSnapCoord(snappedGuide.x - anchor.x),
-    y: quantizeSnapCoord(snappedGuide.y - anchor.y + entranceYOffset),
-  };
+  return snapTileCenterToHexTP(tile, tileCenterX, tileCenterY, getTilePlacementCtx());
 }
 
 function quantizeSnapCoord(value, quantum = SNAP_COORD_QUANTUM) {
-  if (!Number.isFinite(value)) return value;
-  const q = Number.isFinite(quantum) && quantum > 0 ? quantum : 1;
-  return Number((Math.round(value / q) * q).toFixed(4));
+  return quantizeSnapCoordTP(value, quantum);
 }
 
 function getTileSnapAnchorForRotation(tile, rotationDeg) {
-  if (!isEntranceTile(tile)) return { x: 0, y: 0 };
-  const local = getTileGuideLocalCenter(tile);
-  const rad = (rotationDeg * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  // Entrance art is vertically biased; use a damped Y-only anchor correction.
-  const entranceAnchorScaleY = 0.32;
-  return {
-    x: 0,
-    y: (local.x * sin + local.y * cos) * entranceAnchorScaleY,
-  };
+  return getTileSnapAnchorForRotationTP(tile, rotationDeg, getTilePlacementCtx());
 }
 
 function getTileGuideLocalCenter(tile) {
-  const points = getGuideFacePoints(tile);
-  if (!points?.length) return { x: 0, y: 0 };
-  let sx = 0;
-  let sy = 0;
-  for (const p of points) {
-    sx += p.x;
-    sy += p.y;
-  }
-  return {
-    x: sx / points.length,
-    y: sy / points.length,
-  };
+  return getTileGuideLocalCenterTP(tile, getTilePlacementCtx());
 }
 
 function getPlacedTileRotationState(tile, otherTiles) {
-  const contact = findBestContact(tile, otherTiles);
-  const overlaps = hasAnyOverlap(tile, otherTiles);
-  return {
-    valid: contact.valid && !overlaps,
-    overlaps,
-    count: contact.count,
-    faceIndices: contact.faceIndices || [],
-    touchingFaceIndices: contact.touchingFaceIndices || [],
-    contact,
-  };
+  return getPlacedTileRotationStateTP(tile, otherTiles, getTilePlacementCtx());
 }
 
 function getPlacementFeedbackFaceIndices(result) {
-  const validFaceIndices = (result?.faceIndices || []).filter((v) => Number.isInteger(v));
-  const validSet = new Set(validFaceIndices);
-  const invalidFaceIndices = (result?.touchingFaceIndices || []).filter(
-    (v) => Number.isInteger(v) && !validSet.has(v),
-  );
-  return { validFaceIndices, invalidFaceIndices };
+  return getPlacementFeedbackFaceIndicesTP(result);
 }
 
 function applyPlacementFeedbackFromResult(tile, result) {
-  if (!result || (!result.overlaps && (result.touchingFaceIndices?.length || 0) === 0)) {
-    setPlacementFeedback(tile, null);
-    return;
-  }
-  const { validFaceIndices, invalidFaceIndices } = getPlacementFeedbackFaceIndices(result);
-  if (result.valid && !result.overlaps) {
-    setPlacementFeedback(tile, true, validFaceIndices, invalidFaceIndices);
-    return;
-  }
-  setPlacementFeedback(tile, false, [], result.touchingFaceIndices || []);
+  applyPlacementFeedbackFromResultTP(tile, result, getTilePlacementCtx());
 }
 
 function getPlacedTileConnectedNeighbors(tile, otherTiles) {
-  return (Array.isArray(otherTiles) ? otherTiles : []).filter((other) => countSideContacts(tile, other) > 0);
+  return getPlacedTileConnectedNeighborsTP(tile, otherTiles, getTilePlacementCtx());
 }
 
 function getInvalidPlacedTileRotationReason(result) {
-  if (result?.overlaps) return "Tiles cannot overlap.";
-  return getInvalidContactReason(result?.contact);
+  return getInvalidPlacedTileRotationReasonTP(result);
 }
 
 function rotateTile(tile, delta) {
-  if (state.wallEditMode) {
-    setStatus("Rotation is disabled in Tile Editor.", true);
-    return;
-  }
-  if (isEntranceTile(tile)) {
-    if (tile.rotation !== 0) {
-      tile.rotation = 0;
-      updateTileTransform(tile);
-      scheduleBoardHexGridRender();
-    }
-    setStatus("Entrance Tile rotation is locked.", true);
-    return;
-  } else {
-    const direction = delta < 0 ? -1 : 1;
-    const previousRotation = tile.rotation;
-    const otherPlacedTiles = tile.placed ? getPlacedTilesExcluding(tile) : null;
-    const connectedNeighborsBefore = tile.placed
-      ? getPlacedTileConnectedNeighbors(tile, otherPlacedTiles)
-      : [];
-    tile.rotation = normalizeAngle(tile.rotation + delta);
-    if (tile.placed && otherPlacedTiles) {
-      let result = getPlacedTileRotationState(tile, otherPlacedTiles);
-      if (!result.valid && connectedNeighborsBefore.length === 1) {
-        const step = ROTATION_STEP * direction;
-        let attempts = Math.max(1, Math.round(360 / ROTATION_STEP) - 1);
-        while (!result.valid && attempts > 0) {
-          tile.rotation = normalizeAngle(tile.rotation + step);
-          result = getPlacedTileRotationState(tile, otherPlacedTiles);
-          attempts -= 1;
-        }
-      }
-      updateTileTransform(tile);
-      applyPlacementFeedbackFromResult(tile, result);
-      if (!result.valid) {
-        tile.rotation = normalizeAngle(tile.rotation);
-        setStatus(
-          connectedNeighborsBefore.length >= 2
-            ? `Rotation made ${getTileDisplayLabel(tile.tileId)} invalid. ${getInvalidPlacedTileRotationReason(result)} Fix this tile manually.`
-            : `Rotation broke placement for ${getTileDisplayLabel(tile.tileId)}. ${getInvalidPlacedTileRotationReason(result)}`,
-          true,
-        );
-        return;
-      }
-      const autoAdvanced = tile.rotation !== normalizeAngle(previousRotation + delta);
-      setStatus(
-        autoAdvanced
-          ? `${getTileDisplayLabel(tile.tileId)} auto-rotated to ${tile.rotation}° to keep a valid placement. Contact points: ${result.count}.`
-          : `${getTileDisplayLabel(tile.tileId)} rotated to ${tile.rotation}°. Contact points: ${result.count}.`,
-      );
-      return;
-    }
-  }
-  updateTileTransform(tile);
-  if (isEntranceTile(tile)) {
-    scheduleBoardHexGridRender();
-  }
+  rotateTileTP(tile, delta, getTilePlacementCtx());
 }
 
 function findBestContact(tile, otherTiles, options = {}) {
-  return findBestContactValue(tile, otherTiles, options, {
-    enforceEndTileMaxConnectedFaces: END_TILE_MAX_CONNECTED_FACES,
-    minContactPoints: MIN_CONTACT_POINTS,
-    hasPortalFlag,
-    isTouchingMoltenEntranceBlockedPoints,
-    getContactMatchDetails: (a, b) => getContactMatchDetails(a, b),
-  });
+  return findBestContactTP(tile, otherTiles, getTilePlacementCtx(), options);
 }
 
 function getInvalidContactReason(result) {
-  if (result?.endTileDisallowed) {
-    return "This tile is an end tile (3 connected faces) but is not marked as allowed for end placement in Tile Editor.";
-  }
-  return "Need at least 2 connected faces on one placed tile (4 points).";
+  return getInvalidContactReasonTP(result);
 }
 
 function countSideContacts(a, b) {
-  return countSideContactsValue(a, b, {
-    getContactFaces,
-    contactDistanceRatio: CONTACT_DISTANCE_RATIO,
-    isTouchingTileStartBlockedPoints,
-    blockedPointTouchRadius: BLOCKED_POINT_TOUCH_RADIUS,
-    isBlockedContactFace,
-    oppositeNormalThreshold: OPPOSITE_NORMAL_THRESHOLD,
-    faceTangentAlignment: FACE_TANGENT_ALIGNMENT,
-  });
+  return countSideContactsTP(a, b, getTilePlacementCtx());
 }
 
 function getContactMatchDetails(a, b) {
-  return getContactMatchDetailsValue(a, b, {
-    getContactFaces,
-    contactDistanceRatio: CONTACT_DISTANCE_RATIO,
-    isTouchingTileStartBlockedPoints,
-    blockedPointTouchRadius: BLOCKED_POINT_TOUCH_RADIUS,
-    isBlockedContactFace,
-    oppositeNormalThreshold: OPPOSITE_NORMAL_THRESHOLD,
-    faceTangentAlignment: FACE_TANGENT_ALIGNMENT,
-  });
+  return getContactMatchDetailsTP(a, b, getTilePlacementCtx());
 }
 
-function computeBestSnap(
-  tile,
-  otherTiles,
-  targetX,
-  targetY,
-  maxDelta = SNAP_SEARCH_RADIUS,
-  requireNoOverlap = true,
-  options = {},
-) {
-  let best = null;
-  const aDirs = getSideDirections(tile);
-  const evalPlacement = typeof options?.evalFn === "function"
-    ? options.evalFn
-    : (cx, cy) => evaluatePlacementAt(tile, otherTiles, cx, cy, options);
-
-  for (const other of otherTiles) {
-    const bDirs = getSideDirections(other);
-
-    for (let i = 0; i < aDirs.length; i += 1) {
-      const aDir = aDirs[i];
-      for (let j = 0; j < bDirs.length; j += 1) {
-        const bDir = bDirs[j];
-        const dot = aDir.nx * bDir.nx + aDir.ny * bDir.ny;
-        if (dot > OPPOSITE_NORMAL_THRESHOLD) continue;
-
-        let cx = other.x + bDir.nx * bDir.offset - aDir.nx * aDir.offset;
-        let cy = other.y + bDir.ny * bDir.offset - aDir.ny * aDir.offset;
-        const vx = cx - other.x;
-        const vy = cy - other.y;
-        const vLen = Math.hypot(vx, vy);
-        if (vLen > 0) {
-          cx -= (vx / vLen) * SNAP_VISUAL_GAP;
-          cy -= (vy / vLen) * SNAP_VISUAL_GAP;
-        }
-        const delta = Math.hypot(cx - targetX, cy - targetY);
-
-        if (delta > maxDelta) continue;
-
-        const evalResult = evalPlacement(cx, cy);
-        if (!evalResult.valid) continue;
-        if (requireNoOverlap && evalResult.overlaps) continue;
-
-        if (!best) {
-          best = { x: cx, y: cy, count: evalResult.count, delta };
-          continue;
-        }
-
-        // Prefer nearest valid snap to release position to avoid large jumps.
-        if (delta < best.delta - 0.5 || (Math.abs(delta - best.delta) <= 0.5 && evalResult.count > best.count)) {
-          best = { x: cx, y: cy, count: evalResult.count, delta };
-        }
-      }
-    }
-  }
-
-  return best;
+function computeBestSnap(tile, otherTiles, targetX, targetY, maxDelta = SNAP_SEARCH_RADIUS, requireNoOverlap = true, options = {}) {
+  return computeBestSnapTP(tile, otherTiles, targetX, targetY, getTilePlacementCtx(), maxDelta, requireNoOverlap, options);
 }
 
 function evaluatePlacementAt(tile, otherTiles, x, y, options = {}) {
-  const oldX = tile.x;
-  const oldY = tile.y;
-  positionTile(tile, x, y);
-  const contact = findBestContact(tile, otherTiles, options);
-  const connectedPortalNeighbors = contact.connectedPortalNeighbors || [];
-  const portalConflict = connectedPortalNeighbors.length > 0;
-  const overlaps = hasAnyOverlap(tile, otherTiles);
-  positionTile(tile, oldX, oldY);
-  return {
-    valid: contact.valid && !portalConflict,
-    count: contact.count,
-    overlaps,
-    faceIndices: contact.faceIndices || [],
-    touchingFaceIndices: contact.touchingFaceIndices || [],
-    portalConflict,
-    portalConflictTileIds: connectedPortalNeighbors.map((other) => other.tileId),
-  };
+  return evaluatePlacementAtTP(tile, otherTiles, x, y, getTilePlacementCtx(), options);
 }
 
 function getMatchAlignmentCorrection(match) {
-  return getMatchAlignmentCorrectionValue(match, SNAP_POINT_GAP);
+  return getMatchAlignmentCorrectionTP(match, getTilePlacementCtx());
 }
 
 function getSideSamples(tile) {
-  return getSideSamplesValue(tile, getContactFaces);
+  return getSideSamplesTP(tile, getTilePlacementCtx());
 }
 
 function buildInsetPolygon(tile, poly, insetPx = OVERLAP_POLYGON_INSET_PX) {
-  return buildInsetPolygonValue(tile, poly, insetPx);
+  return buildInsetPolygonTP(tile, poly, insetPx, getTilePlacementCtx());
 }
 
 function getTilePoseGeometry(tile) {
-  return getTilePoseGeometryValue(tile, {
-    tilePoseGeometryCache,
-    cacheLimit: TILE_POSE_GEOMETRY_CACHE_LIMIT,
-    normalizeAngle,
-    getGuideFacePoints,
-    getWallFaceSignature,
-    insetPx: OVERLAP_POLYGON_INSET_PX,
-    getPolygonBounds,
-  });
+  return getTilePoseGeometryTP(tile, getTilePlacementCtx());
 }
 
 function getSideDirections(tile) {
-  return getSideDirectionsValue(tile, {
-    tileSideDirectionsCache,
-    normalizeAngle,
-    getContactFaces,
-  });
+  return getSideDirectionsTP(tile, getTilePlacementCtx());
 }
 
 function getContactFaces(tile) {
-  return getTilePoseGeometry(tile).faces;
+  return getContactFacesTP(tile, getTilePlacementCtx());
 }
 
 function isBlockedContactFace(tile, face) {
-  if (!isEntranceTile(tile)) return false;
-  return (
-    ENTRANCE_BLOCKED_FACE_INDICES.has(face.startIdx)
-    || ENTRANCE_BLOCKED_FACE_INDICES.has(face.endIdx)
-  );
+  return isBlockedContactFaceTP(tile, face, getTilePlacementCtx());
 }
 
 function isTouchingTileStartBlockedPoints(tile, otherTile, touchRadius) {
-  if (!isEntranceTile(tile)) return false;
-  const points = getTilePoseGeometry(tile).world;
-
-  for (const idx of ENTRANCE_BLOCKED_FACE_INDICES) {
-    const p = points[idx];
-    if (!p) continue;
-    if (isWorldPointOnOpaquePixel(otherTile, p.x, p.y, touchRadius)) return true;
-  }
-
-  return false;
+  return isTouchingTileStartBlockedPointsTP(tile, otherTile, touchRadius, getTilePlacementCtx());
 }
 
 function isTouchingMoltenEntranceBlockedPoints(tile) {
-  if (!tile || isEntranceTile(tile)) return false;
-  const entrance = state.tiles.get(ENTRANCE_TILE_ID);
-  if (!entrance || !entrance.placed) return false;
-  return isTouchingTileStartBlockedPoints(entrance, tile, BLOCKED_POINT_TOUCH_RADIUS);
+  return isTouchingMoltenEntranceBlockedPointsTP(tile, getTilePlacementCtx());
 }
 
 function isWorldPointOnOpaquePixel(tile, wx, wy, radius = 0, minAlpha = 24) {
-  return isWorldPointOnOpaquePixelValue(tile, wx, wy, {
-    tileSize: TILE_SIZE,
-    radius,
-    minAlpha,
-  });
+  return isWorldPointOnOpaquePixelTP(tile, wx, wy, getTilePlacementCtx(), radius, minAlpha);
 }
 
 function getPlacedTiles() {
-  const placed = [];
-  for (const tile of state.tiles.values()) {
-    if (tile.placed) placed.push(tile);
-  }
-  return placed;
+  return getPlacedTilesTP(getTilePlacementCtx());
 }
 
 function getPlacedTilesExcluding(excludedTile) {
-  const excludedId = excludedTile?.tileId;
-  const placed = [];
-  for (const tile of state.tiles.values()) {
-    if (!tile.placed || tile.tileId === excludedId) continue;
-    placed.push(tile);
-  }
-  return placed;
+  return getPlacedTilesExcludingTP(excludedTile, getTilePlacementCtx());
 }
 
 function getPlacedRegularTileCount() {
-  if (Number.isInteger(state.autoBuildPreviewPlacedCount)) {
-    return state.autoBuildPreviewPlacedCount;
-  }
-  let count = 0;
-  for (const tile of state.tiles.values()) {
-    if (tile.placed && !isEntranceTile(tile)) count += 1;
-  }
-  return count;
+  return getPlacedRegularTileCountTP(getTilePlacementCtx());
 }
 
 function revertToTray(tile, message, warn = false) {
-  clearInvalidReturnTimer(tile);
-  tile.rotation = 0;
-  placeTileInTray(tile);
-  selectTile(null);
-  setPlacementFeedback(tile, null);
-  setStatus(message, warn);
-  updatePlacedProgress();
+  revertToTrayTP(tile, message, getTilePlacementCtx(), warn);
 }
 
 function handleInvalidDrop(tile, placedTiles, message = null, force = false) {
-  if (state.ignoreContactRule && !force) {
-    clearInvalidReturnTimer(tile);
-    setPlacementFeedback(tile, null);
-    updatePlacedProgress();
-    return;
-  }
-  clearInvalidReturnTimer(tile);
-  tile.placed = false;
-  syncRegularTileActivityFromSlotOrder();
-  moveAwayFromPlacedTiles(tile, placedTiles);
-  updateTileParent(tile, board);
-  updateTileTransform(tile);
-  selectTile(null);
-  setPlacementFeedback(tile, false);
-  setStatus(
-    message ?? "Invalid placement: this tile needs at least 2 connected faces total (4 points). Returning to tray in 10s.",
-    true,
-  );
-
-  tile.invalidReturnTimer = setTimeout(() => {
-    tile.invalidReturnTimer = null;
-    if (tile.placed) return;
-    tile.rotation = 0;
-    placeTileInTray(tile);
-    selectTile(null);
-    setPlacementFeedback(tile, null);
-    setStatus(`${getTileDisplayLabel(tile.tileId)} returned to tray after invalid placement.`, true);
-    updatePlacedProgress();
-  }, INVALID_RETURN_DELAY_MS);
+  handleInvalidDropTP(tile, placedTiles, getTilePlacementCtx(), message, force);
 }
 
 function moveAwayFromPlacedTiles(tile, placedTiles) {
-  if (!placedTiles.length) return;
-
-  // Move away from the densest local area (weighted by inverse distance), not just one nearest tile.
-  let wx = 0;
-  let wy = 0;
-  let wSum = 0;
-  for (const other of placedTiles) {
-    const d = Math.hypot(tile.x - other.x, tile.y - other.y);
-    const w = 1 / Math.max(1, d);
-    wx += other.x * w;
-    wy += other.y * w;
-    wSum += w;
-  }
-  const denseX = wSum > 0 ? wx / wSum : board.clientWidth / 2;
-  const denseY = wSum > 0 ? wy / wSum : board.clientHeight / 2;
-  const anchorTile = getNearestTile(tile.x, tile.y, placedTiles);
-
-  let vx = tile.x - denseX;
-  let vy = tile.y - denseY;
-  let vLen = Math.hypot(vx, vy);
-  if (vLen < 1e-6) {
-    vx = tile.x - board.clientWidth / 2;
-    vy = tile.y - board.clientHeight / 2;
-    vLen = Math.hypot(vx, vy) || 1;
-  }
-
-  const nx = vx / vLen;
-  const ny = vy / vLen;
-  const push = INVALID_DROP_PUSH_PX * 1.15;
-  const targetX = clamp(tile.x + nx * push, 0, board.clientWidth);
-  const targetY = clamp(tile.y + ny * push, 0, board.clientHeight);
-  const fallback = snapTileCenterToHex(tile, targetX, targetY);
-  const candidate = findBestOpenHex(tile, placedTiles, fallback.x, fallback.y, anchorTile);
-  positionTile(tile, candidate.x, candidate.y);
+  moveAwayFromPlacedTilesTP(tile, placedTiles, getTilePlacementCtx());
 }
 
 function findBestOpenHex(tile, placedTiles, preferredX, preferredY, anchorTile = null) {
-  const layout = getBoardHexLayout();
-  const start = snapTileCenterToHex(tile, preferredX, preferredY);
-  const directions = [
-    { x: layout.dx, y: layout.dy / 2 },
-    { x: layout.dx, y: -layout.dy / 2 },
-    { x: 0, y: -layout.dy },
-    { x: -layout.dx, y: -layout.dy / 2 },
-    { x: -layout.dx, y: layout.dy / 2 },
-    { x: 0, y: layout.dy },
-  ];
-
-  const oldX = tile.x;
-  const oldY = tile.y;
-  const visited = new Set();
-  const queue = [{ x: start.x, y: start.y, depth: 0 }];
-  const maxDepth = 12;
-
-  const keyOf = (x, y) => `${Math.round(x * 100) / 100}:${Math.round(y * 100) / 100}`;
-  const minCenterDistance = layout.hexHeight * 2.25;
-  const minFaceDistance = layout.hexHeight * 1.95;
-  const minAnchorCenterDistance = layout.hexHeight * 3.0;
-  let bestStrict = null;
-  let bestLoose = null;
-
-  while (queue.length) {
-    const cur = queue.shift();
-    const key = keyOf(cur.x, cur.y);
-    if (visited.has(key)) continue;
-    visited.add(key);
-
-    const cx = clamp(cur.x, 0, board.clientWidth);
-    const cy = clamp(cur.y, 0, board.clientHeight);
-    const snapped = snapTileCenterToHex(tile, cx, cy);
-
-    positionTile(tile, snapped.x, snapped.y);
-    const overlaps = hasAnyOverlap(tile, placedTiles);
-    if (!overlaps) {
-      const metrics = getCandidateClearanceMetrics(tile, placedTiles, snapped.x, snapped.y);
-      const anchorCenterDistance = anchorTile
-        ? Math.hypot(snapped.x - anchorTile.x, snapped.y - anchorTile.y)
-        : Number.POSITIVE_INFINITY;
-      const score = metrics.minCenterDist * 2.0 + metrics.avgCenterDist * 0.4 + metrics.minFaceDist * 0.7 - cur.depth * 2.6;
-
-      if (
-        metrics.minCenterDist >= minCenterDistance
-        && metrics.minFaceDist >= minFaceDistance
-        && anchorCenterDistance >= minAnchorCenterDistance
-      ) {
-        // BFS queue order means first strict hit is typically the nearest valid ring.
-        if (cur.depth <= 8) {
-          positionTile(tile, oldX, oldY);
-          return { x: snapped.x, y: snapped.y };
-        }
-        if (!bestStrict || score > bestStrict.score) bestStrict = { x: snapped.x, y: snapped.y, score };
-      } else if (!bestLoose || score > bestLoose.score) {
-        bestLoose = { x: snapped.x, y: snapped.y, score };
-      }
-    }
-
-    if (cur.depth >= maxDepth) continue;
-    for (const dir of directions) {
-      queue.push({
-        x: cur.x + dir.x,
-        y: cur.y + dir.y,
-        depth: cur.depth + 1,
-      });
-    }
-  }
-
-  positionTile(tile, oldX, oldY);
-  if (bestStrict) return { x: bestStrict.x, y: bestStrict.y };
-  if (bestLoose) return { x: bestLoose.x, y: bestLoose.y };
-  return start;
+  return findBestOpenHexTP(tile, placedTiles, preferredX, preferredY, getTilePlacementCtx(), anchorTile);
 }
 
 function getNearestTile(x, y, tiles) {
-  if (!tiles?.length) return null;
-  let nearest = tiles[0];
-  let best = Math.hypot(x - nearest.x, y - nearest.y);
-  for (let i = 1; i < tiles.length; i += 1) {
-    const t = tiles[i];
-    const d = Math.hypot(x - t.x, y - t.y);
-    if (d < best) {
-      best = d;
-      nearest = t;
-    }
-  }
-  return nearest;
+  return getNearestTileTP(x, y, tiles);
 }
 
 function getCandidateClearanceMetrics(tile, otherTiles, x, y) {
-  const oldX = tile.x;
-  const oldY = tile.y;
-  positionTile(tile, x, y);
-
-  let minCenterDist = Number.POSITIVE_INFINITY;
-  let sumCenterDist = 0;
-  for (const other of otherTiles) {
-    const d = Math.hypot(x - other.x, y - other.y);
-    if (d < minCenterDist) minCenterDist = d;
-    sumCenterDist += d;
-  }
-  const avgCenterDist = otherTiles.length ? sumCenterDist / otherTiles.length : 0;
-  const minFaceDist = getMinFaceDistanceToTiles(tile, otherTiles);
-
-  positionTile(tile, oldX, oldY);
-  return { minCenterDist, avgCenterDist, minFaceDist };
+  return getCandidateClearanceMetricsTP(tile, otherTiles, x, y, getTilePlacementCtx());
 }
 
 function getMinFaceDistanceToTiles(tile, otherTiles) {
-  const facesA = getContactFaces(tile);
-  let minDist = Number.POSITIVE_INFINITY;
-  for (const other of otherTiles) {
-    const facesB = getContactFaces(other);
-    for (const af of facesA) {
-      for (const bf of facesB) {
-        const d = Math.hypot(af.mx - bf.mx, af.my - bf.my);
-        if (d < minDist) minDist = d;
-      }
-    }
-  }
-  return Number.isFinite(minDist) ? minDist : 0;
+  return getMinFaceDistanceToTilesTP(tile, otherTiles, getTilePlacementCtx());
 }
 
 function clearInvalidReturnTimer(tile) {
-  if (!tile?.invalidReturnTimer) return;
-  clearTimeout(tile.invalidReturnTimer);
-  tile.invalidReturnTimer = null;
+  clearInvalidReturnTimerTP(tile);
 }
 
 function positionTile(tile, x, y) {
-  tile.x = x;
-  tile.y = y;
+  positionTileTP(tile, x, y);
 }
 
 function positionTileAtTrayCenter(tile) {
@@ -9854,149 +9541,41 @@ function getAutoBuildLayoutSignature(regularTiles, entranceTile) {
 }
 
 function getAlphaMask(image) {
-  return getAlphaMaskValue(image);
+  return getAlphaMaskTP(image, getTilePlacementCtx());
 }
 
 function getFaceGeometry(image, sideCount) {
-  return getFaceGeometryValue(image, sideCount, TILE_SIZE);
+  return getFaceGeometryTP(image, sideCount, getTilePlacementCtx());
 }
 
 function hasAnyOverlap(tile, otherTiles) {
-  return hasAnyOverlapValue(tile, otherTiles, {
-    getTilePoseGeometry,
-    boundsOverlap,
-    pointInPolygonStrict,
-    polygonsOverlap,
-  });
+  return hasAnyOverlapTP(tile, otherTiles, getTilePlacementCtx());
 }
 
 function tilesAlphaOverlap(a, b) {
-  if (!a?.alphaMask || !b?.alphaMask) return false;
-
-  const ar = a.shape?.radius ?? TILE_SIZE * 0.5;
-  const br = b.shape?.radius ?? TILE_SIZE * 0.5;
-  if (Math.hypot(a.x - b.x, a.y - b.y) > ar + br) return false;
-
-  const half = TILE_SIZE * 0.5;
-  const minX = Math.max(a.x - half, b.x - half);
-  const maxX = Math.min(a.x + half, b.x + half);
-  const minY = Math.max(a.y - half, b.y - half);
-  const maxY = Math.min(a.y + half, b.y + half);
-  if (minX >= maxX || minY >= maxY) return false;
-
-  const step = 3;
-  let hitCount = 0;
-  for (let y = minY; y <= maxY; y += step) {
-    for (let x = minX; x <= maxX; x += step) {
-      if (
-        isWorldPointOnOpaquePixel(a, x, y, 0, 220)
-        && isWorldPointOnOpaquePixel(b, x, y, 0, 220)
-      ) {
-        hitCount += 1;
-        // Require substantial interior overlap; edge touch should stay valid.
-        if (hitCount >= 14) return true;
-      }
-    }
-  }
-
-  return false;
+  return tilesAlphaOverlapTP(a, b, getTilePlacementCtx());
 }
 
 function getWorldPolygon(tile) {
-  return getTilePoseGeometry(tile).world;
+  return getWorldPolygonTP(tile, getTilePlacementCtx());
 }
 
 function getOverlapWorldPolygon(tile, insetPx = OVERLAP_POLYGON_INSET_PX) {
-  if (Math.abs(insetPx - OVERLAP_POLYGON_INSET_PX) <= 1e-6) {
-    return getTilePoseGeometry(tile).overlapPolygon;
-  }
-  return buildInsetPolygon(tile, getWorldPolygon(tile), insetPx);
+  return getOverlapWorldPolygonTP(tile, getTilePlacementCtx(), insetPx);
 }
 
 function getCachedDragPlacementResult(tile, placedTiles, candidateX, candidateY) {
-  const drag = tile.drag;
-  if (!drag?.feedbackCache) {
-    return evaluatePlacementAt(tile, placedTiles, candidateX, candidateY);
-  }
-  const key = [
-    drag.feedbackLayoutKey || "",
-    tile.tileId,
-    normalizeAngle(tile.rotation || 0),
-    Number(candidateX).toFixed(2),
-    Number(candidateY).toFixed(2),
-  ].join("|");
-  const cached = drag.feedbackCache.get(key);
-  if (cached) return cached;
-  const result = evaluatePlacementAt(tile, placedTiles, candidateX, candidateY);
-  drag.feedbackCache.set(key, result);
-  if (drag.feedbackCache.size > 240) {
-    drag.feedbackCache.clear();
-    drag.feedbackCache.set(key, result);
-  }
-  return result;
+  return getCachedDragPlacementResultTP(tile, placedTiles, candidateX, candidateY, getTilePlacementCtx());
 }
 
 function updatePlacementFeedback(tile) {
-  if (isEntranceTile(tile)) {
-    setPlacementFeedback(tile, null);
-    return;
-  }
-
-  const drag = tile.drag;
-  if (!drag?.feedbackInsideBoard) {
-    setPlacementFeedback(tile, null);
-    return;
-  }
-
-  const placedTiles = drag.placedTilesExcludingSelf || getPlacedTilesExcluding(tile);
-  if (placedTiles.length === 0) {
-    setPlacementFeedback(tile, null);
-    return;
-  }
-
-  const candidateX = drag.feedbackCandidateX;
-  const candidateY = drag.feedbackCandidateY;
-  if (!Number.isFinite(candidateX) || !Number.isFinite(candidateY)) {
-    setPlacementFeedback(tile, null);
-    return;
-  }
-
-  const result = getCachedDragPlacementResult(tile, placedTiles, candidateX, candidateY);
-  if (!result.overlaps && result.touchingFaceIndices.length === 0) {
-    setPlacementFeedback(tile, null);
-    return;
-  }
-  const validFaceIndices = (result.faceIndices || []).filter((v) => Number.isInteger(v));
-  const validSet = new Set(validFaceIndices);
-  const invalidFaceIndices = (result.touchingFaceIndices || []).filter(
-    (v) => Number.isInteger(v) && !validSet.has(v),
-  );
-  if (result.valid && !result.overlaps) {
-    setPlacementFeedback(tile, true, validFaceIndices, invalidFaceIndices);
-    return;
-  }
-  setPlacementFeedback(tile, false, [], result.touchingFaceIndices || []);
+  updatePlacementFeedbackTP(tile, getTilePlacementCtx());
 }
 
 function setPlacementFeedback(tile, isValid, validFaceIndices = [], invalidFaceIndices = []) {
-  if (!tile.dom) return;
-  tile.dom.classList.remove("valid-placement", "invalid-placement");
-  if (isValid === true) tile.dom.classList.add("valid-placement");
-  if (isValid === false) tile.dom.classList.add("invalid-placement");
-  refreshPlacementGuideDom(tile.guideDom, isValid, validFaceIndices, invalidFaceIndices);
+  setPlacementFeedbackTP(tile, isValid, validFaceIndices, invalidFaceIndices);
 }
 
 function refreshPlacementGuideDom(guideDom, isValid, validFaceIndices, invalidFaceIndices = []) {
-  if (!guideDom) return;
-  const lines = guideDom.querySelectorAll(".tile-guide-contact-seg");
-  const valid = new Set((validFaceIndices || []).filter((v) => Number.isInteger(v)));
-  const invalid = new Set((invalidFaceIndices || []).filter((v) => Number.isInteger(v)));
-  lines.forEach((line) => {
-    const idx = Number.parseInt(line.dataset.faceIndex || "", 10);
-    const hasIdx = Number.isInteger(idx);
-    line.classList.toggle("is-contact-valid", hasIdx && valid.has(idx));
-    line.classList.toggle("is-contact-invalid", hasIdx && invalid.has(idx));
-  });
-  guideDom.classList.toggle("contact-valid", false);
-  guideDom.classList.toggle("contact-invalid", false);
+  refreshPlacementGuideDomTP(guideDom, isValid, validFaceIndices, invalidFaceIndices);
 }
