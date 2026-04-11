@@ -212,6 +212,49 @@ import {
   buildInsetPolygon as buildInsetPolygonTP,
   clearInvalidReturnTimer as clearInvalidReturnTimerTP,
 } from "./modules/tile-placement.js";
+import {
+  applyAppearanceMode as applyAppearanceModeTM,
+  applyAutoThemeForTileSet as applyAutoThemeForTileSetTM,
+  applyFeedbackMode as applyFeedbackModeTM,
+  applyUiTheme as applyUiThemeTM,
+  getAppearanceModeLabel as getAppearanceModeLabelTM,
+  getAppearanceModeMenuItemLabel as getAppearanceModeMenuItemLabelTM,
+  getUiThemeLabel as getUiThemeLabelTM,
+  getUiThemesForMode as getUiThemesForModeTM,
+  isDarkUiTheme as isDarkUiThemeTM,
+  isSupportedUiThemeId as isSupportedUiThemeIdTM,
+  loadAppearanceMode as loadAppearanceModeTM,
+  loadAutoThemeByTileSet as loadAutoThemeByTileSetTM,
+  loadLastDarkUiThemeId as loadLastDarkUiThemeIdTM,
+  loadLastLightUiThemeId as loadLastLightUiThemeIdTM,
+  loadUiThemeId as loadUiThemeIdTM,
+  resolvePairedUiThemeIdForMode as resolvePairedUiThemeIdForModeTM,
+  resolveUiThemeForAppearanceMode as resolveUiThemeForAppearanceModeTM,
+  saveAppearanceMode as saveAppearanceModeTM,
+  saveAutoThemeByTileSet as saveAutoThemeByTileSetTM,
+  saveLastDarkUiThemeId as saveLastDarkUiThemeIdTM,
+  saveLastLightUiThemeId as saveLastLightUiThemeIdTM,
+  saveUiThemeId as saveUiThemeIdTM,
+  setAppearanceModeMenuOpen as setAppearanceModeMenuOpenTM,
+  setAutoThemeByTileSet as setAutoThemeByTileSetTM,
+  setUiThemeMenuOpen as setUiThemeMenuOpenTM,
+  syncAppearanceModeMenu as syncAppearanceModeMenuTM,
+  syncAutoThemeToggleButton as syncAutoThemeToggleButtonTM,
+  syncThemeControlVisibility as syncThemeControlVisibilityTM,
+  syncUiThemeMenuOptions as syncUiThemeMenuOptionsTM,
+  syncUiThemeSelectAvailability as syncUiThemeSelectAvailabilityTM,
+} from "./modules/theme-manager.js";
+import {
+  buildCustomShareBundleArchive as buildCustomShareBundleArchiveSF,
+  buildCustomTileSetExportArchive as buildCustomTileSetExportArchiveSF,
+  buildShareFallbackPayload as buildShareFallbackPayloadSF,
+  buildShareLayoutSnapshot as buildShareLayoutSnapshotSF,
+  captureShareLayoutPayload as captureShareLayoutPayloadSF,
+  copyShareLayoutLink as copyShareLayoutLinkSF,
+  createShareLayoutUrl as createShareLayoutUrlSF,
+  restoreBuildViewLayout as restoreBuildViewLayoutSF,
+  restoreSharedLayoutFromUrl as restoreSharedLayoutFromUrlSF,
+} from "./modules/share-flow.js";
 
 const DEV_MODE_ENABLED = (() => {
   const raw = new URLSearchParams(window.location.search).get("dev");
@@ -1541,6 +1584,102 @@ function getTilePlacementCtx() {
   };
 }
 
+function getThemeManagerCtx() {
+  return {
+    state,
+    // Constants
+    APPEARANCE_MODE_IDS,
+    APPEARANCE_MODE_ICON_SVG,
+    APPEARANCE_MODE_STORAGE_KEY,
+    AUTO_THEME_BY_TILE_SET_STORAGE_KEY,
+    DEFAULT_APPEARANCE_MODE,
+    DEFAULT_DARK_THEME,
+    DEFAULT_UI_THEME_ID,
+    LAST_DARK_UI_THEME_STORAGE_KEY,
+    LAST_LIGHT_UI_THEME_STORAGE_KEY,
+    UI_THEME_CATALOG,
+    UI_THEME_IDS,
+    UI_THEME_STORAGE_KEY,
+    // DOM elements
+    appearanceModeDropdown,
+    appearanceModeMenu,
+    appearanceModeTrigger,
+    autoThemeToggleBtn,
+    uiThemeDropdown,
+    uiThemeMenu,
+    uiThemeSelect,
+    uiThemeTrigger,
+    get uiThemeOptionCatalog() { return uiThemeOptionCatalog; },
+    set uiThemeOptionCatalog(v) { uiThemeOptionCatalog = v; },
+    // Helpers
+    getUiThemeById,
+    getTileSetConfig,
+    sanitizeDarkUiThemeId,
+    sanitizeLightUiThemeId,
+    saveDataSetting,
+    scheduleBoardHexGridRender,
+    setStatus,
+  };
+}
+
+function getShareFlowCtx() {
+  return {
+    state,
+    board,
+    // Constants
+    BUILT_IN_TILE_SET_REGISTRY,
+    DEFAULT_BOARD_ZOOM,
+    DEFAULT_TILE_SET_ID,
+    ENTRANCE_TILE_ID,
+    TILE_SIZE,
+    TRAY_SLOT_COUNT,
+    // Encoding
+    buildShareLayoutPayload,
+    buildShareLayoutSnapshotFromPayload,
+    buildShareLayoutUrl,
+    buildShareFallbackPayloadValue,
+    decodeBase64Url,
+    getShareQueryParam,
+    // Tile set helpers
+    buildBossAssetKey,
+    buildExportedCustomTileSetManifest,
+    buildExportedWallEditorData,
+    buildTileDefs,
+    createZipArchive,
+    deriveLegacyRegularTileOrder,
+    downloadBlob,
+    findTileSetConfigById,
+    getBossKeyForLegacySrc,
+    getStoredCustomTileSetBundle,
+    getTileSetConfig,
+    markDevQaCheck,
+    migrateLegacyTileId,
+    normalizeAngle,
+    normalizeRegularTileOrder,
+    sanitizeCustomTileSetFilename,
+    buildCustomShareBundleArchiveValue,
+    // Capture / restore helpers
+    applyBoardZoom,
+    applyTileSet,
+    captureBuildViewLayout,
+    clearBoard,
+    clearCompactModeBoardReset,
+    createBossToken,
+    createTileElement,
+    placeReferenceAboveStart,
+    placeReferenceMarkerAt,
+    rerenderTrayAndReserve,
+    scheduleBoardHexGridRender,
+    selectTile,
+    setEntranceFadeAnchorFromTile,
+    setRegularTileOrder,
+    setStatus,
+    syncRegularTileActivityFromSlotOrder,
+    updateTileParent,
+    updateTileTransform,
+  };
+}
+
 let defaultWallFaceData = buildDefaultWallFaceData();
 const BOARD_HEX_SVG_NS = "http://www.w3.org/2000/svg";
 const REFERENCE_OFFSET_Y = TILE_SIZE * 0.86;
@@ -2181,8 +2320,7 @@ function getReadyTileSets() {
 }
 
 function getUiThemesForMode(mode) {
-  if (mode !== "light" && mode !== "dark") return [...UI_THEME_CATALOG];
-  return UI_THEME_CATALOG.filter((theme) => theme.mode === mode);
+  return getUiThemesForModeTM(mode, getThemeManagerCtx());
 }
 
 function isSupportedUiThemeId(uiThemeId) {
@@ -3500,9 +3638,7 @@ function loadUseAllBosses() {
 }
 
 function saveAutoThemeByTileSet(enabled) {
-  void saveDataSetting(AUTO_THEME_BY_TILE_SET_STORAGE_KEY, Boolean(enabled)).catch((error) => {
-    console.warn("Could not save auto theme preference.", error);
-  });
+  saveAutoThemeByTileSetTM(enabled, getThemeManagerCtx());
 }
 
 function sanitizeAutoBuildDevTuningValue(meta, value) {
@@ -3645,25 +3781,15 @@ function initAutoBuildTuningPanel() {
 }
 
 function saveAppearanceMode(mode) {
-  void saveDataSetting(APPEARANCE_MODE_STORAGE_KEY, mode).catch((error) => {
-    console.warn("Could not save appearance mode preference.", error);
-  });
+  saveAppearanceModeTM(mode, getThemeManagerCtx());
 }
 
 function syncThemeControlVisibility() {
-  const autoMode = Boolean(state.autoThemeByTileSet);
-  if (autoMode) {
-    setAppearanceModeMenuOpen(false);
-    setUiThemeMenuOpen(false);
-  }
-  if (appearanceModeMenu) appearanceModeMenu.hidden = autoMode;
-  if (uiThemeMenu) uiThemeMenu.hidden = autoMode;
+  syncThemeControlVisibilityTM(getThemeManagerCtx());
 }
 
 function syncAutoThemeToggleButton() {
-  if (!autoThemeToggleBtn) return;
-  autoThemeToggleBtn.textContent = state.autoThemeByTileSet ? "Auto Theme: On" : "Auto Theme: Off";
-  autoThemeToggleBtn.setAttribute("aria-pressed", String(Boolean(state.autoThemeByTileSet)));
+  syncAutoThemeToggleButtonTM(getThemeManagerCtx());
 }
 
 function loadUiThemeId() {
@@ -3701,199 +3827,59 @@ function loadLastDarkUiThemeId() {
 }
 
 function saveLastLightUiThemeId(uiThemeId) {
-  void saveDataSetting(LAST_LIGHT_UI_THEME_STORAGE_KEY, sanitizeLightUiThemeId(uiThemeId)).catch((error) => {
-    console.warn("Could not save light theme preference.", error);
-  });
+  saveLastLightUiThemeIdTM(uiThemeId, getThemeManagerCtx());
 }
 
 function saveLastDarkUiThemeId(uiThemeId) {
-  void saveDataSetting(LAST_DARK_UI_THEME_STORAGE_KEY, sanitizeDarkUiThemeId(uiThemeId)).catch((error) => {
-    console.warn("Could not save dark theme preference.", error);
-  });
+  saveLastDarkUiThemeIdTM(uiThemeId, getThemeManagerCtx());
 }
 
 function saveUiThemeId(uiThemeId) {
-  void saveDataSetting(UI_THEME_STORAGE_KEY, uiThemeId).catch((error) => {
-    console.warn("Could not save UI theme preference.", error);
-  });
+  saveUiThemeIdTM(uiThemeId, getThemeManagerCtx());
 }
 
 function isDarkUiTheme(uiThemeId) {
-  return getUiThemeById(uiThemeId)?.mode === "dark";
+  return isDarkUiThemeTM(uiThemeId, getThemeManagerCtx());
 }
 
 function resolvePairedUiThemeIdForMode(uiThemeId, mode) {
-  const baseThemeId = isDarkUiTheme(uiThemeId)
-    ? uiThemeId.replace(/_dark$/, "")
-    : uiThemeId;
-  if (mode === "dark") {
-    return sanitizeDarkUiThemeId(`${baseThemeId}_dark`);
-  }
-  if (mode === "light") {
-    return sanitizeLightUiThemeId(baseThemeId);
-  }
-  return uiThemeId;
+  return resolvePairedUiThemeIdForModeTM(uiThemeId, mode, getThemeManagerCtx());
 }
 
 function resolveUiThemeForAppearanceMode(mode) {
-  if (mode === "dark") return sanitizeDarkUiThemeId(state.lastDarkUiThemeId || state.selectedUiThemeId);
-  if (mode === "light") return sanitizeLightUiThemeId(state.lastLightUiThemeId || state.selectedUiThemeId);
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? sanitizeDarkUiThemeId(state.lastDarkUiThemeId || state.selectedUiThemeId)
-    : sanitizeLightUiThemeId(state.lastLightUiThemeId || state.selectedUiThemeId);
+  return resolveUiThemeForAppearanceModeTM(mode, getThemeManagerCtx());
 }
 
 function applyAutoThemeForTileSet(tileSetId, { save = true, showStatus = false } = {}) {
-  const tileSet = getTileSetConfig(tileSetId);
-  if (tileSet?.source === "custom") return;
-  const baseThemeId = tileSet?.uiThemeId || DEFAULT_UI_THEME_ID;
-  const linkedLightThemeId = sanitizeLightUiThemeId(baseThemeId);
-  const linkedDarkThemeId = sanitizeDarkUiThemeId(`${linkedLightThemeId}_dark`);
-  state.lastLightUiThemeId = linkedLightThemeId;
-  state.lastDarkUiThemeId = linkedDarkThemeId;
-  if (save) {
-    saveLastLightUiThemeId(linkedLightThemeId);
-    saveLastDarkUiThemeId(linkedDarkThemeId);
-  }
-  applyAppearanceMode(state.selectedAppearanceMode, { showStatus, save });
+  applyAutoThemeForTileSetTM(tileSetId, getThemeManagerCtx(), { save, showStatus });
 }
 
 function setAutoThemeByTileSet(enabled, { save = true, showStatus = true, applyNow = true } = {}) {
-  state.autoThemeByTileSet = Boolean(enabled);
-  syncAutoThemeToggleButton();
-  syncThemeControlVisibility();
-  if (state.autoThemeByTileSet && applyNow) {
-    applyAutoThemeForTileSet(state.selectedTileSetId, { save, showStatus: false });
-  }
-  if (save) saveAutoThemeByTileSet(state.autoThemeByTileSet);
-  if (showStatus) {
-    setStatus(
-      state.autoThemeByTileSet
-        ? "Auto Theme: ON (theme follows tile set)."
-        : "Auto Theme: OFF (manual theme controls enabled).",
-    );
-  }
+  setAutoThemeByTileSetTM(enabled, getThemeManagerCtx(), { save, showStatus, applyNow });
 }
 
 function syncUiThemeSelectAvailability(mode) {
-  if (!uiThemeSelect) return;
-  if (!Array.isArray(uiThemeOptionCatalog)) {
-    uiThemeOptionCatalog = UI_THEME_CATALOG.map((theme) => ({
-      value: theme.id,
-      label: theme.label,
-    }));
-  }
-  const effectiveMode =
-    mode === "system"
-      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-      : mode;
-  const optionCatalog = uiThemeOptionCatalog;
-  const selectedBefore = state.selectedUiThemeId;
-  const allowedOptions = optionCatalog.filter((entry) => {
-    const darkOption = isDarkUiTheme(entry.value);
-    if (effectiveMode === "dark") return darkOption;
-    if (effectiveMode === "light") return !darkOption;
-    return true;
-  });
-
-  uiThemeSelect.innerHTML = "";
-  for (const entry of allowedOptions) {
-    const option = document.createElement("option");
-    option.value = entry.value;
-    option.textContent = entry.label;
-    uiThemeSelect.appendChild(option);
-  }
-
-  if (allowedOptions.some((entry) => entry.value === selectedBefore)) {
-    uiThemeSelect.value = selectedBefore;
-  }
-  syncUiThemeMenuOptions();
+  syncUiThemeSelectAvailabilityTM(mode, getThemeManagerCtx());
 }
 
 function getAppearanceModeLabel(mode) {
-  if (mode === "light") return "Light";
-  if (mode === "dark") return "Dark";
-  return "System";
+  return getAppearanceModeLabelTM(mode);
 }
 
 function getAppearanceModeMenuItemLabel(mode) {
-  if (mode === "light") return "Light Mode";
-  if (mode === "dark") return "Dark Mode";
-  return "System";
+  return getAppearanceModeMenuItemLabelTM(mode);
 }
 
 function applyAppearanceMode(mode, { showStatus = true, save = true } = {}) {
-  const nextMode = APPEARANCE_MODE_IDS.has(mode) ? mode : DEFAULT_APPEARANCE_MODE;
-  const previousMode = state.selectedAppearanceMode;
-  const previousThemeId = state.selectedUiThemeId;
-  state.selectedAppearanceMode = nextMode;
-
-  let resolvedUiThemeId = resolveUiThemeForAppearanceMode(nextMode);
-  const changedToExplicitMode =
-    (nextMode === "light" || nextMode === "dark") &&
-    previousMode !== nextMode;
-  if (changedToExplicitMode && previousThemeId) {
-    resolvedUiThemeId = resolvePairedUiThemeIdForMode(previousThemeId, nextMode);
-  }
-  syncUiThemeSelectAvailability(nextMode);
-  state.selectedUiThemeId = resolvedUiThemeId;
-  if (isDarkUiTheme(resolvedUiThemeId)) {
-    state.lastDarkUiThemeId = sanitizeDarkUiThemeId(resolvedUiThemeId);
-    if (save) saveLastDarkUiThemeId(state.lastDarkUiThemeId);
-  } else {
-    state.lastLightUiThemeId = sanitizeLightUiThemeId(resolvedUiThemeId);
-    if (save) saveLastLightUiThemeId(state.lastLightUiThemeId);
-  }
-
-  applyUiTheme(resolvedUiThemeId);
-  if (uiThemeSelect) uiThemeSelect.value = resolvedUiThemeId;
-  syncUiThemeMenuOptions();
-  if (save) {
-    saveUiThemeId(resolvedUiThemeId);
-    saveAppearanceMode(nextMode);
-  }
-  if (showStatus) {
-    setStatus(`Appearance mode: ${getAppearanceModeLabel(nextMode)}. Theme: ${getUiThemeLabel(resolvedUiThemeId)}.`);
-  }
-  syncAppearanceModeMenu(nextMode);
+  applyAppearanceModeTM(mode, getThemeManagerCtx(), { showStatus, save });
 }
 
 function syncAppearanceModeMenu(mode) {
-  if (!appearanceModeTrigger || !appearanceModeDropdown) return;
-  const nextMode = APPEARANCE_MODE_IDS.has(mode) ? mode : DEFAULT_APPEARANCE_MODE;
-  const nextLabel = getAppearanceModeLabel(nextMode);
-  appearanceModeTrigger.innerHTML = APPEARANCE_MODE_ICON_SVG[nextMode] || APPEARANCE_MODE_ICON_SVG.system;
-  appearanceModeTrigger.dataset.appearanceMode = nextMode;
-  const triggerSvg = appearanceModeTrigger.querySelector("svg");
-  if (triggerSvg) {
-    const triggerIconSize = nextMode === "dark" ? 20 : 38;
-    triggerSvg.setAttribute("width", String(triggerIconSize));
-    triggerSvg.setAttribute("height", String(triggerIconSize));
-    triggerSvg.style.width = `${triggerIconSize}px`;
-    triggerSvg.style.height = `${triggerIconSize}px`;
-  }
-  appearanceModeTrigger.setAttribute("aria-label", `${nextLabel} Mode`);
-  appearanceModeTrigger.setAttribute("title", `${nextLabel} Mode`);
-
-  const remainingModes = ["light", "system", "dark"].filter((modeId) => modeId !== nextMode);
-  appearanceModeDropdown.innerHTML = remainingModes
-    .map((modeId) => {
-      const label = getAppearanceModeMenuItemLabel(modeId);
-      const icon = APPEARANCE_MODE_ICON_SVG[modeId] || "";
-      return `<button class="appearance-mode-option" type="button" data-appearance-mode="${modeId}" role="menuitem" aria-label="${label}">${icon}<span>${label}</span></button>`;
-    })
-    .join("");
+  syncAppearanceModeMenuTM(mode, getThemeManagerCtx());
 }
 
 function setAppearanceModeMenuOpen(open) {
-  if (!appearanceModeDropdown || !appearanceModeTrigger) return;
-  const shouldOpen = Boolean(open);
-  appearanceModeDropdown.hidden = !shouldOpen;
-  appearanceModeMenu?.classList.toggle("is-open", shouldOpen);
-  appearanceModeTrigger.setAttribute("aria-expanded", String(shouldOpen));
-  if (!shouldOpen) {
-    appearanceModeTrigger.blur();
-  }
+  setAppearanceModeMenuOpenTM(open, getThemeManagerCtx());
 }
 
 function setQuickActionsMenuOpen(open) {
@@ -3913,47 +3899,23 @@ function closeAdvancedMenuForElement(element) {
 }
 
 function syncUiThemeMenuOptions() {
-  if (!uiThemeDropdown || !uiThemeTrigger || !uiThemeSelect) return;
-  const stripModeSuffix = (label) => label.replace(/\s*-\s*(Light|Dark)\s*$/i, "").trim();
-  const options = Array.from(uiThemeSelect.options);
-  uiThemeDropdown.innerHTML = options
-    .map((option) => {
-      const value = option.value;
-      const label = stripModeSuffix(option.textContent || value);
-      const selectedClass = value === state.selectedUiThemeId ? " is-selected" : "";
-      return `<button class="ui-theme-option${selectedClass}" type="button" data-ui-theme="${value}" role="menuitemradio" aria-checked="${value === state.selectedUiThemeId ? "true" : "false"}">${label}</button>`;
-    })
-    .join("");
-  const selectedLabel = stripModeSuffix(getUiThemeLabel(state.selectedUiThemeId));
-  uiThemeTrigger.textContent = selectedLabel;
-  uiThemeTrigger.setAttribute("title", selectedLabel);
-  uiThemeTrigger.setAttribute("aria-label", `Theme: ${selectedLabel}`);
+  syncUiThemeMenuOptionsTM(getThemeManagerCtx());
 }
 
 function setUiThemeMenuOpen(open) {
-  if (!uiThemeDropdown || !uiThemeTrigger) return;
-  const shouldOpen = Boolean(open);
-  uiThemeDropdown.hidden = !shouldOpen;
-  uiThemeMenu?.classList.toggle("is-open", shouldOpen);
-  uiThemeTrigger.setAttribute("aria-expanded", String(shouldOpen));
-  if (!shouldOpen) {
-    uiThemeTrigger.blur();
-  }
+  setUiThemeMenuOpenTM(open, getThemeManagerCtx());
 }
 
 function applyUiTheme(uiThemeId) {
-  for (const theme of UI_THEME_CATALOG) {
-    document.body.classList.toggle(theme.className, theme.id === uiThemeId);
-  }
-  scheduleBoardHexGridRender();
+  applyUiThemeTM(uiThemeId, getThemeManagerCtx());
 }
 
 function getUiThemeLabel(uiThemeId) {
-  return getUiThemeById(uiThemeId)?.label || getUiThemeById(DEFAULT_UI_THEME_ID)?.label || "Molten - Light";
+  return getUiThemeLabelTM(uiThemeId, getThemeManagerCtx());
 }
 
 function applyFeedbackMode(useFaceFeedback) {
-  document.body.classList.toggle("feedback-legacy", !useFaceFeedback);
+  applyFeedbackModeTM(useFaceFeedback);
 }
 
 function getBoardZoom() {
@@ -4239,304 +4201,39 @@ function captureBuildViewLayout() {
 }
 
 function captureShareLayoutPayload() {
-  const snapshot = captureBuildViewLayout();
-  const payload = buildShareLayoutPayload(snapshot, normalizeAngle);
-  const tileSet = getTileSetConfig(snapshot.tileSetId);
-  if (!tileSet) return payload;
-
-  const tileSlotMetaById = new Map([
-    [tileSet.entranceTileId, { kind: "entrance", slot: 0 }],
-    ...tileSet.tileIds.map((tileId, index) => [tileId, { kind: "tile", slot: index + 1 }]),
-  ]);
-  payload.t = (payload.t || []).map((entry) => {
-    const meta = tileSlotMetaById.get(String(entry?.i || ""));
-    if (!meta) return entry;
-    return {
-      ...entry,
-      k: meta.kind,
-      sl: meta.slot,
-    };
-  });
-
-  const regularSlotById = new Map(tileSet.tileIds.map((tileId, index) => [tileId, index + 1]));
-  payload.o = (payload.o || []).map((tileId) => {
-    const normalizedTileId = String(tileId || "");
-    const slot = regularSlotById.get(normalizedTileId);
-    return Number.isInteger(slot)
-      ? { i: normalizedTileId, sl: slot }
-      : normalizedTileId;
-  });
-
-  const bossIndexByKey = new Map(
-    tileSet.bossIds.map((bossId, index) => [buildBossAssetKey(tileSet.id, bossId), index]),
-  );
-  payload.b = (payload.b || []).map((entry) => {
-    const bossIndex = bossIndexByKey.get(String(entry?.k || ""));
-    return Number.isInteger(bossIndex)
-      ? { ...entry, bi: bossIndex }
-      : entry;
-  });
-
-  return payload;
+  return captureShareLayoutPayloadSF(getShareFlowCtx());
 }
 
 function buildShareLayoutSnapshot(payload) {
-  const normalizedPayload = payload && typeof payload === "object"
-    ? {
-        ...payload,
-        o: (payload.o || []).map((entry) => (typeof entry === "string" ? entry : entry?.i || "")),
-      }
-    : payload;
-  return buildShareLayoutSnapshotFromPayload(normalizedPayload, {
-    getTileSetConfig: findTileSetConfigById,
-    normalizeRegularTileOrder,
-    buildTileDefs,
-    migrateLegacyTileId,
-    normalizeAngle,
-    defaultBoardZoom: DEFAULT_BOARD_ZOOM,
-    traySlotCount: TRAY_SLOT_COUNT,
-  });
+  return buildShareLayoutSnapshotSF(payload, getShareFlowCtx());
 }
 
 function createShareLayoutUrl() {
-  if (state.wallEditMode || !state.tiles.size) return null;
-  return buildShareLayoutUrl(window.location.href, captureShareLayoutPayload());
+  return createShareLayoutUrlSF(getShareFlowCtx());
 }
 
 async function buildCustomTileSetExportArchive(tileSetId) {
-  const tileSet = findTileSetConfigById(tileSetId);
-  if (!tileSet || tileSet.source !== "custom") {
-    throw new Error(`Could not export tileset: ${tileSetId}`);
-  }
-
-  const bundle = await getStoredCustomTileSetBundle(tileSetId);
-  if (!bundle?.manifest) {
-    throw new Error(`Could not find stored custom tileset: ${tileSetId}`);
-  }
-  const assetEntries = bundle.assets || [];
-  if (!assetEntries.length) {
-    throw new Error("This custom tile set has no stored images to export yet.");
-  }
-
-  const { manifest, assetMap } = buildExportedCustomTileSetManifest(bundle.manifest, assetEntries);
-  const wallEditorData = buildExportedWallEditorData(tileSet);
-  const zipEntries = [
-    {
-      name: "manifest.json",
-      data: JSON.stringify(manifest, null, 2),
-    },
-    {
-      name: "wall_editor.json",
-      data: JSON.stringify(wallEditorData, null, 2),
-    },
-  ];
-
-  for (const assetEntry of assetEntries) {
-    const relativePath = assetMap?.[assetEntry.assetKind]?.[assetEntry.assetId];
-    if (!relativePath || !(assetEntry.blob instanceof Blob)) continue;
-    zipEntries.push({
-      name: relativePath,
-      data: assetEntry.blob,
-    });
-  }
-
-  const archive = await createZipArchive(zipEntries);
-  const date = new Date().toISOString().slice(0, 10);
-  return {
-    tileSet,
-    archive,
-    filename: `${sanitizeCustomTileSetFilename(tileSet.label || tileSet.id)}-${date}.zip`,
-  };
+  return buildCustomTileSetExportArchiveSF(tileSetId, getShareFlowCtx());
 }
 
 async function buildCustomShareBundleArchive(tileSetId, shareUrl) {
-  const { tileSet, archive, filename } = await buildCustomTileSetExportArchive(tileSetId);
-  const date = new Date().toISOString().slice(0, 10);
-  const tileSetFilenameBase = sanitizeCustomTileSetFilename(tileSet.label || tileSet.id);
-  const { bundle, filename: bundleFilename } = await buildCustomShareBundleArchiveValue({
-    tileSetLabel: tileSet.label,
-    tileSetFilenameBase,
-    tileSetArchive: archive,
-    tileSetArchiveFilename: filename,
-    shareUrl,
-    date,
-  });
-  return {
-    tileSet,
-    bundle,
-    filename: bundleFilename,
-  };
+  return buildCustomShareBundleArchiveSF(tileSetId, shareUrl, getShareFlowCtx());
 }
 
 function buildShareFallbackPayload(payload, fallbackTileSetId = DEFAULT_TILE_SET_ID) {
-  const fallbackTileSet = getTileSetConfig(fallbackTileSetId);
-  return buildShareFallbackPayloadValue(payload, fallbackTileSet, buildBossAssetKey);
+  return buildShareFallbackPayloadSF(payload, getShareFlowCtx(), fallbackTileSetId);
 }
 
 async function copyShareLayoutLink() {
-  if (state.wallEditMode) {
-    setStatus("Share links are available on Build View only.", true);
-    return false;
-  }
-  const url = createShareLayoutUrl();
-  if (!url) {
-    setStatus("Could not create a share link for the current layout.", true);
-    return false;
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-  } catch (error) {
-    console.warn("Could not copy share link.", error);
-    setStatus("Could not copy share link.", true);
-    return false;
-  }
-  const activeTileSet = getTileSetConfig(state.selectedTileSetId);
-  if (activeTileSet?.source === "custom") {
-    const shouldExport = window.confirm(
-      `This shared layout uses the browser-local custom tile set "${activeTileSet.label}".\n\nPress OK to also export a share bundle with:\n- the matching custom tile set .zip\n- a helper HTML file with import/open instructions\n\nPress Cancel to copy only the link.\n\nWithout the matching custom tile set, the receiver can only load a best-effort fallback view.`,
-    );
-    if (shouldExport) {
-      try {
-        const { bundle, filename } = await buildCustomShareBundleArchive(activeTileSet.id, url);
-        downloadBlob(bundle, filename);
-        setStatus(`Share link copied. Matching share bundle exported for ${activeTileSet.label}.`);
-        markDevQaCheck("copy_share_link", { detail: activeTileSet.id });
-        return true;
-      } catch (error) {
-        console.error(error);
-        setStatus("Share link copied, but exporting the matching custom-set share bundle failed.", true);
-        markDevQaCheck("copy_share_link", { detail: activeTileSet.id });
-        return true;
-      }
-    }
-    setStatus(`Share link copied. The receiver still needs the matching custom tile set installed, or they can only use fallback restore.`);
-    markDevQaCheck("copy_share_link", { detail: activeTileSet.id });
-    return true;
-  }
-  setStatus("Share link copied.");
-  markDevQaCheck("copy_share_link", { detail: state.selectedTileSetId });
-  return true;
+  return copyShareLayoutLinkSF(getShareFlowCtx());
 }
 
 async function restoreSharedLayoutFromUrl() {
-  const encoded = getShareQueryParam();
-  if (!encoded) return false;
-
-  let payload = null;
-  try {
-    payload = JSON.parse(decodeBase64Url(encoded));
-  } catch (error) {
-    console.warn("Could not decode shared layout from URL.", error);
-    setStatus("Shared layout link is invalid or corrupted.", true);
-    return false;
-  }
-
-  const requestedTileSetId = String(payload?.ts || "");
-  let tileSet = findTileSetConfigById(requestedTileSetId);
-  if ((!tileSet || tileSet.status !== "ready") && requestedTileSetId && requestedTileSetId !== DEFAULT_TILE_SET_ID) {
-    const builtInIds = new Set(BUILT_IN_TILE_SET_REGISTRY.map((entry) => entry.id));
-    const looksCustom = !builtInIds.has(requestedTileSetId);
-    if (looksCustom) {
-      const useFallback = window.confirm(
-        `This shared layout uses the custom tile set "${requestedTileSetId}", which is not installed on this browser.\n\nPress OK to load a best-effort fallback with Molten.\nThis keeps the shared layout positions and slot mapping where possible, but the art and tile metadata will not be exact.\n\nPress Cancel to keep the current view and import the matching custom tile set .zip first.`,
-      );
-      if (!useFallback) {
-        setStatus("Shared layout was not loaded. Import the matching custom tile set .zip first for an exact restore.", true);
-        return false;
-      }
-      payload = buildShareFallbackPayload(payload, DEFAULT_TILE_SET_ID);
-      tileSet = findTileSetConfigById(DEFAULT_TILE_SET_ID);
-    }
-  }
-
-  const snapshot = buildShareLayoutSnapshot(payload);
-  if (!snapshot) {
-    setStatus("Shared layout link is invalid or unsupported.", true);
-    return false;
-  }
-
-  tileSet = findTileSetConfigById(snapshot.tileSetId);
-  if (!tileSet || tileSet.status !== "ready") {
-    setStatus(`Shared layout tile set "${snapshot.tileSetId}" is unavailable on this build.`, true);
-    return false;
-  }
-
-  if (snapshot.tileSetId !== state.selectedTileSetId) {
-    await applyTileSet(snapshot.tileSetId, false);
-  }
-
-  const restored = restoreBuildViewLayout(snapshot);
-  if (restored) {
-    setStatus(
-      snapshot.tileSetId === DEFAULT_TILE_SET_ID && requestedTileSetId && requestedTileSetId !== DEFAULT_TILE_SET_ID
-        ? `Shared layout loaded with Molten fallback because "${requestedTileSetId}" is not installed locally. Layout positions were restored, but art and metadata may differ from the original custom set.`
-        : "Shared layout loaded from link.",
-    );
-  } else {
-    setStatus("Could not restore the shared layout.", true);
-  }
-  return restored;
+  return restoreSharedLayoutFromUrlSF(getShareFlowCtx());
 }
 
 function restoreBuildViewLayout(snapshot) {
-  if (!snapshot || snapshot.tileSetId !== state.selectedTileSetId) return false;
-
-  const byId = new Map((snapshot.tiles || []).map((t) => [t.tileId || t.id, t]));
-  if (!byId.size) return false;
-  clearCompactModeBoardReset();
-  const restoredOrder = Array.isArray(snapshot.regularTileOrder)
-    ? snapshot.regularTileOrder.map((tileId) => migrateLegacyTileId(tileId))
-    : deriveLegacyRegularTileOrder(snapshot, state.selectedTileSetId);
-  setRegularTileOrder(restoredOrder, state.selectedTileSetId);
-
-  for (const tile of state.tiles.values()) {
-    const saved = byId.get(tile.tileId);
-    if (!saved) continue;
-    tile.placed = Boolean(saved.placed);
-    tile.x = Number(saved.x) || 0;
-    tile.y = Number(saved.y) || 0;
-    tile.rotation = normalizeAngle(Number(saved.rotation) || 0);
-  }
-
-  state.boardPanX = Number(snapshot.boardPanX) || 0;
-  state.boardPanY = Number(snapshot.boardPanY) || 0;
-  state.boardZoom = Number(snapshot.boardZoom) || 1;
-  state.boardZoomRaw = state.boardZoom;
-  applyBoardZoom(state.boardZoom);
-  syncRegularTileActivityFromSlotOrder(state.selectedTileSetId);
-
-  clearBoard();
-  scheduleBoardHexGridRender();
-  rerenderTrayAndReserve();
-
-  for (const tile of state.tiles.values()) {
-    if (!tile.placed) continue;
-    if (!tile.dom) tile.dom = createTileElement(tile);
-    updateTileParent(tile, board);
-    updateTileTransform(tile);
-  }
-  const start = state.tiles.get(ENTRANCE_TILE_ID);
-  if (start?.placed) {
-    setEntranceFadeAnchorFromTile(start);
-    if (snapshot.referenceMarker && state.referenceTileSrc) {
-      placeReferenceMarkerAt(snapshot.referenceMarker.x, snapshot.referenceMarker.y);
-    } else {
-      placeReferenceAboveStart(start);
-    }
-  }
-  for (const savedToken of snapshot.bossTokens || []) {
-    const bossKey = savedToken.bossKey || getBossKeyForLegacySrc(savedToken.src, snapshot.tileSetId);
-    if (!bossKey) continue;
-    createBossToken(
-      bossKey,
-      Number(savedToken.x) || 0,
-      Number(savedToken.y) || 0,
-      Number(savedToken.size) || TILE_SIZE,
-    );
-  }
-
-  selectTile(null);
-  return true;
+  return restoreBuildViewLayoutSF(snapshot, getShareFlowCtx());
 }
 
 function getCurrentLayoutExportItems(options = {}) {
