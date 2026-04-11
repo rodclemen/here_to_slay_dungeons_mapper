@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-04-11
+- Extracted ~30 theme manager functions into `modules/theme-manager.js` (310 lines) — appearance mode (light/dark/system), UI theme selection, auto-theme-by-tileset, and theme menu sync. Load functions called during state init kept inline to avoid circular refs.
+- Extracted 9 share flow functions into `modules/share-flow.js` (280 lines) — share payload encoding, URL generation, custom tile set bundle export, and build-view layout capture/restore.
 - Extracted all 48 tile-placement functions into `modules/tile-placement.js` (763 lines) — snap, overlap detection, contact validation, rotation, invalid-drop recovery, drag feedback, and placement guides all moved out of the monolith. Each function in app.js is now a one-liner wrapper delegating via `getTilePlacementCtx()`. Net ~420 lines removed from app.js.
 - Added a Content Security Policy to the Tauri app config, locking down resource loading to `'self'`, inline styles, blob/data images, and Tauri IPC — closes the wide-open `"csp": null` that allowed any origin.
 - Extracted the wall editor UI into `modules/wall-editor-ui.js` (896 lines) — page renderer, panel builders, asset slot constructors, tile element builder, toolbar hints, portal flag drag, and group management all moved out of the monolith. app.js dropped from 10,745 to 10,002 lines; thin wrappers delegate to the module via a `ctx` bridge object.
