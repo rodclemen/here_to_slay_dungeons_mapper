@@ -2706,6 +2706,7 @@ async function init() {
   syncTileSetMenuOptions();
   syncSelectedTileSetHeading();
   syncBossTileSetHeading();
+  syncChooseDataFolderAction();
   applyAppearanceMode(state.selectedAppearanceMode, { showStatus: false, save: false });
   setAutoThemeByTileSet(state.autoThemeByTileSet, {
     save: false,
@@ -3195,6 +3196,15 @@ function syncCustomTileSetFolderControls() {
   }
 }
 
+function syncChooseDataFolderAction() {
+  if (!chooseDataFolderBtn) return;
+  const dataFolderPath = getStoredDataFolderPath();
+  const hasDataFolder = Boolean(dataFolderPath);
+  chooseDataFolderBtn.classList.toggle("is-ready", hasDataFolder);
+  chooseDataFolderBtn.classList.toggle("is-missing", !hasDataFolder);
+  chooseDataFolderBtn.title = hasDataFolder ? `Data folder: ${dataFolderPath}` : "No data folder chosen";
+}
+
 function syncBossTileSetHeading() {
   syncBossTileSetHeadingBM(getBossManagementCtx());
 }
@@ -3361,6 +3371,7 @@ function bindGlobalControls() {
           setStatus("Data folder selection canceled.");
           return;
         }
+        syncChooseDataFolderAction();
         await finalizeDataFolderSelection(selectedPath);
       } catch (error) {
         console.error(error);
