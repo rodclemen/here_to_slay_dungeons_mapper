@@ -6,7 +6,7 @@ const CUSTOM_TILE_SET_EDITOR_FILE = "wall_editor.json";
 let settingsCache = null;
 let settingsCacheFolderPath = null;
 
-function isTauriRuntime() {
+export function isTauriRuntime() {
   return typeof globalThis.__TAURI__?.core?.invoke === "function";
 }
 
@@ -115,10 +115,19 @@ export async function listDirEntries(path) {
 }
 
 export async function chooseDataFolder(defaultPath = "", { persist = true } = {}) {
+  const selected = await chooseFolderPath(defaultPath, { title: "Choose Data Folder" });
+  if (!selected) return "";
+  if (persist) {
+    setStoredDataFolderPath(selected);
+  }
+  return selected;
+}
+
+export async function chooseFolderPath(defaultPath = "", { title = "Choose Folder" } = {}) {
   if (!isTauriRuntime()) return "";
   const selected = await invokeTauri("plugin:dialog|open", {
     options: {
-      title: "Choose Data Folder",
+      title,
       directory: true,
       multiple: false,
       defaultPath: normalizeFolderPath(defaultPath || getStoredDataFolderPath()),
@@ -128,9 +137,6 @@ export async function chooseDataFolder(defaultPath = "", { persist = true } = {}
   const normalized = normalizeFolderPath(selected);
   if (!normalized) return "";
   await ensureDir(normalized);
-  if (persist) {
-    setStoredDataFolderPath(normalized);
-  }
   return normalized;
 }
 
@@ -197,6 +203,7 @@ export async function saveDataSettingsMap(nextSettings) {
 export async function loadDataSetting(storageKey, fallback) {
   const folderPath = await ensureDataFolderPath();
   if (!folderPath) {
+    if (isTauriRuntime()) return fallback;
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw == null) return fallback;
@@ -219,6 +226,7 @@ export async function loadDataSetting(storageKey, fallback) {
 export async function saveDataSetting(storageKey, value) {
   const folderPath = await ensureDataFolderPath();
   if (!folderPath) {
+    if (isTauriRuntime()) return false;
     try {
       if (typeof value === "string") {
         localStorage.setItem(storageKey, value);

@@ -335,13 +335,17 @@ export function setAutoThemeByTileSet(enabled, ctx, { save = true, showStatus = 
   syncAutoThemeToggleButton(ctx);
   syncThemeControlVisibility(ctx);
   if (ctx.state.autoThemeByTileSet && applyNow) {
+    ctx.state.selectedAppearanceMode = "system";
+    syncUiThemeSelectAvailability("system", ctx);
+    syncAppearanceModeMenu("system", ctx);
+    if (save) saveAppearanceMode("system", ctx);
     applyAutoThemeForTileSet(ctx.state.selectedTileSetId, ctx, { save, showStatus: false });
   }
   if (save) saveAutoThemeByTileSet(ctx.state.autoThemeByTileSet, ctx);
   if (showStatus) {
     ctx.setStatus(
       ctx.state.autoThemeByTileSet
-        ? "Auto Theme: ON (theme follows tile set)."
+        ? "Auto Theme: ON (theme follows tile set; appearance mode set to System)."
         : "Auto Theme: OFF (manual theme controls enabled).",
     );
   }

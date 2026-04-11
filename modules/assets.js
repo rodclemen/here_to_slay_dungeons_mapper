@@ -1,12 +1,16 @@
 const imageExistsCache = new Map();
 const imageLoadCache = new Map();
 
+function cleanAssetSrc(src) {
+  return String(src || "").trim();
+}
+
 export function getBuiltInTileSetAssetPath(tileSet, assetKind, assetId = "") {
   const basePath = `./tiles/${tileSet.id}`;
-  if (assetKind === "entrance") return `${basePath}/${tileSet.id}_entrance.png`;
-  if (assetKind === "reference") return `${basePath}/${tileSet.id}_${assetId || "reference_card"}.png`;
-  if (assetKind === "tile") return `${basePath}/${tileSet.id}_${assetId}.png`;
-  if (assetKind === "boss") return `${basePath}/${tileSet.id}_boss_${assetId}.png`;
+  if (assetKind === "entrance") return cleanAssetSrc(`${basePath}/${tileSet.id}_entrance.png`);
+  if (assetKind === "reference") return cleanAssetSrc(`${basePath}/${tileSet.id}_${assetId || "reference_card"}.png`);
+  if (assetKind === "tile") return cleanAssetSrc(`${basePath}/${tileSet.id}_${assetId}.png`);
+  if (assetKind === "boss") return cleanAssetSrc(`${basePath}/${tileSet.id}_boss_${assetId}.png`);
   return "";
 }
 
@@ -35,14 +39,15 @@ export function getTileSetAssetPaths(
 }
 
 export function imageExists(src) {
-  if (imageExistsCache.has(src)) return imageExistsCache.get(src);
+  const normalizedSrc = cleanAssetSrc(src);
+  if (imageExistsCache.has(normalizedSrc)) return imageExistsCache.get(normalizedSrc);
   const pending = new Promise((resolve) => {
     const image = new Image();
     image.onload = () => resolve(true);
     image.onerror = () => resolve(false);
-    image.src = src;
+    image.src = normalizedSrc;
   });
-  imageExistsCache.set(src, pending);
+  imageExistsCache.set(normalizedSrc, pending);
   return pending;
 }
 
@@ -117,16 +122,22 @@ export function getRegistryIssues(tileSet, seenIds) {
 }
 
 export function loadImage(src) {
-  if (imageLoadCache.has(src)) return imageLoadCache.get(src);
+  const normalizedSrc = cleanAssetSrc(src);
+  if (imageLoadCache.has(normalizedSrc)) return imageLoadCache.get(normalizedSrc);
   const pending = new Promise((resolve, reject) => {
+    if (!normalizedSrc) {
+      reject(new Error("Could not load empty image source."));
+      return;
+    }
+
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = () => {
-      imageLoadCache.delete(src);
-      reject(new Error(`Could not load ${src}`));
+      imageLoadCache.delete(normalizedSrc);
+      reject(new Error(`Could not load ${normalizedSrc}`));
     };
-    image.src = src;
+    image.src = normalizedSrc;
   });
-  imageLoadCache.set(src, pending);
+  imageLoadCache.set(normalizedSrc, pending);
   return pending;
 }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Guide — Here to Slay DUNGEONS Mapper</title>
+  <title>Guide — Here to Slay: DUNGEONS Mapper</title>
   <link rel="icon" type="image/png" href="./icons/d20.png" />
   <link rel="stylesheet" href="./styles.css" />
   <style>
@@ -69,6 +69,51 @@
       background: color-mix(in srgb, var(--about-panel) 90%, transparent 10%);
       backdrop-filter: blur(6px);
       box-shadow: 0 8px 14px -12px rgba(48, 34, 22, 0.26);
+    }
+
+    .guide-search {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--about-border);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--about-panel) 88%, transparent 12%);
+      box-shadow: 0 8px 14px -12px rgba(48, 34, 22, 0.18);
+    }
+
+    .guide-search label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      color: var(--about-muted);
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .guide-search input {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--about-border-strong);
+      border-radius: 12px;
+      background: var(--about-panel);
+      color: var(--about-text);
+      font: inherit;
+    }
+
+    .guide-search button {
+      flex: 0 0 auto;
+      padding: 10px 14px;
+      border: 1px solid var(--about-border-strong);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--about-panel) 76%, white 24%);
+      color: var(--about-accent-strong);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     .brand-chip,
@@ -421,16 +466,24 @@
       <a class="toc-link" href="#boss-cards">Boss Cards</a>
       <a class="toc-link" href="#controls">Shortcuts</a>
       <a class="toc-link" href="#known-issues">Known Issues</a>
-      <a class="toc-link" href="#support">Donate</a>
+      <a class="toc-link" href="#support"><span aria-hidden="true">🍺</span> Donate</a>
     </nav>
+
+    <section class="guide-search" id="guide-search">
+      <label for="guide-search-input">
+        Search this guide
+        <input id="guide-search-input" type="search" placeholder="Search topics, features, or sections" />
+      </label>
+      <button id="guide-search-clear" type="button">Clear</button>
+    </section>
 
     <section class="hero" id="what-it-is">
       <div class="hero-image-wrap">
-        <img class="hero-image" src="./Graphics/about_banner.png" alt="Here to Slay DUNGEONS Mapper hero graphic" />
+        <img class="hero-image" src="./Graphics/about_banner.png" alt="Here to Slay: DUNGEONS Mapper hero graphic" />
       </div>
       <div class="hero-copy">
         <div class="eyebrow">Guide</div>
-        <h1>Here to Slay DUNGEONS Mapper</h1>
+        <h1>Here to Slay: DUNGEONS Mapper</h1>
         <p class="lead">This website is a dungeon layout builder for <em>Here to Slay: DUNGEONS</em>. It lets you place tiles on a hex board, test valid layouts, auto-generate complete dungeons, and add bosses before needing to wrestle with the physical tiles.</p>
         <p class="muted">The current tile, reference-card, and boss-card images should be treated as provisional stand-ins, not final released graphics. Right now the focus is on getting the rules, metadata, and overall framework solid so the official art can be swapped in cleanly as it becomes available.</p>
         <p class="muted">This page explains the user workflow, the important features, and the shortcuts built into the mapper.</p>
@@ -801,24 +854,10 @@
     </section>
 
     <section class="donate" id="support">
-      <h2>Buy Me a Little Dungeon Fuel</h2>
+      <h2><span aria-hidden="true">🍺</span> Buy Me a Little Dungeon Fuel</h2>
       <p>This mapper will stay free to use. No paywall, no “premium dungeon tiles,” no nonsense.</p>
       <p>If it helps you plan cool layouts, build random dungeons faster, or avoid a bit of setup fiddling, and you feel like tossing a few coins into the tavern jar, that is very welcome, but never expected.</p>
-      <form action="https://www.paypal.com/donate" method="post" target="_top">
-        <input type="hidden" name="business" value="BBGV34SWDBEXG" />
-        <input type="hidden" name="no_recurring" value="1" />
-        <input type="hidden" name="item_name" value="Buy Me a Little Dungeon Fuel" />
-        <input type="hidden" name="currency_code" value="DKK" />
-        <input
-          type="image"
-          src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif"
-          border="0"
-          name="submit"
-          title="PayPal - The safer, easier way to pay online!"
-          alt="Donate with PayPal button"
-        />
-        <img alt="" border="0" src="https://www.paypal.com/en_DK/i/scr/pixel.gif" width="1" height="1" />
-      </form>
+      <button id="donate-btn" type="button" class="guide-primary-btn">Donate with PayPal</button>
     </section>
   </main>
 
@@ -831,27 +870,167 @@
       applyUiThemeClass,
       getAppliedAboutPageThemeId,
     } from "./modules/ui-themes.js";
+    import { loadDataSetting } from "./modules/data-folder-store.js";
 
+    const guideSearchInput = document.getElementById("guide-search-input");
+    const guideSearchClearBtn = document.getElementById("guide-search-clear");
+    const donateBtn = document.getElementById("donate-btn");
     const guideThemeStorageKeys = new Set([
       APPEARANCE_MODE_STORAGE_KEY,
       LAST_DARK_UI_THEME_STORAGE_KEY,
       LAST_LIGHT_UI_THEME_STORAGE_KEY,
       UI_THEME_STORAGE_KEY,
     ]);
+    const searchableGuideSections = [...document.querySelectorAll(".section, .hero, .donate")];
 
-    function applyCurrentGuideTheme() {
-      applyUiThemeClass(document.body, getAppliedAboutPageThemeId());
+    async function getCurrentGuideThemeId() {
+      const explicitTheme = await loadDataSetting(UI_THEME_STORAGE_KEY, "");
+      const appearanceMode = await loadDataSetting(APPEARANCE_MODE_STORAGE_KEY, "");
+      const lastLightTheme = await loadDataSetting(LAST_LIGHT_UI_THEME_STORAGE_KEY, "");
+      const lastDarkTheme = await loadDataSetting(LAST_DARK_UI_THEME_STORAGE_KEY, "");
+
+      return getAppliedAboutPageThemeId({
+        getItem: (key) => {
+          if (key === UI_THEME_STORAGE_KEY) return explicitTheme || null;
+          if (key === APPEARANCE_MODE_STORAGE_KEY) return appearanceMode || null;
+          if (key === LAST_LIGHT_UI_THEME_STORAGE_KEY) return lastLightTheme || null;
+          if (key === LAST_DARK_UI_THEME_STORAGE_KEY) return lastDarkTheme || null;
+          return null;
+        },
+      });
     }
 
-    applyCurrentGuideTheme();
+    async function applyCurrentGuideTheme() {
+      applyUiThemeClass(document.body, await getCurrentGuideThemeId());
+    }
+
+    void applyCurrentGuideTheme();
+
+    function applyGuideSearch(query) {
+      const normalized = String(query || "").trim().toLowerCase();
+      for (const section of searchableGuideSections) {
+        section.hidden = Boolean(normalized) && !section.textContent.toLowerCase().includes(normalized);
+      }
+      if (guideSearchClearBtn) {
+        guideSearchClearBtn.hidden = !normalized;
+      }
+    }
+
+    function focusGuideSearch() {
+      if (!guideSearchInput) return;
+      guideSearchInput.focus();
+      guideSearchInput.select();
+    }
+
+    function openDonateLink() {
+      const url = "https://www.paypal.com/donate/?business=BBGV34SWDBEXG&no_recurring=1&item_name=Buy+Me+a+Little+Dungeon+Fuel&currency_code=DKK";
+      if (typeof window.__TAURI__?.core?.invoke === "function") {
+        void window.__TAURI__.core.invoke("open_external_url", { url }).catch((error) => {
+          console.error(error);
+        });
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    function requestDonateConfirmation() {
+      return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.className = "text-input-modal-backdrop";
+        overlay.setAttribute("role", "presentation");
+
+        const modal = document.createElement("div");
+        modal.className = "text-input-modal";
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("aria-labelledby", "donate-modal-title");
+
+        const heading = document.createElement("h2");
+        heading.id = "donate-modal-title";
+        heading.textContent = "Open PayPal?";
+
+        const body = document.createElement("p");
+        body.textContent = "You are about to open a PayPal link in your browser.";
+
+        const actions = document.createElement("div");
+        actions.className = "text-input-modal-actions";
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.textContent = "Cancel";
+        const confirmBtn = document.createElement("button");
+        confirmBtn.type = "button";
+        confirmBtn.textContent = "Open";
+
+        actions.append(cancelBtn, confirmBtn);
+        modal.append(heading, body, actions);
+        overlay.appendChild(modal);
+
+        const close = (value) => {
+          document.removeEventListener("keydown", handleKeyDown);
+          overlay.remove();
+          resolve(value);
+        };
+        const handleKeyDown = (event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close(false);
+          }
+        };
+
+        cancelBtn.addEventListener("click", () => close(false));
+        confirmBtn.addEventListener("click", () => close(true));
+        document.addEventListener("keydown", handleKeyDown);
+        document.body.appendChild(overlay);
+        confirmBtn.focus();
+      });
+    }
+
+    if (guideSearchInput) {
+      const searchParam = new URLSearchParams(window.location.search).get("guideSearch") || "";
+      guideSearchInput.value = searchParam;
+      applyGuideSearch(searchParam);
+      if (searchParam) {
+        window.requestAnimationFrame(() => focusGuideSearch());
+      }
+      guideSearchInput.addEventListener("input", () => {
+        applyGuideSearch(guideSearchInput.value);
+      });
+    }
+    if (guideSearchClearBtn) {
+      guideSearchClearBtn.addEventListener("click", () => {
+        if (!guideSearchInput) return;
+        guideSearchInput.value = "";
+        applyGuideSearch("");
+        focusGuideSearch();
+      });
+    }
+
+    if (donateBtn) {
+      donateBtn.addEventListener("click", async () => {
+        const confirmed = await requestDonateConfirmation();
+        if (!confirmed) return;
+        openDonateLink();
+      });
+    }
+
+    function refreshGuideThemeOnFocus() {
+      if (document.visibilityState === "hidden") return;
+      void applyCurrentGuideTheme();
+    }
 
     window.addEventListener("storage", (event) => {
       if (event.key === null || guideThemeStorageKeys.has(event.key)) {
-        applyCurrentGuideTheme();
+        void applyCurrentGuideTheme();
       }
     });
 
-    window.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", applyCurrentGuideTheme);
+    window.addEventListener("focus", refreshGuideThemeOnFocus);
+    window.addEventListener("pageshow", refreshGuideThemeOnFocus);
+    document.addEventListener("visibilitychange", refreshGuideThemeOnFocus);
+
+    window.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", () => {
+      void applyCurrentGuideTheme();
+    });
   </script>
 </body>
 </html>

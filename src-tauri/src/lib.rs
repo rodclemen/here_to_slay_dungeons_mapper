@@ -1,7 +1,14 @@
-use std::{fs, io::Read, path::PathBuf};
+use std::{fs, io::Read, path::PathBuf, process::Command};
 
 use flate2::read::DeflateDecoder;
 use serde::Serialize;
+use tauri::{image::Image, menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu}, Emitter};
+
+const APP_ICON: Image<'static> = tauri::include_image!("./icons/icon.png");
+const APP_MENU_TITLE: &str = "Here to Slay: DUNGEONS Mapper";
+const APP_ABOUT_TITLE: &str = "About HtSD:Mapper";
+const APP_ABOUT_COMMENTS: &str = "A dungeon layout mapper for Here to Slay: DUNGEONS. Build boards, import custom tile sets, and export clean printable layouts.";
+const APP_ABOUT_COPYRIGHT: &str = "Copyright © 2026 Rod Clemen";
 
 #[derive(Serialize)]
 struct DirEntryInfo {
@@ -129,9 +136,143 @@ fn list_dir_entries(path: String) -> Result<Vec<DirEntryInfo>, String> {
     Ok(entries)
 }
 
+fn open_external_url_impl(url: &str) -> Result<(), String> {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return Err("Could not open an empty URL.".to_string());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let status = Command::new("/usr/bin/open")
+            .arg(trimmed)
+            .status()
+            .map_err(|error| format!("Could not open URL: {error}"))?;
+        if !status.success() {
+            return Err(format!("Could not open URL: /usr/bin/open exited with {status}"));
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let status = Command::new("/usr/bin/xdg-open")
+            .arg(trimmed)
+            .status()
+            .map_err(|error| format!("Could not open URL: {error}"))?;
+        if !status.success() {
+            return Err(format!("Could not open URL: /usr/bin/xdg-open exited with {status}"));
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let status = Command::new("cmd")
+            .args(["/C", "start", "", trimmed])
+            .status()
+            .map_err(|error| format!("Could not open URL: {error}"))?;
+        if !status.success() {
+            return Err(format!("Could not open URL: cmd /C start exited with {status}"));
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    open_external_url_impl(&url)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .enable_macos_default_menu(false)
+        .on_menu_event(|app, event| {
+            let action = match event.id().as_ref() {
+                "menu_import_tile_set" => Some("import-custom-tileset"),
+                "menu_open_guide" => Some("open-guide"),
+                "menu_open_donate" => Some("open-donate"),
+                "menu_send_feedback" => {
+                    let _ = open_external_url_impl("mailto:info@trailhunger.dk?subject=Here%20to%20Slay%20DUNGEONS%20Mapper");
+                    None
+                }
+                "menu_export_all_custom_tile_sets" => Some("export-all-custom-tile-sets"),
+                "menu_export_pdf" => Some("export-pdf"),
+                _ => None,
+            };
+            if let Some(action) = action {
+                let _ = app.emit("native-menu-action", action);
+            }
+        })
+        .setup(|app| {
+            let handle = app.handle();
+            let pkg_info = handle.package_info();
+            let about_metadata = AboutMetadata {
+                name: Some(APP_MENU_TITLE.to_string()),
+                version: Some(pkg_info.version.to_string()),
+                comments: Some(APP_ABOUT_COMMENTS.to_string()),
+                copyright: Some(APP_ABOUT_COPYRIGHT.to_string()),
+                authors: Some(vec!["Rod Clemen".to_string()]),
+                icon: Some(APP_ICON.clone()),
+                ..Default::default()
+            };
+            let file_menu = Submenu::with_items(
+                handle,
+                "File",
+                true,
+                &[
+                    &MenuItem::with_id(handle, "menu_import_tile_set", "Import Tile Set", true, None::<&str>)?,
+                    &MenuItem::with_id(handle, "menu_export_all_custom_tile_sets", "Export All", true, None::<&str>)?,
+                    &MenuItem::with_id(handle, "menu_export_pdf", "Export PDF", true, None::<&str>)?,
+                    &PredefinedMenuItem::separator(handle)?,
+                    &PredefinedMenuItem::close_window(handle, None)?,
+                    #[cfg(not(target_os = "macos"))]
+                    &PredefinedMenuItem::quit(handle, None)?,
+                ],
+            )?;
+            let guide_menu = Submenu::with_items(
+                handle,
+                "Info",
+                true,
+                &[
+                    &MenuItem::with_id(handle, "menu_open_guide", "Guide", true, None::<&str>)?,
+                    &MenuItem::with_id(handle, "menu_send_feedback", "Send Feedback", true, None::<&str>)?,
+                ],
+            )?;
+
+            let menu = Menu::with_items(
+                handle,
+                &[
+                    #[cfg(target_os = "macos")]
+                    &Submenu::with_items(
+                        handle,
+                        APP_MENU_TITLE,
+                        true,
+                        &[
+                            &PredefinedMenuItem::about(handle, Some(APP_ABOUT_TITLE), Some(about_metadata.clone()))?,
+                            &PredefinedMenuItem::separator(handle)?,
+                            &MenuItem::with_id(handle, "menu_open_donate", "Donate", true, None::<&str>)?,
+                            &PredefinedMenuItem::separator(handle)?,
+                            &PredefinedMenuItem::quit(handle, Some("Quit"))?,
+                        ],
+                    )?,
+                    #[cfg(not(any(
+                        target_os = "linux",
+                        target_os = "dragonfly",
+                        target_os = "freebsd",
+                        target_os = "netbsd",
+                        target_os = "openbsd"
+                    )))]
+                    &file_menu,
+                    #[cfg(target_os = "macos")]
+                    &Submenu::with_items(
+                        handle,
+                        "View",
+                        true,
+                        &[&PredefinedMenuItem::fullscreen(handle, None)?],
+                    )?,
+                    &guide_menu,
+                ],
+            )?;
+            app.set_menu(menu)?;
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -145,6 +286,7 @@ pub fn run() {
             write_text_file,
             read_file_bytes,
             list_dir_entries,
+            open_external_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");

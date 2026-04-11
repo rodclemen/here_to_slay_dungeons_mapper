@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Here to Slay DUNGEONS mapper</title>
+    <title>Here to Slay: DUNGEONS Mapper</title>
     <link rel="icon" type="image/png" href="./icons/d20.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -11,7 +11,7 @@
     <main class="app">
       <header class="topbar">
         <div class="topbar-brand">
-          <h1><span class="brand-main">Here to Slay</span> DUNGEONS Mapper <span class="brand-beta">BETA</span></h1>
+          <h1><span class="brand-main">Here to Slay:</span> DUNGEONS Mapper <span class="brand-beta">BETA</span></h1>
         </div>
         <div class="actions">
           <div class="appearance-mode-menu" id="appearance-mode-menu">
@@ -48,6 +48,9 @@
                 <select id="ui-theme-select" aria-label="UI Theme" hidden></select>
               </div>
               <button id="choose-data-folder-btn" type="button">Choose Data Folder</button>
+              <button id="open-tile-set-folder-btn" class="tauri-only" type="button">Open Tile Set Folder</button>
+              <button id="save-tile-set-folder-btn" class="tauri-only" type="button">Save Tile Set As Folder</button>
+              <button id="open-debug-log-btn" class="tauri-only" type="button">Open Debug Log</button>
               <label>
                 <input id="toggle-face-feedback-checkbox" type="checkbox" />
                 <span>Placement feedback: Faces</span>
@@ -292,6 +295,20 @@
       </section>
 
       <section id="wall-editor-page" class="wall-editor-page" aria-label="Tile Editor"></section>
+      <section id="debug-console" class="debug-console tauri-only" aria-label="Debug Log" hidden>
+        <div class="debug-console-header">
+          <div>
+            <strong>Debug Log</strong>
+            <p>Live console output from the Tauri app.</p>
+          </div>
+          <div class="debug-console-actions">
+            <button id="debug-console-copy-btn" type="button">Copy</button>
+            <button id="debug-console-clear-btn" type="button">Clear</button>
+            <button id="debug-console-close-btn" type="button">Close</button>
+          </div>
+        </div>
+        <pre id="debug-console-output" class="debug-console-output"></pre>
+      </section>
     </main>
 
     <script src="./app.js" type="module"></script>

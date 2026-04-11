@@ -714,6 +714,10 @@ export async function renderWallEditorPage(ctx) {
   importCustomBtn.className = "wall-editor-toolbar-icon-btn";
   importCustomBtn.dataset.icon = "import";
   importCustomBtn.setAttribute("aria-label", "Import Custom Tileset");
+  importCustomBtn.classList.toggle("needs-data-folder", !ctx.hasDataFolderPath);
+  importCustomBtn.title = ctx.hasDataFolderPath
+    ? "Import custom tile set"
+    : "Choose a data folder first to import custom tile sets";
   importCustomBtn.addEventListener("click", () => {
     ctx.openCustomTileSetImportPicker();
   });

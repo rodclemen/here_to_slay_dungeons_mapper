@@ -105,6 +105,10 @@ import {
   saveStoredCustomTileSetBundle,
 } from "./modules/custom-tileset-storage.js";
 import {
+  readCustomTileSetFolderBundle,
+  saveCustomTileSetFolderBundle,
+} from "./modules/custom-tileset-folder.js";
+import {
   createZipArchive,
 } from "./modules/zip-reader.js";
 import {
@@ -124,6 +128,7 @@ import {
 } from "./modules/custom-tileset-package.js";
 import {
   chooseDataFolder,
+  chooseFolderPath,
   ensureDataFolderPath,
   getStoredDataFolderPath,
   hasAnyDataFolderContent,
@@ -395,7 +400,8 @@ const SHOW_PORTAL_FLAGS_STORAGE_KEY = "hts_show_portal_flags_v1";
 const IGNORE_CONTACT_RULE_STORAGE_KEY = "hts_ignore_contact_rule_v1";
 const USE_FACE_FEEDBACK_STORAGE_KEY = "hts_use_face_feedback_v1";
 const USE_ALL_BOSSES_STORAGE_KEY = "hts_use_all_bosses_v1";
-const DATA_FOLDER_PROMPT_DISMISSED_SESSION_KEY = "hts_data_folder_prompt_dismissed_session_v1";
+const DATA_FOLDER_STARTUP_PROMPT_DISMISSED_SESSION_KEY = "hts_data_folder_startup_prompt_dismissed_session_v1";
+const PENDING_DATA_FOLDER_ACTION_SESSION_KEY = "hts_pending_data_folder_action_v1";
 const LOCAL_DATA_NOTICE_SUPPRESSED_SESSION_KEY = "hts_local_data_notice_suppressed_until_custom_change_v1";
 const LEGACY_AUTO_BUILD_TUNING_STORAGE_KEY = "hts_auto_build_tuning_v1";
 const LEGACY_CUSTOM_TILE_SET_RECORDS_STORAGE_KEY = "hts_custom_tile_set_records_v1";
@@ -492,6 +498,9 @@ function cloneBuiltInTileSetRegistry() {
 }
 
 document.body.classList.toggle("dev-mode", DEV_MODE_ENABLED);
+const IS_TAURI_RUNTIME = typeof window.__TAURI__?.core?.invoke === "function";
+document.body.classList.toggle("tauri-mode", typeof window.__TAURI__?.core?.invoke === "function");
+let nativeMenuActionUnlisten = null;
 
 function buildNewCustomTileSetManifest(name) {
   return buildNewCustomTileSetManifestValue(name, {
@@ -582,6 +591,63 @@ function requestTextInput({
     document.body.appendChild(overlay);
     input.focus();
     input.select();
+  });
+}
+
+function requestChoiceDialog({
+  title,
+  message,
+  confirmLabel = "OK",
+  cancelLabel = "Cancel",
+}) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "text-input-modal-backdrop";
+    overlay.setAttribute("role", "presentation");
+
+    const modal = document.createElement("div");
+    modal.className = "text-input-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "choice-modal-title");
+
+    const heading = document.createElement("h2");
+    heading.id = "choice-modal-title";
+    heading.textContent = title || message || "Confirm";
+
+    const body = document.createElement("p");
+    body.textContent = message || "";
+
+    const actions = document.createElement("div");
+    actions.className = "text-input-modal-actions";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.textContent = cancelLabel;
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.textContent = confirmLabel;
+
+    actions.append(cancelBtn, confirmBtn);
+    modal.append(heading, body, actions);
+    overlay.appendChild(modal);
+
+    const close = (value) => {
+      document.removeEventListener("keydown", handleKeyDown);
+      overlay.remove();
+      resolve(value);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close(false);
+      }
+    };
+
+    cancelBtn.addEventListener("click", () => close(false));
+    confirmBtn.addEventListener("click", () => close(true));
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.appendChild(overlay);
+    confirmBtn.focus();
   });
 }
 
@@ -920,6 +986,23 @@ async function importCustomTileSetPackage(file) {
   if (!file) return;
   setStatus(`Importing custom tileset from ${file.name}...`);
   const rawBundle = await buildStoredCustomTileSetBundleFromZip(file);
+  await importCustomTileSetBundle(rawBundle);
+}
+
+async function importCustomTileSetFolder(folderPath) {
+  if (!folderPath) return;
+  const folderName = String(folderPath).split(/[\\/]/).filter(Boolean).at(-1) || folderPath;
+  setStatus(`Importing custom tileset from ${folderName}...`);
+  const rawBundle = await readCustomTileSetFolderBundle(folderPath, {
+    tileIds: TILE_IDS,
+    entranceTileId: ENTRANCE_TILE_ID,
+    referenceCardId: REFERENCE_CARD_ID,
+    builtInTileSetIds: new Set(BUILT_IN_TILE_SET_REGISTRY.map((tileSet) => tileSet.id)),
+  });
+  await importCustomTileSetBundle(rawBundle);
+}
+
+async function importCustomTileSetBundle(rawBundle) {
   let importBundle = rawBundle;
   const importedLabel = rawBundle?.manifest?.label || rawBundle?.manifest?.id || "";
   if (hasTileSetName(importedLabel)) {
@@ -942,8 +1025,17 @@ async function importCustomTileSetPackage(file) {
   }
   const bundle = ensureImportedCustomTileSetBundleHasUniqueId(importBundle);
   await saveStoredCustomTileSetBundle(bundle.manifest, bundle.assets);
-  await refreshRuntimeTileSetRegistry(null, { reloadActiveTileSet: false });
+  await refreshRuntimeTileSetRegistry(null, {
+    reloadActiveTileSet: false,
+    rerenderWallEditor: false,
+  });
   await applyImportedWallEditorData(bundle.manifest.id, bundle.wallEditorData);
+  state.wallEditorGroupId = getWallEditorGroupIdForTileSet(bundle.manifest.id);
+  state.wallEditorActiveTileSetId = bundle.manifest.id;
+  state.wallEditorActiveTileId = bundle.manifest.entranceTileId;
+  syncTileSetMenuOptions();
+  syncSelectedTileSetHeading();
+  syncBossTileSetHeading();
 
   if (tileSetSelect) tileSetSelect.value = bundle.manifest.id;
   if (getTileSetConfig(bundle.manifest.id)?.status === "ready") {
@@ -952,6 +1044,7 @@ async function importCustomTileSetPackage(file) {
   }
   if (state.wallEditMode) {
     await renderWallEditorPage();
+    setActiveWallEditorTile(bundle.manifest.id, bundle.manifest.entranceTileId);
   }
   const importedAsCopy = rawBundle?.manifest?.id && rawBundle.manifest.id !== bundle.manifest.id;
   markDevQaCheck("import_custom_tileset", { detail: bundle.manifest.id });
@@ -965,10 +1058,87 @@ async function importCustomTileSetPackage(file) {
   );
 }
 
-function openCustomTileSetImportPicker() {
+async function openTileSetFolderImportPicker() {
+  if (IS_TAURI_RUNTIME) {
+    const hasFolder = await ensureDataFolderPath({ promptIfMissing: false });
+    if (!hasFolder) {
+      const configured = await promptForDataFolderSelection({
+        title: "Choose a Data Folder",
+        message: "Importing custom tile sets needs a data folder first. Choose one now, or skip for now and the import will be canceled.",
+        resumeAction: "open-custom-tileset-folder-import",
+      });
+      if (!configured) return;
+    }
+  }
+  const folderPath = await chooseFolderPath(getStoredDataFolderPath(), { title: "Open Tile Set Folder" });
+  if (!folderPath) {
+    setStatus("Tile set folder import canceled.");
+    return;
+  }
+  await importCustomTileSetFolder(folderPath);
+}
+
+async function openCustomTileSetImportPicker() {
+  if (IS_TAURI_RUNTIME) {
+    const hasFolder = await ensureDataFolderPath({ promptIfMissing: false });
+    if (!hasFolder) {
+      const configured = await promptForDataFolderSelection({
+        title: "Choose a Data Folder",
+        message: "Importing custom tile sets needs a data folder first. Choose one now, or skip for now and the import will be canceled.",
+        resumeAction: "open-custom-tileset-import",
+      });
+      if (!configured) return;
+    }
+  }
   if (!importCustomTileSetInput) return;
   importCustomTileSetInput.value = "";
   importCustomTileSetInput.click();
+}
+
+async function bindNativeMenuActions() {
+  if (!IS_TAURI_RUNTIME) return;
+  if (nativeMenuActionUnlisten || typeof window.__TAURI__?.event?.listen !== "function") return;
+  nativeMenuActionUnlisten = await window.__TAURI__.event.listen("native-menu-action", async ({ payload }) => {
+    const action = String(payload || "");
+    try {
+      if (action === "import-custom-tileset") {
+        await openCustomTileSetImportPicker();
+        return;
+      }
+      if (action === "open-guide") {
+        window.location.href = "./about.html";
+        return;
+      }
+      if (action === "open-donate") {
+        const confirmed = await requestChoiceDialog({
+          title: "Open PayPal?",
+          message: "You are about to open a PayPal link in your browser.",
+          confirmLabel: "Open",
+          cancelLabel: "Cancel",
+        });
+        if (!confirmed) return;
+        const tauriInvoke = window.__TAURI__?.core?.invoke;
+        if (typeof tauriInvoke !== "function") {
+          throw new Error("Could not open the browser.");
+        }
+        await tauriInvoke("open_external_url", {
+          url: "https://www.paypal.com/donate/?business=BBGV34SWDBEXG&no_recurring=1&item_name=Buy+Me+a+Little+Dungeon+Fuel&currency_code=DKK",
+        });
+        return;
+      }
+      if (action === "export-all-custom-tile-sets") {
+        await exportAllCustomTileSets();
+        return;
+      }
+      if (action === "export-pdf") {
+        markDevQaCheck("export_pdf");
+        exportCurrentLayoutPdf();
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus(error?.message || `Could not handle menu action: ${action}.`, true);
+    }
+  });
 }
 
 async function promptAndCreateCustomTileSet() {
@@ -1177,6 +1347,36 @@ async function exportCustomTileSet(tileSetId) {
   setStatus(`Exported custom tile set: ${tileSet.label}.`);
 }
 
+async function saveCustomTileSetAsFolder(tileSetId, folderPath = "") {
+  const tileSet = getTileSetConfig(tileSetId);
+  if (!tileSet || tileSet.source !== "custom") {
+    setStatus("Only custom tile sets can be saved as folders.", true);
+    return;
+  }
+  if (!folderPath) {
+    setStatus("Tile set folder save canceled.");
+    return;
+  }
+
+  const bundle = await getStoredCustomTileSetBundle(tileSetId);
+  if (!bundle?.manifest) {
+    throw new Error(`Could not find stored custom tileset: ${tileSetId}`);
+  }
+  if (!bundle.assets?.length) {
+    throw new Error("This custom tile set has no stored images to export yet.");
+  }
+
+  const { manifest } = buildExportedCustomTileSetManifest(bundle.manifest, bundle.assets);
+  const wallEditorData = buildExportedWallEditorData(tileSet);
+  await saveCustomTileSetFolderBundle(folderPath, {
+    manifest,
+    assetEntries: bundle.assets,
+    wallEditorData,
+  });
+  markCustomTileSetBackedUp(tileSetId);
+  setStatus(`Saved ${tileSet.label} to ${folderPath}.`);
+}
+
 function markCustomTileSetBackupNeeded(tileSetId) {
   if (!tileSetId) return;
   const wasAlreadyMarked = state.customTileSetBackupNeededIds.has(tileSetId);
@@ -1220,6 +1420,7 @@ function loadLocalDataNoticeSuppressedUntilCustomChange() {
 }
 
 function loadCustomTileSetBackupNeededIds() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return new Set();
   try {
     const raw = localStorage.getItem(CUSTOM_TILE_SET_BACKUP_NEEDED_STORAGE_KEY);
     if (!raw) return new Set();
@@ -1321,7 +1522,7 @@ async function exportAllCustomTileSets() {
 
   const date = new Date().toISOString().slice(0, 10);
   const readmeLines = [
-    "Here to Slay DUNGEONS Mapper - Custom Tile Set Backup",
+    "Here to Slay: DUNGEONS Mapper - Custom Tile Set Backup",
     "",
     `Exported: ${new Date().toISOString()}`,
     `Included custom tile sets: ${exportedEntries.length}`,
@@ -1468,6 +1669,7 @@ function decorateStoredCustomTileSetManifest(manifest, assetUrlCache) {
 }
 
 async function migrateLegacyCustomTileSetRecords() {
+  if (IS_TAURI_RUNTIME) return;
   try {
     const bundles = await listStoredCustomTileSetBundles();
     if (bundles.length > 0) return;
@@ -1526,6 +1728,7 @@ function getWallEditorCtx() {
     state,
     wallEditorPage,
     builtInTileSetRegistry: BUILT_IN_TILE_SET_REGISTRY,
+    hasDataFolderPath: !IS_TAURI_RUNTIME || Boolean(getStoredDataFolderPath()),
     TILE_SIZE,
     SIDES,
     // Tile set helpers
@@ -1968,6 +2171,14 @@ const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-conta
 const toggleFaceFeedbackCheckbox = document.getElementById("toggle-face-feedback-checkbox");
 const toggleAllBossesCheckbox = document.getElementById("toggle-all-bosses-checkbox");
 const chooseDataFolderBtn = document.getElementById("choose-data-folder-btn");
+const openTileSetFolderBtn = document.getElementById("open-tile-set-folder-btn");
+const saveTileSetFolderBtn = document.getElementById("save-tile-set-folder-btn");
+const openDebugLogBtn = document.getElementById("open-debug-log-btn");
+const debugConsole = document.getElementById("debug-console");
+const debugConsoleOutput = document.getElementById("debug-console-output");
+const debugConsoleCopyBtn = document.getElementById("debug-console-copy-btn");
+const debugConsoleClearBtn = document.getElementById("debug-console-clear-btn");
+const debugConsoleCloseBtn = document.getElementById("debug-console-close-btn");
 const autoBuildTuningControlsEl = document.getElementById("auto-build-tuning-controls");
 const autoBuildTuningResetBtn = document.getElementById("auto-build-tuning-reset-btn");
 const autoBuildTuningCopyBtn = document.getElementById("auto-build-tuning-copy-btn");
@@ -1995,6 +2206,162 @@ const autoBuildTuningInputRefs = new Map();
 let localDataNoticeActionContext = null;
 let localDataNoticeSuppressedUntilCustomChange = loadLocalDataNoticeSuppressedUntilCustomChange();
 let persistentDataBootstrapComplete = false;
+const nativeConsole = {
+  log: console.log.bind(console),
+  info: console.info.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+  debug: typeof console.debug === "function" ? console.debug.bind(console) : console.log.bind(console),
+};
+let debugConsoleCaptureInstalled = false;
+let debugConsoleEntries = [];
+
+function formatDebugValue(value, depth = 0, seen = new WeakSet()) {
+  if (value instanceof Error) {
+    return value.stack || `${value.name}: ${value.message}`;
+  }
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  const valueType = typeof value;
+  if (valueType === "string") return JSON.stringify(value);
+  if (valueType === "number" || valueType === "boolean" || valueType === "bigint") return String(value);
+  if (valueType === "symbol") return value.toString();
+  if (valueType === "function") return `[Function ${value.name || "anonymous"}]`;
+  if (valueType !== "object") return String(value);
+  if (seen.has(value)) return "[Circular]";
+  if (depth >= 2) {
+    if (Array.isArray(value)) return `[Array(${value.length})]`;
+    return `[${value.constructor?.name || "Object"}]`;
+  }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => formatDebugValue(item, depth + 1, seen)).join(", ")}]`;
+  }
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Set) {
+    return `Set(${value.size}) { ${[...value].map((item) => formatDebugValue(item, depth + 1, seen)).join(", ")} }`;
+  }
+  if (value instanceof Map) {
+    return `Map(${value.size}) { ${[...value.entries()].map(([key, item]) => `${formatDebugValue(key, depth + 1, seen)} => ${formatDebugValue(item, depth + 1, seen)}`).join(", ")} }`;
+  }
+  if (value instanceof HTMLElement) {
+    const id = value.id ? `#${value.id}` : "";
+    const className = typeof value.className === "string" && value.className.trim()
+      ? `.${value.className.trim().replace(/\s+/g, ".")}`
+      : "";
+    return `<${value.tagName.toLowerCase()}${id}${className}>`;
+  }
+  const entries = Object.entries(value).slice(0, 8).map(([key, item]) => `${key}: ${formatDebugValue(item, depth + 1, seen)}`);
+  const suffix = Object.keys(value).length > entries.length ? ", …" : "";
+  return `{ ${entries.join(", ")}${suffix} }`;
+}
+
+function formatDebugLine(level, args, source = "") {
+  const timestamp = new Date().toISOString().slice(11, 23);
+  const prefix = `[${timestamp}] ${level.toUpperCase()}`;
+  const origin = source ? ` ${source}` : "";
+  const message = args.map((arg) => formatDebugValue(arg)).join(" ");
+  return `${prefix}${origin}${message ? ` ${message}` : ""}`;
+}
+
+function renderDebugConsole() {
+  if (!debugConsoleOutput) return;
+  debugConsoleOutput.textContent = debugConsoleEntries.join("\n");
+  if (!debugConsole.hidden) {
+    debugConsoleOutput.scrollTop = debugConsoleOutput.scrollHeight;
+  }
+}
+
+function appendDebugConsoleEntry(level, args, source = "") {
+  const line = formatDebugLine(level, args, source);
+  debugConsoleEntries.push(line);
+  if (debugConsoleEntries.length > 1500) {
+    debugConsoleEntries = debugConsoleEntries.slice(-1200);
+  }
+  renderDebugConsole();
+}
+
+function openDebugConsole() {
+  if (!debugConsole) return;
+  debugConsole.hidden = false;
+  renderDebugConsole();
+}
+
+function closeDebugConsole() {
+  if (!debugConsole) return;
+  debugConsole.hidden = true;
+}
+
+function toggleDebugConsole() {
+  if (!debugConsole) return;
+  if (debugConsole.hidden) openDebugConsole();
+  else closeDebugConsole();
+}
+
+async function copyDebugConsole() {
+  const text = debugConsoleEntries.join("\n");
+  if (!text) {
+    setStatus("Debug log is empty.", true);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus("Debug log copied.");
+  } catch (error) {
+    try {
+      const tempTextArea = document.createElement("textarea");
+      tempTextArea.value = text;
+      tempTextArea.setAttribute("readonly", "true");
+      tempTextArea.style.position = "fixed";
+      tempTextArea.style.top = "-9999px";
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      const copied = document.execCommand("copy");
+      tempTextArea.remove();
+      if (copied) {
+        setStatus("Debug log copied.");
+        return;
+      }
+    } catch (fallbackError) {
+      nativeConsole.warn("Could not copy debug log.", fallbackError);
+    }
+    setStatus("Could not copy debug log.", true);
+  }
+}
+
+function clearDebugConsole() {
+  debugConsoleEntries = [];
+  renderDebugConsole();
+}
+
+function captureWindowError(event) {
+  appendDebugConsoleEntry("error", [
+    event?.message || "Uncaught error",
+    event?.filename || "",
+    event?.lineno ? `${event.lineno}:${event.colno || 0}` : "",
+    event?.error?.stack || event?.error || "",
+  ], "window");
+}
+
+function captureUnhandledRejection(event) {
+  appendDebugConsoleEntry("error", [event?.reason instanceof Error ? event.reason : event?.reason || "Unhandled promise rejection"], "promise");
+}
+
+function installDebugConsoleCapture() {
+  if (!IS_TAURI_RUNTIME || debugConsoleCaptureInstalled) return;
+  debugConsoleCaptureInstalled = true;
+
+  for (const level of ["log", "info", "warn", "error", "debug"]) {
+    const original = nativeConsole[level];
+    console[level] = (...args) => {
+      appendDebugConsoleEntry(level, args);
+      return original(...args);
+    };
+  }
+
+  window.addEventListener("error", captureWindowError);
+  window.addEventListener("unhandledrejection", captureUnhandledRejection);
+}
 
 const state = {
   tileSetRegistry: runtimeTileSetRegistry,
@@ -2002,33 +2369,33 @@ const state = {
   selectedTileId: null,
   hoveredTileId: null,
   selectedTileSetId: DEFAULT_TILE_SET_ID,
-  selectedAppearanceMode: loadAppearanceMode(),
-  selectedUiThemeId: loadUiThemeId(),
-  autoThemeByTileSet: loadAutoThemeByTileSet(),
-  lastLightUiThemeId: loadLastLightUiThemeId(),
-  lastDarkUiThemeId: loadLastDarkUiThemeId(),
+  selectedAppearanceMode: IS_TAURI_RUNTIME ? DEFAULT_APPEARANCE_MODE : loadAppearanceMode(),
+  selectedUiThemeId: IS_TAURI_RUNTIME ? DEFAULT_UI_THEME_ID : loadUiThemeId(),
+  autoThemeByTileSet: IS_TAURI_RUNTIME ? true : loadAutoThemeByTileSet(),
+  lastLightUiThemeId: IS_TAURI_RUNTIME ? DEFAULT_UI_THEME_ID : loadLastLightUiThemeId(),
+  lastDarkUiThemeId: IS_TAURI_RUNTIME ? DEFAULT_DARK_THEME : loadLastDarkUiThemeId(),
   tileDefs: [],
-  showGuideLabels: loadShowGuideLabels(),
-  showWallFaces: loadShowWallFaces(),
-  showPortalFlags: loadShowPortalFlags(),
+  showGuideLabels: IS_TAURI_RUNTIME ? false : loadShowGuideLabels(),
+  showWallFaces: IS_TAURI_RUNTIME ? false : loadShowWallFaces(),
+  showPortalFlags: IS_TAURI_RUNTIME ? false : loadShowPortalFlags(),
   wallEditMode: false,
-  wallOverrides: loadWallOverrides(),
-  endTileOverrides: loadEndTileOverrides(),
-  portalFlagOverrides: loadPortalFlagOverrides(),
-  guidePointTemplateOverrides: loadGuidePointTemplateOverrides(),
+  wallOverrides: IS_TAURI_RUNTIME ? {} : loadWallOverrides(),
+  endTileOverrides: IS_TAURI_RUNTIME ? {} : loadEndTileOverrides(),
+  portalFlagOverrides: IS_TAURI_RUNTIME ? {} : loadPortalFlagOverrides(),
+  guidePointTemplateOverrides: IS_TAURI_RUNTIME ? {} : loadGuidePointTemplateOverrides(),
   wallEditorTileRefs: new Map(),
   wallEditorActiveTileSetId: null,
   wallEditorActiveTileId: null,
   wallEditorGroupId: null,
-  customTileSetBackupNeededIds: loadCustomTileSetBackupNeededIds(),
+  customTileSetBackupNeededIds: IS_TAURI_RUNTIME ? new Set() : loadCustomTileSetBackupNeededIds(),
   wallEditorPointEditMode: false,
   pendingSwapSource: null,
   reserveEditMode: false,
   regularTileOrder: [],
   renderedTraySlots: [],
-  ignoreContactRule: loadIgnoreContactRule(),
-  useFaceFeedback: loadUseFaceFeedback(),
-  useAllBosses: loadUseAllBosses(),
+  ignoreContactRule: IS_TAURI_RUNTIME ? false : loadIgnoreContactRule(),
+  useFaceFeedback: IS_TAURI_RUNTIME ? false : loadUseFaceFeedback(),
+  useAllBosses: IS_TAURI_RUNTIME ? false : loadUseAllBosses(),
   bossEditMode: true,
   bossPileOrderByTileSet: {},
   allBossesPileOrder: [],
@@ -2062,7 +2429,7 @@ const state = {
   wallEditorAssetScrollAnchor: null,
 };
 
-let autoBuildDevTuning = loadAutoBuildDevTuning();
+let autoBuildDevTuning = IS_TAURI_RUNTIME ? { ...AUTO_BUILD_DEV_TUNING_DEFAULTS } : loadAutoBuildDevTuning();
 
 function buildDefaultPersistentSettingsSnapshot() {
   return {
@@ -2175,7 +2542,6 @@ async function bootstrapPersistentData() {
   const hasData = await hasAnyDataFolderContent();
   if (!hasData) {
     await saveDataSettingsMap(buildDefaultPersistentSettingsSnapshot());
-    await migrateCurrentLegacyDataToDataFolder();
     persistentDataBootstrapComplete = true;
     return;
   }
@@ -2190,99 +2556,141 @@ async function bootstrapPersistentData() {
   persistentDataBootstrapComplete = true;
 }
 
-function clearDataFolderPromptDismissedThisSession() {
+function setPendingDataFolderAction(action) {
   try {
-    sessionStorage.removeItem(DATA_FOLDER_PROMPT_DISMISSED_SESSION_KEY);
+    if (action) {
+      sessionStorage.setItem(PENDING_DATA_FOLDER_ACTION_SESSION_KEY, action);
+    } else {
+      sessionStorage.removeItem(PENDING_DATA_FOLDER_ACTION_SESSION_KEY);
+    }
   } catch {
     // ignore
   }
 }
 
-function markDataFolderPromptDismissedThisSession() {
+function setStartupDataFolderPromptDismissed(dismissed) {
   try {
-    sessionStorage.setItem(DATA_FOLDER_PROMPT_DISMISSED_SESSION_KEY, "true");
+    if (dismissed) {
+      sessionStorage.setItem(DATA_FOLDER_STARTUP_PROMPT_DISMISSED_SESSION_KEY, "true");
+    } else {
+      sessionStorage.removeItem(DATA_FOLDER_STARTUP_PROMPT_DISMISSED_SESSION_KEY);
+    }
   } catch {
     // ignore
   }
 }
 
-function hasDismissedDataFolderPromptThisSession() {
+function hasStartupDataFolderPromptBeenDismissed() {
   try {
-    return sessionStorage.getItem(DATA_FOLDER_PROMPT_DISMISSED_SESSION_KEY) === "true";
+    return sessionStorage.getItem(DATA_FOLDER_STARTUP_PROMPT_DISMISSED_SESSION_KEY) === "true";
   } catch {
     return false;
   }
 }
 
-async function finalizeDataFolderSelection(selectedPath, { seedDefaults = false } = {}) {
+function consumePendingDataFolderAction() {
+  try {
+    const action = sessionStorage.getItem(PENDING_DATA_FOLDER_ACTION_SESSION_KEY);
+    sessionStorage.removeItem(PENDING_DATA_FOLDER_ACTION_SESSION_KEY);
+    return action || "";
+  } catch {
+    return "";
+  }
+}
+
+async function promptForDataFolderSelection({
+  title,
+  message,
+  confirmLabel = "Set Dir",
+  cancelLabel = "Do It Later",
+  resumeAction = "",
+  rememberDismissal = false,
+} = {}) {
+  if (!IS_TAURI_RUNTIME) return false;
+  const existingFolderPath = await ensureDataFolderPath({ promptIfMissing: false });
+  if (existingFolderPath) return true;
+  if (rememberDismissal && hasStartupDataFolderPromptBeenDismissed()) return false;
+
+  const confirmed = await requestChoiceDialog({
+    title: title || "Choose a Data Folder",
+    message: message || "This desktop app stores settings and custom tile sets in a folder you choose. If you skip this, the app will use built-in defaults and nothing can be saved.",
+    confirmLabel,
+    cancelLabel,
+  });
+  if (!confirmed) {
+    if (rememberDismissal) setStartupDataFolderPromptDismissed(true);
+    return false;
+  }
+
+  if (resumeAction) setPendingDataFolderAction(resumeAction);
+  const selectedPath = await chooseDataFolder(getStoredDataFolderPath(), { persist: false });
+  if (!selectedPath) {
+    setPendingDataFolderAction("");
+    if (rememberDismissal) setStartupDataFolderPromptDismissed(true);
+    return false;
+  }
+  setStartupDataFolderPromptDismissed(false);
+  await finalizeDataFolderSelection(selectedPath);
+  return true;
+}
+
+async function resumePendingDataFolderAction() {
+  const pendingAction = consumePendingDataFolderAction();
+  if (!pendingAction) return false;
+  if (pendingAction === "open-custom-tileset-import") {
+    await openCustomTileSetImportPicker();
+    return true;
+  }
+  if (pendingAction === "open-custom-tileset-folder-import") {
+    await openTileSetFolderImportPicker();
+    return true;
+  }
+  return false;
+}
+
+async function finalizeDataFolderSelection(selectedPath) {
   const normalizedPath = String(selectedPath || "").trim();
   if (!normalizedPath) return false;
+  setStoredDataFolderPath(normalizedPath);
   const selectedSettingsPath = joinDataFolderPath(normalizedPath, "settings.json");
   const selectedCustomSetsPath = joinDataFolderPath(normalizedPath, "custom-tilesets");
   const selectedFolderHasData = await pathExists(selectedSettingsPath)
     || (await listDirEntries(selectedCustomSetsPath)).length > 0;
   if (!selectedFolderHasData) {
-    const nextSettings = seedDefaults
-      ? buildDefaultPersistentSettingsSnapshot()
-      : buildCurrentPersistentSettingsSnapshot();
-    const currentBundles = await listStoredCustomTileSetBundles();
-    const currentEditorData = await listStoredCustomTileSetEditorData();
-    setStoredDataFolderPath(normalizedPath);
-    await saveDataSettingsMap(nextSettings);
-    for (const bundle of currentBundles) {
-      await saveStoredCustomTileSetBundle(bundle.manifest, bundle.assets || []);
-    }
-    for (const record of currentEditorData) {
-      if (!record?.tileSetId) continue;
-      await saveStoredCustomTileSetEditorData(record.tileSetId, record);
-    }
-  } else {
-    setStoredDataFolderPath(normalizedPath);
+    await saveDataSettingsMap(buildDefaultPersistentSettingsSnapshot());
   }
-  clearDataFolderPromptDismissedThisSession();
   setStatus(`Data folder set to ${normalizedPath}. Reloading...`);
   window.location.reload();
   return true;
 }
 
-async function promptForDataFolderIfNeeded() {
-  if (hasDismissedDataFolderPromptThisSession()) return false;
-  const storedPath = getStoredDataFolderPath();
-  if (storedPath && await pathExists(storedPath)) {
-    clearDataFolderPromptDismissedThisSession();
-    return false;
-  }
-  const selectedPath = await chooseDataFolder(storedPath, { persist: true });
-  if (!selectedPath) {
-    markDataFolderPromptDismissedThisSession();
-    return false;
-  }
-  await finalizeDataFolderSelection(selectedPath, { seedDefaults: true });
-  return true;
-}
+installDebugConsoleCapture();
 
 init().catch((error) => {
   console.error(error);
+  openDebugConsole();
   setStatus("Failed to initialize app. Check image paths.", true);
 });
 
 async function init() {
-  const initialDrawerState = loadDrawerState();
-  state.leftDrawerCollapsed = initialDrawerState.left;
-  state.rightDrawerCollapsed = initialDrawerState.right;
   window.addEventListener("beforeunload", () => {
     revokeCustomTileSetAssetUrls();
   }, { once: true });
+  console.info("Startup: migrating legacy custom tile set records.");
   await migrateLegacyCustomTileSetRecords();
+  console.info("Startup: bootstrapping persistent data.");
   await bootstrapPersistentData();
   document.body.classList.toggle("show-guide-labels", state.showGuideLabels);
   document.body.classList.toggle("show-wall-faces", state.showWallFaces);
   document.body.classList.toggle("show-portal-flags", state.showPortalFlags);
+  console.info("Startup: loading stored custom tile sets.");
   setRuntimeTileSetRegistry(await loadStoredCustomTileSetRecords());
   pruneCustomTileSetBackupNeededIds();
   await syncCustomTileSetEditorDataFromStorage();
   exposeCustomTileSetDebugApi();
+  void bindNativeMenuActions();
   bindGlobalControls();
+  console.info(`Startup: registry ready with ${getTileSetRegistry().length} tile sets.`);
   await auditTileSetReadiness();
   hydrateTileSetSelector();
 
@@ -2313,15 +2721,42 @@ async function init() {
   updateBoardAutoCenterViewportAnchor();
 
   state.referenceTileSrc = getReferenceTileSrc(state.selectedTileSetId);
-  await applyTileSet(state.selectedTileSetId, false);
-  const restoredSharedLayout = await restoreSharedLayoutFromUrl();
-  if (!restoredSharedLayout) {
+  try {
+    console.info(`Startup: loading tile set ${state.selectedTileSetId}.`);
+    await applyTileSet(state.selectedTileSetId, false);
+  } catch (error) {
+    console.error("Initial tile set load failed.", error);
+    try {
+      state.selectedTileSetId = DEFAULT_TILE_SET_ID;
+      state.referenceTileSrc = getReferenceTileSrc(DEFAULT_TILE_SET_ID);
+      if (tileSetSelect) tileSetSelect.value = DEFAULT_TILE_SET_ID;
+      syncTileSetMenuOptions();
+      syncSelectedTileSetHeading();
+      syncBossTileSetHeading();
+      await loadTiles(DEFAULT_TILE_SET_ID);
+    } catch (fallbackError) {
+      console.error("Fallback tile set load failed.", fallbackError);
+      throw fallbackError;
+    }
+  }
+  try {
+    const restoredSharedLayout = await restoreSharedLayoutFromUrl();
+    if (!restoredSharedLayout) {
+      scheduleBoardHexGridRender();
+    }
+  } catch (error) {
+    console.error("Could not restore shared layout on startup.", error);
     scheduleBoardHexGridRender();
   }
   showPersistedCustomTileSetBackupNotice();
-  void promptForDataFolderIfNeeded().catch((error) => {
+  void promptForDataFolderSelection({
+    title: "Choose a Data Folder",
+    message: "This desktop app stores settings and custom tile sets in a folder you choose. If you skip this, the app will use built-in defaults and nothing can be saved.",
+    rememberDismissal: true,
+  }).catch((error) => {
     console.error(error);
   });
+  await resumePendingDataFolderAction();
 }
 
 async function loadTiles(tileSetId = state.selectedTileSetId) {
@@ -2329,7 +2764,22 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
   state.tileDefs = defs;
   state.tiles.clear();
   const preparedTiles = await Promise.all(defs.map(async (def) => {
-    const img = await loadImage(def.imageSrc);
+    let img;
+    try {
+      img = await loadImage(def.imageSrc);
+    } catch (error) {
+      const fallbackTileSet = getTileSetConfig(DEFAULT_TILE_SET_ID);
+      const fallbackKind = def.required ? "entrance" : "tile";
+      const fallbackAssetId = def.required ? ENTRANCE_TILE_ID : def.tileId;
+      const fallbackSrc = resolveTileSetAssetPath(fallbackTileSet, fallbackKind, fallbackAssetId);
+      console.warn(`Could not load tile image ${def.imageSrc}; falling back to ${fallbackSrc}.`, error);
+      try {
+        img = await loadImage(fallbackSrc);
+      } catch (fallbackError) {
+        console.warn(`Fallback tile image also failed for ${def.imageSrc}; using a blank placeholder.`, fallbackError);
+        img = await loadImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2fK0QAAAAASUVORK5CYII=");
+      }
+    }
     const shape = getOpaqueBounds(img);
     const alphaMask = getAlphaMask(img);
     const faceGeometry = getFaceGeometry(img, SIDES);
@@ -2721,9 +3171,21 @@ async function auditTileSetReadiness() {
 }
 
 function syncSelectedTileSetHeading() {
-  if (!selectedTileSetNameEl) return;
   const label = getTileSetConfig(state.selectedTileSetId)?.label || "";
-  selectedTileSetNameEl.textContent = label ? `- ${label}` : "";
+  if (selectedTileSetNameEl) {
+    selectedTileSetNameEl.textContent = label ? `- ${label}` : "";
+  }
+  syncCustomTileSetFolderControls();
+}
+
+function syncCustomTileSetFolderControls() {
+  const isTauriApp = typeof window.__TAURI__?.core?.invoke === "function";
+  if (openTileSetFolderBtn) {
+    openTileSetFolderBtn.disabled = !isTauriApp;
+  }
+  if (saveTileSetFolderBtn) {
+    saveTileSetFolderBtn.disabled = !isTauriApp || getTileSetConfig(state.selectedTileSetId)?.source !== "custom";
+  }
 }
 
 function syncBossTileSetHeading() {
@@ -2893,6 +3355,61 @@ function bindGlobalControls() {
         console.error(error);
         setStatus(error?.message || "Could not choose a data folder.", true);
       }
+    });
+  }
+  if (openTileSetFolderBtn) {
+    openTileSetFolderBtn.disabled = typeof window.__TAURI__?.core?.invoke !== "function";
+    openTileSetFolderBtn.addEventListener("click", async () => {
+      try {
+        await openTileSetFolderImportPicker();
+      } catch (error) {
+        console.error(error);
+        setStatus(error?.message || "Could not import a custom tile set folder.", true);
+      }
+    });
+  }
+  if (saveTileSetFolderBtn) {
+    saveTileSetFolderBtn.disabled = typeof window.__TAURI__?.core?.invoke !== "function";
+    saveTileSetFolderBtn.addEventListener("click", async () => {
+      const selectedTileSet = getTileSetConfig(state.selectedTileSetId);
+      if (!selectedTileSet || selectedTileSet.source !== "custom") {
+        setStatus("Save Tile Set As Folder is available only for custom tile sets.", true);
+        return;
+      }
+      try {
+        const selectedFolder = await chooseFolderPath(getStoredDataFolderPath(), { title: "Save Tile Set Folder" });
+        if (!selectedFolder) {
+          setStatus("Tile set folder save canceled.");
+          return;
+        }
+        await saveCustomTileSetAsFolder(selectedTileSet.id, selectedFolder);
+      } catch (error) {
+        console.error(error);
+        setStatus(error?.message || "Could not save the custom tile set folder.", true);
+      }
+    });
+  }
+  if (openDebugLogBtn) {
+    openDebugLogBtn.addEventListener("click", () => {
+      toggleDebugConsole();
+    });
+  }
+  if (debugConsoleCopyBtn) {
+    debugConsoleCopyBtn.addEventListener("click", () => {
+      copyDebugConsole().catch((error) => {
+        nativeConsole.warn("Could not copy debug log.", error);
+        setStatus("Could not copy debug log.", true);
+      });
+    });
+  }
+  if (debugConsoleClearBtn) {
+    debugConsoleClearBtn.addEventListener("click", () => {
+      clearDebugConsole();
+    });
+  }
+  if (debugConsoleCloseBtn) {
+    debugConsoleCloseBtn.addEventListener("click", () => {
+      closeDebugConsole();
     });
   }
   if (toggleLabelsCheckbox) {
@@ -3623,6 +4140,9 @@ function forEachBoardBossToken(callback) {
 }
 
 function loadDrawerState() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) {
+    return { left: false, right: false };
+  }
   try {
     const raw = localStorage.getItem(DRAWER_STATE_STORAGE_KEY);
     if (!raw) return { left: false, right: false };
@@ -3663,6 +4183,7 @@ function toggleBothDrawers() {
 }
 
 function loadAppearanceMode() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return DEFAULT_APPEARANCE_MODE;
   try {
     const saved = localStorage.getItem(APPEARANCE_MODE_STORAGE_KEY);
     if (APPEARANCE_MODE_IDS.has(saved)) return saved;
@@ -3673,6 +4194,7 @@ function loadAppearanceMode() {
 }
 
 function loadAutoThemeByTileSet() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return true;
   try {
     const saved = localStorage.getItem(AUTO_THEME_BY_TILE_SET_STORAGE_KEY);
     if (saved == null) return true;
@@ -3685,6 +4207,7 @@ function loadAutoThemeByTileSet() {
 }
 
 function loadBoolStorage(storageKey, fallback = false) {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return Boolean(fallback);
   try {
     const saved = localStorage.getItem(storageKey);
     if (saved == null) return Boolean(fallback);
@@ -3742,6 +4265,9 @@ function sanitizeAutoBuildDevTuning(raw) {
 }
 
 function loadAutoBuildDevTuning() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) {
+    return { ...AUTO_BUILD_DEV_TUNING_DEFAULTS };
+  }
   try {
     localStorage.removeItem(LEGACY_AUTO_BUILD_TUNING_STORAGE_KEY);
     const raw = localStorage.getItem(AUTO_BUILD_DEV_TUNING_STORAGE_KEY);
@@ -4461,7 +4987,7 @@ function exportCurrentLayoutPdf() {
     <div class="frame-shell">
       <div class="frame">
         <header class="header">
-          <img class="header-logo" src="${logoSrc}" alt="Here to Slay DUNGEONS Mapper logo" />
+          <img class="header-logo" src="${logoSrc}" alt="Here to Slay: DUNGEONS Mapper logo" />
           <div class="header-copy">
             <h1 class="title">${tileSetLabel} Dungeon Layout</h1>
             <p class="meta">Exported ${printedAt}</p>
@@ -7164,10 +7690,11 @@ function getPortalFlagDeps() {
 }
 
 function isDataFolderPersistenceActive() {
-  return Boolean(getStoredDataFolderPath());
+  return IS_TAURI_RUNTIME && Boolean(getStoredDataFolderPath());
 }
 
 function loadWallOverrides() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return {};
   if (persistentDataBootstrapComplete && isDataFolderPersistenceActive()) return state.wallOverrides;
   return loadWallOverridesFromStorage(
     WALL_OVERRIDES_STORAGE_KEY,
@@ -7177,6 +7704,7 @@ function loadWallOverrides() {
 }
 
 function loadEndTileOverrides() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return {};
   if (persistentDataBootstrapComplete && isDataFolderPersistenceActive()) return state.endTileOverrides;
   return loadEndTileOverridesFromStorage(
     END_TILE_OVERRIDES_STORAGE_KEY,
@@ -7185,6 +7713,7 @@ function loadEndTileOverrides() {
 }
 
 function loadPortalFlagOverrides() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return {};
   if (persistentDataBootstrapComplete && isDataFolderPersistenceActive()) return state.portalFlagOverrides;
   return loadPortalFlagOverridesFromStorage(PORTAL_FLAG_OVERRIDES_STORAGE_KEY, {
     ...getWallStorageDeps(),
@@ -7457,6 +7986,7 @@ function sanitizeGuidePointTemplateOverrides(raw) {
 }
 
 function loadGuidePointTemplateOverrides() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return {};
   if (persistentDataBootstrapComplete && isDataFolderPersistenceActive()) return state.guidePointTemplateOverrides;
   return loadGuidePointTemplateOverridesFromStorage(GUIDE_POINT_TEMPLATES_STORAGE_KEY);
 }

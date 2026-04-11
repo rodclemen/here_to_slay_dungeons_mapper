@@ -1,6 +1,9 @@
 # Changelog
 
 ## 2026-04-11
+- Hardened the Tauri desktop shell and menu flow: added the Tauri-only debug console, native File/Guide/Donate actions, custom tile-set folder import/export, data-folder startup prompting, and browser-safe fallbacks so the web app keeps using the old local storage path while Tauri stays folder-backed.
+- Updated the bundled desktop branding: renamed the app to `Here to Slay: DUNGEONS Mapper`, regenerated the icon set from `HtSD_mapper_icon.png`, and refreshed the native About/menu labels so the macOS shell matches the app.
+- Restored the dragged-tile drop shadow on the real tile image after the blur experiment went sideways, while keeping placed tiles shadow-free.
 - Extracted ~25 board view functions into `modules/board-view.js` (344 lines) — zoom get/set/quantize/apply, board pan/translate/recenter, scene transform sync, board shift during layout transitions, drag-edge auto-pan, and utility layer/point checks (isOnBoardLayer, isPointInsideElement, isPointOverBoardSurface, isClickInTopRightCloseHit). app.js dropped from 8,725 to 8,565 lines (~160 net lines removed).
 - Extracted ~35 boss management functions into `modules/boss-management.js` (826 lines) — boss pile ordering/rendering, card cycling animation, boss token CRUD, spawn-from-pile drag, board token drag, magnet snap positioning, collision polygons, and boss edit mode. app.js dropped from ~9,300 to 8,725 lines (~575 net lines removed).
 - Extracted ~30 theme manager functions into `modules/theme-manager.js` (310 lines) — appearance mode (light/dark/system), UI theme selection, auto-theme-by-tileset, and theme menu sync. Load functions called during state init kept inline to avoid circular refs.
@@ -8,6 +11,7 @@
 - Extracted all 48 tile-placement functions into `modules/tile-placement.js` (763 lines) — snap, overlap detection, contact validation, rotation, invalid-drop recovery, drag feedback, and placement guides all moved out of the monolith. Each function in app.js is now a one-liner wrapper delegating via `getTilePlacementCtx()`. Net ~420 lines removed from app.js.
 - Added a Content Security Policy to the Tauri app config, locking down resource loading to `'self'`, inline styles, blob/data images, and Tauri IPC — closes the wide-open `"csp": null` that allowed any origin.
 - Extracted the wall editor UI into `modules/wall-editor-ui.js` (896 lines) — page renderer, panel builders, asset slot constructors, tile element builder, toolbar hints, portal flag drag, and group management all moved out of the monolith. app.js dropped from 10,745 to 10,002 lines; thin wrappers delegate to the module via a `ctx` bridge object.
+- Session note: Lost a whole afternoon to a shadow that only existed when nobody was looking.
 
 ## 2026-04-10
 - Fixed PDF export print button in Tauri: replaced the broken `window.print()` path with Tauri's native `getCurrentWebview().print()` API, granted the preview window proper capabilities (`core:window:allow-close`, `core:webview:allow-print`), and removed the iframe in favor of direct DOM injection so WKWebView can actually print the content.

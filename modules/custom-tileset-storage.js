@@ -3,6 +3,7 @@ import {
   getDataFolderRelativePaths,
   getStoredDataFolderPath,
   joinDataFolderPath,
+  isTauriRuntime,
   listDirEntries,
   pathExists,
   readFileBytes,
@@ -71,50 +72,61 @@ async function getActiveDataFolderPath() {
 }
 
 async function readFolderCustomTileSetBundle(tileSetDirPath) {
-  const manifestText = await readTextFile(joinDataFolderPath(tileSetDirPath, "manifest.json"));
-  if (!manifestText) return null;
-  let manifest;
   try {
-    manifest = JSON.parse(manifestText);
+    const manifestText = await readTextFile(joinDataFolderPath(tileSetDirPath, "manifest.json"));
+    if (!manifestText) return null;
+    let manifest;
+    try {
+      manifest = JSON.parse(manifestText);
+    } catch (error) {
+      console.warn(`Could not parse custom tile set manifest at ${tileSetDirPath}.`, error);
+      return null;
+    }
+    if (!manifest || typeof manifest !== "object" || !manifest.id) return null;
+
+    const assetMap = manifest.assetMap || manifest.assetPaths || {};
+    const assetEntries = [];
+    const requiredRefs = [
+      { assetKind: "entrance", assetId: manifest.entranceTileId },
+      ...(Array.isArray(manifest.tileIds) ? manifest.tileIds.map((tileId) => ({ assetKind: "tile", assetId: tileId })) : []),
+      { assetKind: "reference", assetId: manifest.referenceCardId },
+      ...(Array.isArray(manifest.bossIds) ? manifest.bossIds.map((bossId) => ({ assetKind: "boss", assetId: bossId })) : []),
+    ];
+
+    for (const { assetKind, assetId } of requiredRefs) {
+      const entry = assetMap?.[assetKind];
+      const relativePath = typeof entry === "string"
+        ? entry
+        : typeof entry?.[assetId] === "string"
+          ? entry[assetId]
+          : "";
+      if (!relativePath) {
+        console.warn(`Skipping custom tile set folder at ${tileSetDirPath}: missing asset mapping for ${assetKind}:${assetId}.`);
+        return null;
+      }
+      const absolutePath = joinDataFolderPath(tileSetDirPath, relativePath);
+      const bytes = await readFileBytes(absolutePath);
+      if (!bytes) {
+        console.warn(`Skipping custom tile set folder at ${tileSetDirPath}: missing asset file ${relativePath}.`);
+        return null;
+      }
+      assetEntries.push({
+        key: buildCustomTileAssetStorageKey(manifest.id, assetKind, assetId),
+        tileSetId: manifest.id,
+        assetKind,
+        assetId,
+        blob: new Blob([bytes], { type: inferBlobTypeFromPath(relativePath) }),
+      });
+    }
+
+    return {
+      manifest: { ...manifest },
+      assets: assetEntries,
+    };
   } catch (error) {
-    console.warn(`Could not parse custom tile set manifest at ${tileSetDirPath}.`, error);
+    console.warn(`Skipping broken custom tile set folder at ${tileSetDirPath}.`, error);
     return null;
   }
-  if (!manifest || typeof manifest !== "object" || !manifest.id) return null;
-
-  const assetMap = manifest.assetMap || manifest.assetPaths || {};
-  const assetEntries = [];
-  const requiredRefs = [
-    { assetKind: "entrance", assetId: manifest.entranceTileId },
-    ...(Array.isArray(manifest.tileIds) ? manifest.tileIds.map((tileId) => ({ assetKind: "tile", assetId: tileId })) : []),
-    { assetKind: "reference", assetId: manifest.referenceCardId },
-    ...(Array.isArray(manifest.bossIds) ? manifest.bossIds.map((bossId) => ({ assetKind: "boss", assetId: bossId })) : []),
-  ];
-
-  for (const { assetKind, assetId } of requiredRefs) {
-    const entry = assetMap?.[assetKind];
-    const relativePath = typeof entry === "string"
-      ? entry
-      : typeof entry?.[assetId] === "string"
-        ? entry[assetId]
-        : "";
-    if (!relativePath) continue;
-    const absolutePath = joinDataFolderPath(tileSetDirPath, relativePath);
-    const bytes = await readFileBytes(absolutePath);
-    if (!bytes) continue;
-    assetEntries.push({
-      key: buildCustomTileAssetStorageKey(manifest.id, assetKind, assetId),
-      tileSetId: manifest.id,
-      assetKind,
-      assetId,
-      blob: new Blob([bytes], { type: inferBlobTypeFromPath(relativePath) }),
-    });
-  }
-
-  return {
-    manifest: { ...manifest },
-    assets: assetEntries,
-  };
 }
 
 async function listStoredCustomTileSetBundlesFromFolder() {
@@ -204,14 +216,15 @@ async function listStoredCustomTileSetEditorDataFromFolder() {
   const records = [];
   for (const entry of entries) {
     if (!entry.is_dir) continue;
-    const editorPath = joinDataFolderPath(entry.path, customTileSetEditorFile);
-    const text = await readTextFile(editorPath);
-    if (!text) continue;
     try {
+      const editorPath = joinDataFolderPath(entry.path, customTileSetEditorFile);
+      if (!await pathExists(editorPath)) continue;
+      const text = await readTextFile(editorPath);
+      if (!text) continue;
       const parsed = JSON.parse(text);
       if (parsed && typeof parsed === "object") records.push({ ...parsed });
     } catch (error) {
-      console.warn(`Could not parse custom tile set editor data at ${editorPath}.`, error);
+      console.warn(`Could not load custom tile set editor data for ${entry.path}.`, error);
     }
   }
   return records;
@@ -309,6 +322,7 @@ async function listStoredAssetKeysForTileSet(db, tileSetId) {
 }
 
 export async function listStoredCustomTileSetBundles() {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return [];
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     return listStoredCustomTileSetBundlesFromFolder();
   }
@@ -316,6 +330,7 @@ export async function listStoredCustomTileSetBundles() {
 }
 
 export async function getStoredCustomTileSetBundle(tileSetId) {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return null;
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     const bundles = await listStoredCustomTileSetBundlesFromFolder();
     return bundles.find((bundle) => bundle.manifest?.id === tileSetId) || null;
@@ -325,6 +340,7 @@ export async function getStoredCustomTileSetBundle(tileSetId) {
 }
 
 export async function saveStoredCustomTileSetBundle(manifest, assetEntries) {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return;
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     await saveFolderCustomTileSetBundle(manifest, assetEntries);
     return;
@@ -347,6 +363,7 @@ export async function saveStoredCustomTileSetBundle(manifest, assetEntries) {
 }
 
 export async function deleteStoredCustomTileSetBundle(tileSetId) {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return;
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     await deleteFolderCustomTileSetBundle(tileSetId);
     return;
@@ -368,6 +385,7 @@ export async function deleteStoredCustomTileSetBundle(tileSetId) {
 }
 
 export async function clearStoredCustomTileSetBundles() {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return;
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     await clearFolderCustomTileSetBundles();
     return;
@@ -381,6 +399,7 @@ export async function clearStoredCustomTileSetBundles() {
 }
 
 export async function listStoredCustomTileSetEditorData() {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return [];
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     return listStoredCustomTileSetEditorDataFromFolder();
   }
@@ -396,6 +415,7 @@ export async function listStoredCustomTileSetEditorDataFromLegacyStorage() {
 }
 
 export async function getStoredCustomTileSetEditorData(tileSetId) {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return null;
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     const records = await listStoredCustomTileSetEditorDataFromFolder();
     return records.find((record) => record.tileSetId === tileSetId) || null;
@@ -408,6 +428,7 @@ export async function getStoredCustomTileSetEditorData(tileSetId) {
 }
 
 export async function saveStoredCustomTileSetEditorData(tileSetId, editorData) {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return;
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     await saveFolderCustomTileSetEditorData(tileSetId, editorData);
     return;
@@ -422,6 +443,7 @@ export async function saveStoredCustomTileSetEditorData(tileSetId, editorData) {
 }
 
 export async function deleteStoredCustomTileSetEditorData(tileSetId) {
+  if (isTauriRuntime() && !isTauriDataFolderConfigured()) return;
   if (isTauriDataFolderConfigured() && await getActiveDataFolderPath()) {
     await deleteFolderCustomTileSetEditorData(tileSetId);
     return;

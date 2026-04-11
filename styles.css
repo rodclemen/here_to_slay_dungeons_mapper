@@ -78,6 +78,10 @@ body:not(.dev-mode) .dev-only {
   display: none !important;
 }
 
+body:not(.tauri-mode) .tauri-only {
+  display: none !important;
+}
+
 body.dev-mode .dev-only {
   --dev-accent: #2f9e44;
   --dev-accent-soft: rgba(47, 158, 68, 0.12);
@@ -822,6 +826,82 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   letter-spacing: 0.03em;
 }
 
+.debug-console {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1200;
+  width: min(760px, calc(100vw - 36px));
+  height: min(58vh, 640px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent 6%);
+  box-shadow: 0 18px 40px rgba(28, 24, 20, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.debug-console[hidden] {
+  display: none !important;
+}
+
+.debug-console-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.debug-console-header strong {
+  display: block;
+  font-size: 1rem;
+  color: var(--accent-strong);
+}
+
+.debug-console-header p {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.debug-console-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.debug-console-actions button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.debug-console-actions button:hover {
+  background: var(--hover);
+}
+
+.debug-console-output {
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #12100d;
+  color: #f5eadf;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
 .auto-build-tuning-panel {
   border-top: 1px solid #d0d8dd;
   padding-top: 8px;
@@ -963,6 +1043,11 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.needs-data-folder {
+  opacity: 0.45;
+  filter: grayscale(0.2);
 }
 
 .wall-edit-only {
@@ -3400,8 +3485,13 @@ body.reserve-swap-pending .reserve-card.swap-target .reserve-guide-outline {
 }
 
 .tray-slot .tile img {
-  filter: drop-shadow(0 3px 7px rgba(18, 28, 36, 0.22));
-  -webkit-filter: drop-shadow(0 3px 7px rgba(18, 28, 36, 0.22));
+  filter: none;
+  -webkit-filter: none;
+}
+
+.tile:not(.dragging) img {
+  filter: none;
+  -webkit-filter: none;
 }
 
 .tile.dragging img {
@@ -3448,6 +3538,7 @@ body.reserve-swap-pending .reserve-card.swap-target .reserve-guide-outline {
   fill: none;
   stroke: rgba(35, 92, 86, 0.5);
   stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
 }
 
 .tile-guide-ticks line {
