@@ -2107,9 +2107,9 @@ const tray = document.getElementById("tray");
 const reservePile = document.getElementById("reserve-pile");
 const bossPile = document.getElementById("boss-pile");
 const selectedTileSetNameEl = document.getElementById("selected-tileset-name");
+const selectedTileSetMenuTrigger = document.getElementById("selected-tileset-menu-trigger");
 const bossTileSetNameEl = document.getElementById("boss-tileset-name");
 const tileSetMenu = document.getElementById("tile-set-menu");
-const tileSetTrigger = document.getElementById("tile-set-trigger");
 const tileSetDropdown = document.getElementById("tile-set-dropdown");
 const reserveEditCheckbox = document.getElementById("reserve-edit-checkbox");
 const wallEditorPage = document.getElementById("wall-editor-page");
@@ -2947,7 +2947,7 @@ function hydrateTileSetSelector() {
   for (const tileSet of getTileSetRegistry()) {
     const option = document.createElement("option");
     option.value = tileSet.id;
-    option.disabled = tileSet.status !== "ready";
+    option.disabled = tileSet.source === "custom" && tileSet.status !== "ready";
     option.textContent = `${tileSet.label}${getTileSetStatusSuffix(tileSet.status)}`;
     tileSetSelect.appendChild(option);
   }
@@ -2955,29 +2955,29 @@ function hydrateTileSetSelector() {
 }
 
 function syncTileSetMenuOptions() {
-  if (!tileSetDropdown || !tileSetSelect) return;
+  if (!tileSetDropdown) return;
   tileSetDropdown.innerHTML = "";
-  for (const option of tileSetSelect.options) {
+  for (const tileSet of getTileSetRegistry()) {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "tile-set-option";
-    item.dataset.tileSet = option.value;
-    item.textContent = option.textContent || option.value;
-    item.disabled = option.disabled;
+    item.dataset.tileSet = tileSet.id;
+    item.textContent = `${tileSet.label}${getTileSetStatusSuffix(tileSet.status)}`;
+    item.disabled = tileSet.source === "custom" && tileSet.status !== "ready";
     item.setAttribute("role", "menuitem");
-    if (option.value === tileSetSelect.value) item.classList.add("is-current");
+    if (tileSet.id === state.selectedTileSetId) item.classList.add("is-current");
     tileSetDropdown.appendChild(item);
   }
 }
 
 function setTileSetMenuOpen(open) {
-  if (!tileSetDropdown || !tileSetTrigger) return;
+  if (!tileSetDropdown || !selectedTileSetMenuTrigger) return;
   const shouldOpen = Boolean(open);
   tileSetDropdown.hidden = !shouldOpen;
   tileSetMenu?.classList.toggle("is-open", shouldOpen);
-  tileSetTrigger.setAttribute("aria-expanded", String(shouldOpen));
+  selectedTileSetMenuTrigger?.setAttribute("aria-expanded", String(shouldOpen));
   if (!shouldOpen) {
-    tileSetTrigger.blur();
+    selectedTileSetMenuTrigger?.blur();
   }
 }
 
@@ -2991,6 +2991,7 @@ function closeHeaderMenus({ except = null } = {}) {
 function isEventInsideHeaderMenu(target) {
   return Boolean(
     tileSetMenu?.contains(target)
+    || selectedTileSetMenuTrigger?.contains(target)
     || uiThemeMenu?.contains(target)
     || appearanceModeMenu?.contains(target)
     || quickActionsMenu?.contains(target),
@@ -3173,7 +3174,7 @@ async function auditTileSetReadiness() {
 function syncSelectedTileSetHeading() {
   const label = getTileSetConfig(state.selectedTileSetId)?.label || "";
   if (selectedTileSetNameEl) {
-    selectedTileSetNameEl.textContent = label ? `- ${label}` : "";
+    selectedTileSetNameEl.textContent = label || state.selectedTileSetId || "Tile Set";
   }
   syncCustomTileSetFolderControls();
 }
@@ -3553,8 +3554,8 @@ function bindGlobalControls() {
       setTileSetMenuOpen(false);
     });
   }
-  if (tileSetTrigger && tileSetDropdown) {
-    tileSetTrigger.addEventListener("click", () => {
+  if (selectedTileSetMenuTrigger && tileSetDropdown) {
+    selectedTileSetMenuTrigger.addEventListener("click", () => {
       closeHeaderMenus({ except: "tileSet" });
       const shouldOpen = tileSetDropdown.hidden;
       setTileSetMenuOpen(shouldOpen);
@@ -3563,9 +3564,15 @@ function bindGlobalControls() {
       const option = event.target.closest("[data-tile-set]");
       if (!option || option.disabled) return;
       const nextTileSetId = option.dataset.tileSet || DEFAULT_TILE_SET_ID;
-      if (!tileSetSelect) return;
-      tileSetSelect.value = nextTileSetId;
-      tileSetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      if (nextTileSetId === state.selectedTileSetId) {
+        setTileSetMenuOpen(false);
+        return;
+      }
+      if (tileSetSelect) tileSetSelect.value = nextTileSetId;
+      void runTileSetCrossfade(() => applyTileSet(nextTileSetId, true));
+      markDevQaCheck("tile_set_change", { detail: nextTileSetId });
+      syncTileSetMenuOptions();
+      setTileSetMenuOpen(false);
     });
   }
   if (uiThemeSelect) {

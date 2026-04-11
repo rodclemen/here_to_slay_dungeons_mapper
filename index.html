@@ -123,28 +123,6 @@
             </div>
           </div>
           <a class="about-link-btn" href="./about.html" aria-label="Open Guide">Guide</a>
-          <div class="tile-set-menu" id="tile-set-menu">
-            <button
-              id="tile-set-trigger"
-              class="tile-set-trigger"
-              type="button"
-              aria-label="Tile Set"
-              title="Tile Set"
-              aria-haspopup="menu"
-              aria-expanded="false"
-            >
-              Tile Set
-            </button>
-            <div id="tile-set-dropdown" class="tile-set-dropdown" role="menu" hidden></div>
-            <select id="tile-set-select" aria-label="Tile Set" hidden>
-              <option value="molten">Molten</option>
-              <option value="overgrown">Overgrown</option>
-              <option value="dreamscape">Dreamscape</option>
-              <option value="nightmare">Nightmare</option>
-              <option value="submerged">Submerged</option>
-              <option value="deep_freeze">Deep Freeze</option>
-            </select>
-          </div>
           <input id="import-wall-data-input" type="file" accept="application/json" hidden />
           <input id="import-custom-tileset-input" type="file" accept=".zip,application/zip" hidden />
         </div>
@@ -187,7 +165,34 @@
           <div id="left-drawer-content" class="drawer-content">
             <section class="panel-section selected-tiles-section">
               <div class="tray-head">
-                <h2>Selected Tiles <span id="selected-tileset-name" class="selected-tileset-name"></span></h2>
+                <h2 class="selected-tiles-heading">
+                  Selected Tiles
+                  <span class="selected-tileset-menu tile-set-menu" id="tile-set-menu">
+                    <button
+                      id="selected-tileset-menu-trigger"
+                      class="selected-tileset-menu-trigger"
+                      type="button"
+                      aria-label="Tile Set Menu"
+                      title="Tile Set Menu"
+                      aria-haspopup="menu"
+                      aria-expanded="false"
+                    >
+                      <span id="selected-tileset-name" class="selected-tileset-name"></span>
+                      <svg class="selected-tileset-menu-arrow" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
+                        <path d="M1.25 3.25 5 7l3.75-3.75" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    </button>
+                    <div id="tile-set-dropdown" class="tile-set-dropdown" role="menu" hidden></div>
+                    <select id="tile-set-select" aria-label="Tile Set" hidden>
+                      <option value="molten">Molten</option>
+                      <option value="overgrown">Overgrown</option>
+                      <option value="dreamscape">Dreamscape</option>
+                      <option value="nightmare">Nightmare</option>
+                      <option value="submerged">Submerged</option>
+                      <option value="deep_freeze">Deep Freeze</option>
+                    </select>
+                  </span>
+                </h2>
                 <div class="tray-head-actions">
                   <button id="reroll-btn" class="icon-image-btn" type="button" aria-label="Reroll Tiles" title="Reroll Tiles">
                     <img src="./icons/reroll.png" alt="" aria-hidden="true" />

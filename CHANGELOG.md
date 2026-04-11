@@ -1,6 +1,10 @@
 # Changelog
 
 ## 2026-04-11
+- Pushed the cogwheel Advanced Tools menu and the 3-dot Quick Actions menu to the far right of the top bar so they now trail the Guide and Tile Editor controls.
+- Re-aligned the top bar so the menu cluster sits on the right side of the header row instead of starting from the left edge.
+- Moved the Guide link and Tile Editor button to the right side of the top bar by bumping their flex order above the other header controls, so the action cluster reads more cleanly from left to right.
+- Fixed the main tile-set dropdown so its menu items are clickable again by wiring the open/select handlers to the real `selected-tileset-menu-trigger` element instead of the nonexistent `tile-set-trigger` id.
 - Hardened the Tauri desktop shell and menu flow: added the Tauri-only debug console, native File/Guide/Donate actions, custom tile-set folder import/export, data-folder startup prompting, and browser-safe fallbacks so the web app keeps using the old local storage path while Tauri stays folder-backed.
 - Updated the bundled desktop branding: renamed the app to `Here to Slay: DUNGEONS Mapper`, regenerated the icon set from `HtSD_mapper_icon.png`, and refreshed the native About/menu labels so the macOS shell matches the app.
 - Restored the dragged-tile drop shadow on the real tile image after the blur experiment went sideways, while keeping placed tiles shadow-free.
@@ -11,6 +15,7 @@
 - Extracted all 48 tile-placement functions into `modules/tile-placement.js` (763 lines) — snap, overlap detection, contact validation, rotation, invalid-drop recovery, drag feedback, and placement guides all moved out of the monolith. Each function in app.js is now a one-liner wrapper delegating via `getTilePlacementCtx()`. Net ~420 lines removed from app.js.
 - Added a Content Security Policy to the Tauri app config, locking down resource loading to `'self'`, inline styles, blob/data images, and Tauri IPC — closes the wide-open `"csp": null` that allowed any origin.
 - Extracted the wall editor UI into `modules/wall-editor-ui.js` (896 lines) — page renderer, panel builders, asset slot constructors, tile element builder, toolbar hints, portal flag drag, and group management all moved out of the monolith. app.js dropped from 10,745 to 10,002 lines; thin wrappers delegate to the module via a `ctx` bridge object.
+- Session note: Spent quality time with a ghost id. The ghost was `tile-set-trigger`.
 - Session note: Lost a whole afternoon to a shadow that only existed when nobody was looking.
 
 ## 2026-04-10

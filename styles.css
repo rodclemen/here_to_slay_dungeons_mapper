@@ -252,7 +252,7 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   align-items: center;
   flex-wrap: wrap;
   gap: 7px;
-  justify-content: flex-start;
+  justify-content: flex-end;
 }
 
 .appearance-mode-menu {
@@ -267,11 +267,11 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
 }
 
 .advanced-menu {
-  order: 90;
+  order: 130;
 }
 
 .quick-actions-menu {
-  order: 100;
+  order: 140;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -285,8 +285,13 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   align-items: center;
 }
 
+.selected-tileset-menu.tile-set-menu {
+  margin-left: 4px;
+  order: initial;
+}
+
 .about-link-btn {
-  order: 60;
+  order: 110;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -309,7 +314,7 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
 }
 
 .topbar-editor-btn {
-  order: 70;
+  order: 120;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2104,9 +2109,63 @@ body:not(.left-drawer-collapsed) .board-zoom-indicator {
   font-size: 1rem;
 }
 
+.selected-tiles-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.selected-tileset-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.selected-tileset-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  line-height: inherit;
+  cursor: pointer;
+  vertical-align: baseline;
+  min-width: 0;
+}
+
 .selected-tileset-name {
   color: var(--accent);
   font-weight: 500;
+}
+
+.selected-tileset-menu-trigger:hover .selected-tileset-name,
+.selected-tileset-menu-trigger:focus-visible .selected-tileset-name {
+  color: var(--accent-strong);
+}
+
+.selected-tileset-menu-trigger:focus-visible {
+  outline: none;
+}
+
+.selected-tileset-menu-arrow {
+  color: var(--muted);
+  flex: none;
+  transition: transform 120ms ease, color 120ms ease;
+}
+
+.selected-tileset-menu-trigger:hover .selected-tileset-menu-arrow,
+.selected-tileset-menu-trigger:focus-visible .selected-tileset-menu-arrow {
+  color: var(--accent);
+}
+
+.selected-tileset-menu[aria-expanded="true"] .selected-tileset-menu-arrow {
+  transform: rotate(180deg);
 }
 
 .drawer h3 {
