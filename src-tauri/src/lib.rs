@@ -2,7 +2,7 @@ use std::{fs, io::Read, path::PathBuf, process::Command};
 
 use flate2::read::DeflateDecoder;
 use serde::Serialize;
-use tauri::{image::Image, menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu}, Emitter};
+use tauri::{image::Image, menu::{AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu}, Emitter};
 
 const APP_ICON: Image<'static> = tauri::include_image!("./icons/icon.png");
 const APP_MENU_TITLE: &str = "Here to Slay: DUNGEONS Mapper";
@@ -194,6 +194,7 @@ pub fn run() {
                 }
                 "menu_export_all_custom_tile_sets" => Some("export-all-custom-tile-sets"),
                 "menu_export_pdf" => Some("export-pdf"),
+                "menu_toggle_dev_mode" => Some("toggle-dev-mode"),
                 _ => None,
             };
             if let Some(action) = action {
@@ -233,6 +234,8 @@ pub fn run() {
                 &[
                     &MenuItem::with_id(handle, "menu_open_guide", "Guide", true, None::<&str>)?,
                     &MenuItem::with_id(handle, "menu_send_feedback", "Send Feedback", true, None::<&str>)?,
+                    &PredefinedMenuItem::separator(handle)?,
+                    &CheckMenuItem::with_id(handle, "menu_toggle_dev_mode", "Dev Mode", true, false, None::<&str>)?,
                 ],
             )?;
 

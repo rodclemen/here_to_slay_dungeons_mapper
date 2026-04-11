@@ -14,7 +14,7 @@ export const DEV_QA_CHECK_DEFINITIONS = [
   { id: "export_all_custom_tilesets", label: "Export All Custom Tile Sets", category: "Editor + Custom" },
   { id: "show_numbers_toggle", label: "Toggle Show Numbers", category: "Settings" },
   { id: "show_walls_toggle", label: "Toggle Show Walls", category: "Settings" },
-  { id: "show_portal_flags_toggle", label: "Toggle Show Portal Flags", category: "Settings" },
+  { id: "show_portal_flags_toggle", label: "Toggle Show Portals", category: "Settings" },
   { id: "ignore_contact_toggle", label: "Toggle Ignore 4-Point Rule", category: "Settings" },
   { id: "face_feedback_toggle", label: "Toggle Placement Feedback", category: "Settings" },
   { id: "all_bosses_toggle", label: "Toggle Random Boss: All Sets", category: "Settings" },

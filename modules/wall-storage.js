@@ -110,7 +110,7 @@ export function loadEndTileOverrides(storageKey, deps) {
 }
 
 export function loadPortalFlagOverrides(storageKey, deps) {
-  const parsed = loadJsonStorage(storageKey, "Could not load portal flag overrides from storage.");
+  const parsed = loadJsonStorage(storageKey, "Could not load portal overrides from storage.");
   return sanitizePortalFlagOverrides(parsed, deps);
 }
 

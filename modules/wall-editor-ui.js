@@ -361,15 +361,15 @@ export function createWallEditorTileElement(tileSetId, tile, ctx) {
       syncPortalToggle();
       ctx.setStatus(
         ctx.hasPortalFlag(tile)
-          ? `${ctx.getTileSetConfig(tileSetId).label} ${ctx.getTileDisplayLabel(tile.tileId)} portal flag: ON. Drag the portal marker to position it.`
-          : `${ctx.getTileSetConfig(tileSetId).label} ${ctx.getTileDisplayLabel(tile.tileId)} portal flag: OFF.`,
+          ? `${ctx.getTileSetConfig(tileSetId).label} ${ctx.getTileDisplayLabel(tile.tileId)} portal: ON. Drag the marker to position it.`
+          : `${ctx.getTileSetConfig(tileSetId).label} ${ctx.getTileDisplayLabel(tile.tileId)} portal: OFF.`,
       );
     });
     syncPortalToggle();
     attachWallEditorToolbarHint(
       portalToggle,
       wallEditorToolbarHint,
-      "Use Portal Flag to mark portal tiles so auto-build avoids portal-to-portal adjacency when possible, then drag the portal marker onto the art.",
+      "Use Portal to mark portal tiles so auto-build avoids portal-to-portal adjacency when possible, then drag the marker onto the art.",
     );
     toggleGroup.appendChild(portalToggle);
   }
@@ -401,7 +401,7 @@ export function createWallEditorTileElement(tileSetId, tile, ctx) {
   return tileEl;
 }
 
-// ── Portal flag interaction ─────────────────────────────────────────
+// ── Portal interaction ──────────────────────────────────────────────
 
 export function syncWallEditorPortalFlag(tile, ctx) {
   ctx.syncTilePortalFlag(tile, { interactive: true });
@@ -441,7 +441,7 @@ export function beginWallEditorPortalFlagDrag(tile, event, ctx) {
     cleanup();
     ctx.persistPortalFlag(tile.tileSetId, tile.tileId, tile.portalFlag);
     ctx.setStatus(
-      `${ctx.getTileSetConfig(tile.tileSetId).label} ${ctx.getTileDisplayLabel(tile.tileId)} portal flag moved.`,
+      `${ctx.getTileSetConfig(tile.tileSetId).label} ${ctx.getTileDisplayLabel(tile.tileId)} portal marker moved.`,
     );
   };
 
@@ -674,20 +674,21 @@ export async function buildWallEditorTileSetPanel(tileSet, ctx) {
 export async function renderWallEditorPage(ctx) {
   if (!ctx.wallEditorPage) return;
 
-  ctx.wallEditorPage.innerHTML = "";
+  const fragment = document.createDocumentFragment();
   const intro = document.createElement("div");
   intro.className = "wall-editor-intro";
   intro.innerHTML = `
-    <strong>Tile Editor</strong><br />
-    Use this page to edit tile metadata and manage custom tile sets in one place.<br />
-    Click face segments to toggle wall ON/OFF.<br />
-    Drag point handles on <strong>Entrance</strong> or <strong>Tile 01</strong> to edit shared guide templates.<br />
-    Use <strong>End Tile</strong> to allow or disallow endpoint placement.<br />
-    Use <strong>Portal Flag</strong> to mark portal tiles so auto-build avoids portal-to-portal adjacency when possible, then drag the portal marker onto the art.<br />
-    Custom tile sets can also load or replace art here for entrance, regular tiles, reference card, and boss cards.<br />
-    Everything is saved per tile set + tile.
+    <strong>Tile Editor</strong>
+    <p>Edit walls, flags, and art for each tile set. Changes are saved automatically per tile set and tile.</p>
+    <ul>
+      <li><strong>Walls</strong> &mdash; click face segments on a tile to toggle walls on or off. Walls control which edges count as valid connections during placement.</li>
+      <li><strong>End Tile</strong> &mdash; toggle whether a tile can be used as a dead-end when building a dungeon layout. Useful for preventing an empty tile from being placed at the end of a corridor.</li>
+      <li><strong>Portal</strong> &mdash; mark a tile as a portal so auto-build avoids placing two portals next to each other. Drag the marker to position it on the art.</li>
+      <li><strong>Point Edit</strong> &mdash; enable point edit mode in the toolbar, then drag handles on <strong>Entrance</strong> or <strong>Tile 01</strong> to adjust the shared guide point templates.</li>
+      <li><strong>Custom Tile Sets</strong> &mdash; create, import, or export custom tile sets using the toolbar buttons. Custom sets can replace art for tiles, entrance, reference card, and boss cards.</li>
+    </ul>
   `;
-  ctx.wallEditorPage.appendChild(intro);
+  fragment.appendChild(intro);
 
   const toolbar = document.createElement("div");
   toolbar.className = "wall-editor-toolbar";
@@ -802,30 +803,26 @@ export async function renderWallEditorPage(ctx) {
   groupLabel.appendChild(groupSelect);
   toolbarRightGroup.appendChild(groupLabel);
 
-  const copyTemplatesBtn = document.createElement("button");
-  copyTemplatesBtn.type = "button";
-  copyTemplatesBtn.className = "wall-editor-copy-btn dev-only";
-  copyTemplatesBtn.textContent = "Copy Guide Template JSON";
-  copyTemplatesBtn.addEventListener("click", () => {
-    ctx.copyGuidePointTemplateExport();
-  });
-  toolbarRightGroup.appendChild(copyTemplatesBtn);
-
-  ctx.wallEditorPage.appendChild(toolbar);
-  ctx.wallEditorPage.appendChild(toolbarHint);
+  fragment.appendChild(toolbar);
+  fragment.appendChild(toolbarHint);
 
   const trays = document.createElement("div");
   trays.className = "wall-editor-trays";
-  ctx.wallEditorPage.appendChild(trays);
 
   const selectedGroup = getWallEditorGroupById(ctx.state.wallEditorGroupId, ctx);
-  if (!selectedGroup) return;
-  const tileSets = selectedGroup.tileSetIds
-    .map((id) => ctx.getTileSetConfig(id))
-    .filter(Boolean);
-  const panels = await Promise.all(tileSets.map((ts) => buildWallEditorTileSetPanel(ts, ctx)));
-  for (const panel of panels) trays.appendChild(panel);
-  if (ctx.state.wallEditorActiveTileSetId && ctx.state.wallEditorActiveTileId) {
+  if (selectedGroup) {
+    const tileSets = selectedGroup.tileSetIds
+      .map((id) => ctx.getTileSetConfig(id))
+      .filter(Boolean);
+    const panels = await Promise.all(tileSets.map((ts) => buildWallEditorTileSetPanel(ts, ctx)));
+    for (const panel of panels) trays.appendChild(panel);
+  }
+  fragment.appendChild(trays);
+
+  ctx.wallEditorPage.innerHTML = "";
+  ctx.wallEditorPage.appendChild(fragment);
+
+  if (selectedGroup && ctx.state.wallEditorActiveTileSetId && ctx.state.wallEditorActiveTileId) {
     setActiveWallEditorTile(ctx.state.wallEditorActiveTileSetId, ctx.state.wallEditorActiveTileId, ctx);
   }
 }
