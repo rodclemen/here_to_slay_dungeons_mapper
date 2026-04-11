@@ -688,49 +688,25 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   color: var(--ink);
 }
 
-.advanced-menu-panel .menu-text-action {
+.advanced-menu-panel #choose-data-folder-btn {
   display: flex;
-  align-items: center;
-  gap: 8px;
   width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.84rem;
-  line-height: 1.2;
-  padding: 2px 0 0;
-  margin: 4px 0 0;
-  cursor: pointer;
+  margin-top: 4px;
   text-align: left;
-  appearance: none;
-  -webkit-appearance: none;
+  justify-content: flex-start;
 }
 
-.advanced-menu-panel .menu-text-action::before {
-  content: "";
-  flex: none;
-  width: 14px;
-  height: 14px;
-}
-
-.advanced-menu-panel .menu-text-action:hover,
-.advanced-menu-panel .menu-text-action:focus-visible {
-  text-decoration: underline;
-  outline: none;
-}
-
-.advanced-menu-panel .menu-text-action.is-disabled {
+.advanced-menu-panel #choose-data-folder-btn.is-disabled {
   opacity: 0.5;
   cursor: default;
   pointer-events: none;
 }
 
-.advanced-menu-panel .menu-text-action.is-ready {
+.advanced-menu-panel #choose-data-folder-btn.is-ready {
   color: #2d8a38;
 }
 
-.advanced-menu-panel .menu-text-action.is-missing {
+.advanced-menu-panel #choose-data-folder-btn.is-missing {
   color: #b23a3a;
 }
 
