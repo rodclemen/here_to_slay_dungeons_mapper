@@ -34,13 +34,7 @@
 
 ### 3. Set a Content Security Policy for Tauri
 
-`tauri.conf.json` currently has `"csp": null` (allow everything). Since the app loads no external resources, lock it down:
-
-```json
-"csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:"
-```
-
-Low effort, meaningful hardening.
+~~`tauri.conf.json` currently has `"csp": null` (allow everything). Since the app loads no external resources, lock it down.~~ **Done (2026-04-11).** CSP set to: `default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src ipc: http://ipc.localhost`
 
 ### 4. Add fallback for failed tile image loads
 

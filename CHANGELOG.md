@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-11
+- Added a Content Security Policy to the Tauri app config, locking down resource loading to `'self'`, inline styles, blob/data images, and Tauri IPC — closes the wide-open `"csp": null` that allowed any origin.
+
 ## 2026-04-10
 - Fixed PDF export print button in Tauri: replaced the broken `window.print()` path with Tauri's native `getCurrentWebview().print()` API, granted the preview window proper capabilities (`core:window:allow-close`, `core:webview:allow-print`), and removed the iframe in favor of direct DOM injection so WKWebView can actually print the content.
 - Removed the stale "Use your browser's Save as PDF" instruction from the PDF export output since Tauri now uses its own native print dialog.
