@@ -46,12 +46,7 @@ If a tile PNG fails to load (corrupt file, missing custom asset), placement sile
 
 ### 5. Extract the wall editor into its own module
 
-The wall editor page renderer is a ~900-line function inside `app.js`. Refactor into:
-
-- `modules/wall-editor-ui.js` — panel builders (`buildTileSetGroupPanel()`, `buildTilePanel()`, `buildAssetSlots()`)
-- Keep event wiring in `app.js` (stays close to state)
-
-This alone would cut ~800 lines from `app.js` and make the editor testable.
+~~The wall editor page renderer is a ~900-line function inside `app.js`.~~ **Done (2026-04-11).** Extracted to `modules/wall-editor-ui.js` (896 lines). Cut 743 lines from `app.js` (10,745 → 10,002). Thin wrappers in app.js delegate to the module via a `ctx` bridge object.
 
 ### 6. Extract tile placement logic into a module
 

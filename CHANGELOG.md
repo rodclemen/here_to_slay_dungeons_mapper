@@ -2,6 +2,7 @@
 
 ## 2026-04-11
 - Added a Content Security Policy to the Tauri app config, locking down resource loading to `'self'`, inline styles, blob/data images, and Tauri IPC — closes the wide-open `"csp": null` that allowed any origin.
+- Extracted the wall editor UI into `modules/wall-editor-ui.js` (896 lines) — page renderer, panel builders, asset slot constructors, tile element builder, toolbar hints, portal flag drag, and group management all moved out of the monolith. app.js dropped from 10,745 to 10,002 lines; thin wrappers delegate to the module via a `ctx` bridge object.
 
 ## 2026-04-10
 - Fixed PDF export print button in Tauri: replaced the broken `window.print()` path with Tauri's native `getCurrentWebview().print()` API, granted the preview window proper capabilities (`core:window:allow-close`, `core:webview:allow-print`), and removed the iframe in favor of direct DOM injection so WKWebView can actually print the content.
