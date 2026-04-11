@@ -3174,7 +3174,11 @@ async function auditTileSetReadiness() {
 function syncSelectedTileSetHeading() {
   const label = getTileSetConfig(state.selectedTileSetId)?.label || "";
   if (selectedTileSetNameEl) {
-    selectedTileSetNameEl.textContent = label || state.selectedTileSetId || "Tile Set";
+    const visibleLabel = label || state.selectedTileSetId || "Tile Set";
+    selectedTileSetNameEl.textContent = visibleLabel.length > 18
+      ? `${visibleLabel.slice(0, 18)}…`
+      : visibleLabel;
+    selectedTileSetNameEl.title = visibleLabel;
   }
   syncCustomTileSetFolderControls();
 }

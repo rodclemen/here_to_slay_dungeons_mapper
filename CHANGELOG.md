@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2026-04-11
-- Gave the selected-tile-set label enough room for 18 characters before truncation so longer set names stay readable in the header.
+- Capped the selected-tile-set label at 18 visible characters with an ellipsis so longer set names stay readable in the header.
 - Forced the `Selected Tiles` header to stay on one line so the section title no longer wraps under the tile-set control.
 - Pushed the cogwheel Advanced Tools menu and the 3-dot Quick Actions menu to the far right of the top bar so they now trail the Guide and Tile Editor controls.
 - Re-aligned the top bar so the menu cluster sits on the right side of the header row instead of starting from the left edge.
