@@ -2150,6 +2150,10 @@ body:not(.left-drawer-collapsed) .board-zoom-indicator {
   font-weight: 500;
 }
 
+.selected-tileset-name.is-truncated {
+  font-size: 0.72rem;
+}
+
 .selected-tileset-menu-trigger:hover .selected-tileset-name,
 .selected-tileset-menu-trigger:focus-visible .selected-tileset-name {
   color: var(--accent-strong);

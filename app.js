@@ -3175,9 +3175,11 @@ function syncSelectedTileSetHeading() {
   const label = getTileSetConfig(state.selectedTileSetId)?.label || "";
   if (selectedTileSetNameEl) {
     const visibleLabel = label || state.selectedTileSetId || "Tile Set";
-    selectedTileSetNameEl.textContent = visibleLabel.length > 18
+    const isTruncated = visibleLabel.length > 18;
+    selectedTileSetNameEl.textContent = isTruncated
       ? `${visibleLabel.slice(0, 18)}…`
       : visibleLabel;
+    selectedTileSetNameEl.classList.toggle("is-truncated", isTruncated);
     selectedTileSetNameEl.title = visibleLabel;
   }
   syncCustomTileSetFolderControls();
