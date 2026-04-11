@@ -333,7 +333,7 @@ export function createWallEditorTileElement(tileSetId, tile, ctx) {
     attachWallEditorToolbarHint(
       endToggle,
       wallEditorToolbarHint,
-      "Use End Tile to allow or disallow endpoint placement.",
+      "Use End Tile to allow or disallow dead-end placement.",
     );
     toggleGroup.appendChild(endToggle);
 

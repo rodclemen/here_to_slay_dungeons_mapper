@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-11
+- Continued the stale-code cleanup in Tile Editor and persistence copy: renamed the old local-export action away from `backup` wording, switched leftover `endpoint` text to `dead-end` / `end-tile` wording, updated built-in local-data notices and dev-only docs to say `Export Debug Walls JSON` / `Import Debug Walls JSON`, and replaced a few leftover extraction comments with plain descriptions of which Tile Editor helpers now live in `modules/wall-editor-ui.js`.
 - Continued the stale-code cleanup after the drawer refactor: removed leftover `leftDrawer` / `rightDrawer` alias debt from the active app wiring, renamed collapse-state locals and boss-drop helper variables to `info` / `tile` terms, and tightened README + Guide wording so compact-mode and drawer descriptions consistently use the actual `Info Drawer` / `Tile Drawer` names instead of drifting back to generic left/right phrasing.
 - Refreshed the bundled `about_banner.png` and `mapper_logo.png` image assets so the Guide banner and collapsed-logo branding use the latest artwork revisions instead of the older exported graphics.
 - Fixed the left/right drawer refactor properly instead of relying on inverted internal naming: the left drawer markup/CSS/JS now maps to the visual Info Drawer, the right drawer now maps to the visual Tile Drawer, collapse labels and keyboard shortcuts (`A` left / `S` right) now match the real layout, and compact mode still keeps the Tile Drawer rail on the left while hiding the Info Drawer.

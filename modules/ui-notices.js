@@ -21,7 +21,7 @@ export function buildLocalDataNotice(kind, options = {}) {
       attentionLabels: tileSetLabels.length ? tileSetLabels : (tileSetLabel ? [tileSetLabel] : []),
       actionLabel: isTauriRuntime ? "Export" : "Save",
       actionContext: options.tileSetId
-        ? { type: "open_tile_editor_backup", tileSetId: options.tileSetId }
+        ? { type: "open_tile_editor_export", tileSetId: options.tileSetId }
         : null,
     };
   }
@@ -31,10 +31,10 @@ export function buildLocalDataNotice(kind, options = {}) {
       title: "Built-In Tile Edits Are Local",
       body: isTauriRuntime
         ? hasDataFolder
-          ? "Built-in wall, portal, end-tile, and shared guide-point edits are stored in the chosen data folder on this machine. If you want a portable backup, use Export Debug Walls and keep the JSON file somewhere safe."
-          : "Built-in wall, portal, end-tile, and shared guide-point edits need a data folder before they can persist in the desktop app. If you want a portable backup later, use Export Debug Walls and keep the JSON file somewhere safe."
-        : "Built-in wall, portal, end-tile, and shared guide-point edits are stored only in this browser. If you want a backup, use Export Debug Walls and keep the JSON file somewhere safe.",
-      actionLabel: "Export Debug Walls",
+          ? "Built-in wall faces, portals, end-tile flags, and shared guide-point edits are stored in the chosen data folder on this machine. If you want a portable backup, use Export Debug Walls JSON and keep the file somewhere safe."
+          : "Built-in wall faces, portals, end-tile flags, and shared guide-point edits need a data folder before they can persist in the desktop app. If you want a portable backup later, use Export Debug Walls JSON and keep the file somewhere safe."
+        : "Built-in wall faces, portals, end-tile flags, and shared guide-point edits are stored only in this browser. If you want a backup, use Export Debug Walls JSON and keep the file somewhere safe.",
+      actionLabel: "Export Debug Walls JSON",
       actionContext: { type: "export_debug_walls" },
     };
   }

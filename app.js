@@ -1728,7 +1728,7 @@ function setRuntimeTileSetRegistry(customTileSetRecords = []) {
   return runtimeTileSetRegistry;
 }
 
-// WALL_EDITOR_BASE_GROUPS and getWallEditorGroups moved to modules/wall-editor-ui.js
+// Tile Editor grouping metadata now lives in modules/wall-editor-ui.js.
 
 function getWallEditorCtx() {
   return {
@@ -3318,8 +3318,8 @@ function bindGlobalControls() {
     localDataNoticeActionBtn.addEventListener("click", async () => {
       const action = localDataNoticeActionContext;
       if (!action?.type) return;
-      if (action.type === "open_tile_editor_backup") {
-        openTileEditorForLocalBackup(action.tileSetId);
+      if (action.type === "open_tile_editor_export") {
+        openTileEditorForLocalExport(action.tileSetId);
         return;
       }
       if (action.type === "export_custom_tile_set" && action.tileSetId) {
@@ -3658,7 +3658,7 @@ function bindGlobalControls() {
   if (exportWallDataBtn) {
     exportWallDataBtn.addEventListener("click", () => {
       if (!state.wallEditMode) {
-        setStatus("Export Debug Walls is available only in Tile Editor.", true);
+        setStatus("Export Debug Walls JSON is available only in Tile Editor.", true);
         closeAdvancedMenuForElement(exportWallDataBtn);
         return;
       }
@@ -3669,7 +3669,7 @@ function bindGlobalControls() {
   if (importWallDataBtn && importWallDataInput) {
     importWallDataBtn.addEventListener("click", () => {
       if (!state.wallEditMode) {
-        setStatus("Import Debug Walls is available only in Tile Editor.", true);
+        setStatus("Import Debug Walls JSON is available only in Tile Editor.", true);
         closeAdvancedMenuForElement(importWallDataBtn);
         return;
       }
@@ -4682,7 +4682,7 @@ function setWallEditMode(enabled) {
   updateModeIndicators();
 }
 
-function openTileEditorForLocalBackup(tileSetId = "") {
+function openTileEditorForLocalExport(tileSetId = "") {
   const tileSet = tileSetId ? getTileSetConfig(tileSetId) : getTileSetConfig(state.selectedTileSetId);
   const activateTargetTileSet = () => {
     if (!tileSet) return;
@@ -4700,7 +4700,7 @@ function openTileEditorForLocalBackup(tileSetId = "") {
     activateTargetTileSet();
     renderWallEditorPage().catch((error) => {
       console.error(error);
-      setStatus("Could not open Tile Editor backup view.", true);
+      setStatus("Could not open Tile Editor export view.", true);
     });
   }
   setStatus("Tile Editor: use the custom tile set export action to save a backup.");
@@ -8287,8 +8287,7 @@ function getWallEditorGroupIdForTileSet(tileSetId) {
   return getWallEditorGroupIdForTileSetUI(tileSetId, getWallEditorCtx());
 }
 
-// getWallEditorAssetEntries, createWallEditorAssetSlot, createWallEditorAssetPlaceholder,
-// createWallEditorSupportAssetCard moved to modules/wall-editor-ui.js
+// Tile Editor asset-slot builders now live in modules/wall-editor-ui.js.
 
 async function rerenderWallEditorPreservingScroll() {
   return rerenderWallEditorPreservingScrollUI(getWallEditorCtx());
@@ -8298,15 +8297,13 @@ async function renderWallEditorPage() {
   return renderWallEditorPageUI(getWallEditorCtx());
 }
 
-// buildWallEditorCoreAssetSlot, buildWallEditorSupportAssetSlot, buildMissingWallEditorAssetSlot,
-// syncWallEditorPanelMissingNote moved to modules/wall-editor-ui.js
+// Tile Editor asset-panel patch helpers now live in modules/wall-editor-ui.js.
 
 async function patchWallEditorAssetSlot(tileSetId, assetKind, assetId) {
   return patchWallEditorAssetSlotUI(tileSetId, assetKind, assetId, getWallEditorCtx());
 }
 
-// buildWallEditorTileSetPanel, createWallEditorTileElement, createWallEditorMetaToggle
-// moved to modules/wall-editor-ui.js
+// Tile Editor panel and tile-element builders now live in modules/wall-editor-ui.js.
 
 function setActiveWallEditorTile(tileSetId, tileId) {
   setActiveWallEditorTileUI(tileSetId, tileId, getWallEditorCtx());
@@ -8351,8 +8348,7 @@ function updatePlacedProgress() {
   updatePlacementFeedbackChecklist();
 }
 
-// showWallEditorToolbarHint, hideWallEditorToolbarHintWithDelay,
-// attachWallEditorToolbarHint moved to modules/wall-editor-ui.js
+// Tile Editor toolbar hint helpers now live in modules/wall-editor-ui.js.
 
 function updatePlacementFeedbackChecklist() {
   const placedCount = state.autoBuildPreviewPlacedCount ?? getPlacedRegularTileCount();
@@ -8964,7 +8960,7 @@ function hideLocalDataNotice() {
 
 function dismissLocalDataNotice() {
   const action = localDataNoticeActionContext;
-  if (action?.type === "open_tile_editor_backup" && action.tileSetId) {
+  if (action?.type === "open_tile_editor_export" && action.tileSetId) {
     markCustomTileSetBackedUp(action.tileSetId);
   }
   localDataNoticeSuppressedUntilCustomChange = true;

@@ -74,7 +74,7 @@ Six dungeon sets, each with its own entrance tile, nine regular tiles, a referen
 
 **Available sets:** Molten · Overgrown · Dreamscape · Nightmare · Submerged · Deep Freeze
 
-The app also supports custom tile sets. A custom set follows the same v1 shape as a built-in set: one entrance tile, nine regular tiles, one reference card, and two boss cards. In the web app they live in browser-local storage. In the desktop app they live in the data folder you choose. Custom sets appear in the main tile set selector after you create or import them.
+The app also supports custom tile sets. A custom set follows the same v1 shape as a built-in set: one entrance tile, nine regular tiles, one reference card, and two boss cards. In the web app they live in browser storage. In the desktop app they live in the data folder you choose. Custom sets appear in the main tile set selector after you create or import them.
 
 ### Manual Placement
 
@@ -185,7 +185,7 @@ Working with built-in tile sets:
 
 1. Click any tile to make it the active tile.
 2. Click a highlighted face segment on the tile to toggle that face between wall and non-wall.
-3. Use `End Tile` to decide whether that tile is allowed to be used as a dungeon endpoint during auto-build.
+3. Use `End Tile` to decide whether that tile is allowed to be used as a dungeon dead end during auto-build.
 4. Use `Portal` to add or remove portal metadata for that tile. This is not directional data; it simply marks the tile as a portal tile so auto-build can avoid portal-to-portal adjacency. When enabled, drag the portal marker to the correct spot on the tile art.
 5. The entrance tile intentionally does not show `End Tile` or `Portal` controls.
 
@@ -219,7 +219,7 @@ Guide template editing:
 
 Persistence and backup behavior:
 
-- in the web app, custom tile-set manifests and image assets are stored in browser-local IndexedDB
+- in the web app, custom tile-set manifests and image assets are stored in browser IndexedDB
 - in the web app, custom wall data, end-tile permissions, portals, and guide-template edits are stored with the custom tile set in IndexedDB
 - built-in wall data, end-tile permissions, portals, guide-template edits, and UI preferences are stored locally too
 - in the desktop app, settings and custom tile-set data live in the chosen data folder instead of browser site storage
@@ -229,7 +229,7 @@ Persistence and backup behavior:
 - use custom tile-set export as the backup/transfer path for custom sets
 - single custom sets can be exported from the Tile Editor, and the Tile Editor toolbar also provides `Export All Custom Tile Sets` for a browser-wide backup zip
 - the browser-wide backup zip is not itself a direct import target; unpack it first, then import the included per-tileset `.zip` packages one at a time
-- built-in wall-edit data can be copied with `Export Debug Walls` and restored with `Import Debug Walls`, but those controls are now dev-only
+- built-in Tile Editor data can be copied with `Export Debug Walls JSON` and restored with `Import Debug Walls JSON`, but those controls are now dev-only
 
 Important behavior notes:
 
@@ -402,7 +402,7 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 
 Each tile set folder contains: entrance tile, nine regular tiles, a reference card, and boss card images — all PNG, all following a strict naming convention (`{setId}_{tileId}.png`).
 
-Custom tile sets do not need to live in the repository. They are imported/exported as `.zip` packages and stored either in browser-local storage or the desktop app's chosen data folder at runtime.
+Custom tile sets do not need to live in the repository. They are imported/exported as `.zip` packages and stored either in browser storage or the desktop app's chosen data folder at runtime.
 
 ---
 
@@ -437,7 +437,7 @@ http://localhost:8000/?dev=1
 
 This enables dev-only controls such as:
 
-- `Export Debug Walls` / `Import Debug Walls`
+- `Export Debug Walls JSON` / `Import Debug Walls JSON`
 - `Clear Tile Walls`
 - `Show Numbers`
 - `Auto Build Tuning`
@@ -489,7 +489,7 @@ In the Tauri desktop app, use the native Help menu and enable `Dev Mode`. That e
 
 - `Open Debug Log`
 - `Copy Guide Template JSON` while Tile Editor is open
-- `Export Debug Walls` / `Import Debug Walls`
+- `Export Debug Walls JSON` / `Import Debug Walls JSON`
 - `Clear Tile Walls`
 - `Show Numbers`
 - `Auto Build Tuning`
@@ -503,7 +503,7 @@ In the Tauri desktop app, use the native Help menu and enable `Dev Mode`. That e
 - **Auto-build is bounded.** The generator retries up to 600 attempts and 120 novelty checks. In rare edge cases with unusual wall configurations, it may not find a layout.
 - **No built-in save library yet.** Layouts can now be shared and restored through `Copy Share Link`, but the app still does not provide named local save slots or a layout browser.
 - **Custom tile sets are local by design.** In the browser they live in browser storage; in the desktop app they live in the selected data folder. They are still local-only unless you export them.
-- **Built-in wall-edit changes are also local.** Portal markers, wall overrides, endpoint flags, and guide-template edits are not synced anywhere unless you export/import them manually.
+- **Built-in Tile Editor changes are also local.** Portal markers, wall overrides, end-tile flags, and guide-template edits are not synced anywhere unless you export/import them manually.
 - **Bridge-tile disconnects are possible.** If you move a placed tile that was acting as a bridge between two parts of the dungeon, you can leave behind a disconnected island of tiles. The mapper does not currently prevent that state.
 - **Tile set readiness varies.** Not all six sets may have complete assets and wall data at any given time. The app audits readiness at startup and disables incomplete sets.
 - **Current art is not final.** The tile, reference-card, and boss-card graphics currently in use are placeholders or interim assets while official releases are still incomplete. The framework is being built now so final art can be dropped in later with minimal friction.
