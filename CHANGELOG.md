@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-04-11
+- Fixed the Advanced Tools `Choose Data Folder` row so it matches the checkbox-style menu items again, aligns with the rest of the list, keeps its ready/missing indicator, and opens the folder picker when clicked instead of rendering like inert text.
+- Rewrote the Guide to match the current app: corrected the real visual drawer positions (Info on the left, Tile Drawer on the right), updated top-bar and menu descriptions, documented `Auto Build: Default Mode`, clarified that PDF export opens a print preview from Build View, and explained the desktop data-folder behavior for Tile Editor/custom tile set storage.
 - Restored `Choose Data Folder` to a normal cogwheel menu button that matches the other items, kept it at the bottom of the menu, and preserved the green/red data-folder state color.
 - Shrunk the selected-tile-set header text when it truncates, so long names fit more cleanly without crowding the `Selected Tiles` title.
 - Capped the selected-tile-set label at 18 visible characters with an ellipsis so longer set names stay readable in the header.
@@ -18,6 +20,7 @@
 - Extracted 9 share flow functions into `modules/share-flow.js` (280 lines) — share payload encoding, URL generation, custom tile set bundle export, and build-view layout capture/restore.
 - Extracted all 48 tile-placement functions into `modules/tile-placement.js` (763 lines) — snap, overlap detection, contact validation, rotation, invalid-drop recovery, drag feedback, and placement guides all moved out of the monolith. Each function in app.js is now a one-liner wrapper delegating via `getTilePlacementCtx()`. Net ~420 lines removed from app.js.
 - Added a Content Security Policy to the Tauri app config, locking down resource loading to `'self'`, inline styles, blob/data images, and Tauri IPC — closes the wide-open `"csp": null` that allowed any origin.
+- Thought the drawer names were the truth. CSS disagreed.
 - Extracted the wall editor UI into `modules/wall-editor-ui.js` (896 lines) — page renderer, panel builders, asset slot constructors, tile element builder, toolbar hints, portal flag drag, and group management all moved out of the monolith. app.js dropped from 10,745 to 10,002 lines; thin wrappers delegate to the module via a `ctx` bridge object.
 - Session note: Spent quality time with a ghost id. The ghost was `tile-set-trigger`.
 - Session note: Lost a whole afternoon to a shadow that only existed when nobody was looking.

@@ -347,7 +347,8 @@ const MIN_CONTACT_POINTS = 4;
 const END_TILE_MAX_CONNECTED_FACES = 3;
 const INVALID_RETURN_DELAY_MS = 10_000;
 const INVALID_DROP_PUSH_PX = 140;
-const ENTRANCE_BLOCKED_FACE_INDICES = new Set([11, 12]);
+const ENTRANCE_BLOCKED_FACE_INDICES_DEFAULT = new Set([11, 12]);
+const ENTRANCE_BLOCKED_FACE_INDICES_HALF_BOARD = new Set([0, 9, 11, 12]);
 const BLOCKED_POINT_TOUCH_RADIUS = 4;
 const WALL_OVERRIDES_STORAGE_KEY = "hts_wall_overrides_v1";
 const END_TILE_OVERRIDES_STORAGE_KEY = "hts_end_tile_overrides_v1";
@@ -398,6 +399,7 @@ const SHOW_GUIDE_LABELS_STORAGE_KEY = "hts_show_guide_labels_v1";
 const SHOW_WALL_FACES_STORAGE_KEY = "hts_show_wall_faces_v1";
 const SHOW_PORTAL_FLAGS_STORAGE_KEY = "hts_show_portal_flags_v1";
 const IGNORE_CONTACT_RULE_STORAGE_KEY = "hts_ignore_contact_rule_v1";
+const HALF_BOARD_BUILD_STORAGE_KEY = "hts_half_board_build_v1";
 const USE_FACE_FEEDBACK_STORAGE_KEY = "hts_use_face_feedback_v1";
 const USE_ALL_BOSSES_STORAGE_KEY = "hts_use_all_bosses_v1";
 const DATA_FOLDER_STARTUP_PROMPT_DISMISSED_SESSION_KEY = "hts_data_folder_startup_prompt_dismissed_session_v1";
@@ -924,7 +926,7 @@ async function syncCustomTileSetEditorDataFromStorage() {
     || Object.keys(localPortalFlagOverrides).length !== Object.keys(builtInPortalFlagOverrides).length) {
     saveJsonStorage(WALL_OVERRIDES_STORAGE_KEY, builtInWallOverrides, "Could not save wall overrides to storage.");
     saveJsonStorage(END_TILE_OVERRIDES_STORAGE_KEY, builtInEndTileOverrides, "Could not save end-tile overrides to storage.");
-    saveJsonStorage(PORTAL_FLAG_OVERRIDES_STORAGE_KEY, builtInPortalFlagOverrides, "Could not save portal flag overrides to storage.");
+    saveJsonStorage(PORTAL_FLAG_OVERRIDES_STORAGE_KEY, builtInPortalFlagOverrides, "Could not save portal overrides to storage.");
   }
 
   syncStateOverrideMapsWithCustomEditorCache(
@@ -1133,6 +1135,11 @@ async function bindNativeMenuActions() {
       if (action === "export-pdf") {
         markDevQaCheck("export_pdf");
         exportCurrentLayoutPdf();
+        return;
+      }
+      if (action === "toggle-dev-mode") {
+        document.body.classList.toggle("dev-mode");
+        return;
       }
     } catch (error) {
       console.error(error);
@@ -1800,7 +1807,9 @@ function getTilePlacementCtx() {
     MIN_CONTACT_POINTS,
     END_TILE_MAX_CONNECTED_FACES,
     ROTATION_STEP,
-    ENTRANCE_BLOCKED_FACE_INDICES,
+    get ENTRANCE_BLOCKED_FACE_INDICES() {
+      return state.halfBoardBuild ? ENTRANCE_BLOCKED_FACE_INDICES_HALF_BOARD : ENTRANCE_BLOCKED_FACE_INDICES_DEFAULT;
+    },
     BLOCKED_POINT_TOUCH_RADIUS,
     ENTRANCE_TILE_ID,
     OVERLAP_POLYGON_INSET_PX,
@@ -2165,14 +2174,16 @@ const resetTilePointsBtn = document.getElementById("reset-tile-points-btn");
 const exportWallDataBtn = document.getElementById("export-wall-data-btn");
 const importWallDataBtn = document.getElementById("import-wall-data-btn");
 const importWallDataInput = document.getElementById("import-wall-data-input");
+const copyGuideTemplateBtn = document.getElementById("copy-guide-template-btn");
 const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
 const togglePortalFlagsCheckbox = document.getElementById("toggle-portal-flags-checkbox");
 const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-contact-checkbox");
+const toggleHalfBoardCheckbox = document.getElementById("toggle-half-board-checkbox");
 const toggleFaceFeedbackCheckbox = document.getElementById("toggle-face-feedback-checkbox");
 const toggleAllBossesCheckbox = document.getElementById("toggle-all-bosses-checkbox");
 const chooseDataFolderBtn = document.getElementById("choose-data-folder-btn");
-const openTileSetFolderBtn = document.getElementById("open-tile-set-folder-btn");
-const saveTileSetFolderBtn = document.getElementById("save-tile-set-folder-btn");
+const chooseDataFolderIndicator = document.getElementById("choose-data-folder-indicator");
+const chooseDataFolderRow = chooseDataFolderBtn?.closest(".data-folder-row");
 const openDebugLogBtn = document.getElementById("open-debug-log-btn");
 const debugConsole = document.getElementById("debug-console");
 const debugConsoleOutput = document.getElementById("debug-console-output");
@@ -2394,6 +2405,7 @@ const state = {
   regularTileOrder: [],
   renderedTraySlots: [],
   ignoreContactRule: IS_TAURI_RUNTIME ? false : loadIgnoreContactRule(),
+  halfBoardBuild: IS_TAURI_RUNTIME ? true : loadHalfBoardBuild(),
   useFaceFeedback: IS_TAURI_RUNTIME ? false : loadUseFaceFeedback(),
   useAllBosses: IS_TAURI_RUNTIME ? false : loadUseAllBosses(),
   bossEditMode: true,
@@ -2467,6 +2479,7 @@ function buildCurrentPersistentSettingsSnapshot() {
     [SHOW_WALL_FACES_STORAGE_KEY]: Boolean(state.showWallFaces),
     [SHOW_PORTAL_FLAGS_STORAGE_KEY]: Boolean(state.showPortalFlags),
     [IGNORE_CONTACT_RULE_STORAGE_KEY]: Boolean(state.ignoreContactRule),
+    [HALF_BOARD_BUILD_STORAGE_KEY]: Boolean(state.halfBoardBuild),
     [USE_FACE_FEEDBACK_STORAGE_KEY]: Boolean(state.useFaceFeedback),
     [USE_ALL_BOSSES_STORAGE_KEY]: Boolean(state.useAllBosses),
     [DRAWER_STATE_STORAGE_KEY]: {
@@ -2504,6 +2517,7 @@ function applyPersistentSettingsSnapshot(snapshot, { useDefaults = false } = {})
   state.showWallFaces = Boolean(source[SHOW_WALL_FACES_STORAGE_KEY]);
   state.showPortalFlags = Boolean(source[SHOW_PORTAL_FLAGS_STORAGE_KEY]);
   state.ignoreContactRule = Boolean(source[IGNORE_CONTACT_RULE_STORAGE_KEY]);
+  state.halfBoardBuild = Boolean(source[HALF_BOARD_BUILD_STORAGE_KEY]);
   state.useFaceFeedback = Boolean(source[USE_FACE_FEEDBACK_STORAGE_KEY]);
   state.useAllBosses = Boolean(source[USE_ALL_BOSSES_STORAGE_KEY]);
   state.leftDrawerCollapsed = Boolean(source[DRAWER_STATE_STORAGE_KEY]?.left);
@@ -3187,22 +3201,19 @@ function syncSelectedTileSetHeading() {
 }
 
 function syncCustomTileSetFolderControls() {
-  const isTauriApp = typeof window.__TAURI__?.core?.invoke === "function";
-  if (openTileSetFolderBtn) {
-    openTileSetFolderBtn.disabled = !isTauriApp;
-  }
-  if (saveTileSetFolderBtn) {
-    saveTileSetFolderBtn.disabled = !isTauriApp || getTileSetConfig(state.selectedTileSetId)?.source !== "custom";
-  }
 }
 
 function syncChooseDataFolderAction() {
-  if (!chooseDataFolderBtn) return;
+  if (!chooseDataFolderRow) return;
   const dataFolderPath = getStoredDataFolderPath();
   const hasDataFolder = Boolean(dataFolderPath);
-  chooseDataFolderBtn.classList.toggle("is-ready", hasDataFolder);
-  chooseDataFolderBtn.classList.toggle("is-missing", !hasDataFolder);
-  chooseDataFolderBtn.title = hasDataFolder ? `Data folder: ${dataFolderPath}` : "No data folder chosen";
+  const isEnabled = typeof window.__TAURI__?.core?.invoke === "function";
+  chooseDataFolderRow.classList.toggle("is-ready", hasDataFolder);
+  chooseDataFolderRow.classList.toggle("is-missing", !hasDataFolder);
+  if (chooseDataFolderIndicator) {
+    chooseDataFolderIndicator.checked = hasDataFolder;
+  }
+  chooseDataFolderRow.title = hasDataFolder ? `Data folder: ${dataFolderPath}` : "No data folder chosen";
 }
 
 function syncBossTileSetHeading() {
@@ -3357,10 +3368,10 @@ function bindGlobalControls() {
       exportCurrentLayoutPdf();
     });
   }
-  if (chooseDataFolderBtn) {
-    const isEnabled = typeof window.__TAURI__?.core?.invoke === "function";
-    chooseDataFolderBtn.disabled = !isEnabled;
-    chooseDataFolderBtn.addEventListener("click", async () => {
+  if (chooseDataFolderRow) {
+    chooseDataFolderRow.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const isEnabled = typeof window.__TAURI__?.core?.invoke === "function";
       if (!isEnabled) return;
       try {
         const previousPath = getStoredDataFolderPath();
@@ -3374,38 +3385,6 @@ function bindGlobalControls() {
       } catch (error) {
         console.error(error);
         setStatus(error?.message || "Could not choose a data folder.", true);
-      }
-    });
-  }
-  if (openTileSetFolderBtn) {
-    openTileSetFolderBtn.disabled = typeof window.__TAURI__?.core?.invoke !== "function";
-    openTileSetFolderBtn.addEventListener("click", async () => {
-      try {
-        await openTileSetFolderImportPicker();
-      } catch (error) {
-        console.error(error);
-        setStatus(error?.message || "Could not import a custom tile set folder.", true);
-      }
-    });
-  }
-  if (saveTileSetFolderBtn) {
-    saveTileSetFolderBtn.disabled = typeof window.__TAURI__?.core?.invoke !== "function";
-    saveTileSetFolderBtn.addEventListener("click", async () => {
-      const selectedTileSet = getTileSetConfig(state.selectedTileSetId);
-      if (!selectedTileSet || selectedTileSet.source !== "custom") {
-        setStatus("Save Tile Set As Folder is available only for custom tile sets.", true);
-        return;
-      }
-      try {
-        const selectedFolder = await chooseFolderPath(getStoredDataFolderPath(), { title: "Save Tile Set Folder" });
-        if (!selectedFolder) {
-          setStatus("Tile set folder save canceled.");
-          return;
-        }
-        await saveCustomTileSetAsFolder(selectedTileSet.id, selectedFolder);
-      } catch (error) {
-        console.error(error);
-        setStatus(error?.message || "Could not save the custom tile set folder.", true);
       }
     });
   }
@@ -3479,6 +3458,18 @@ function bindGlobalControls() {
           : "Ignore 2 face connection rule: OFF.",
       );
       void saveDataSetting(IGNORE_CONTACT_RULE_STORAGE_KEY, state.ignoreContactRule);
+    });
+  }
+  if (toggleHalfBoardCheckbox) {
+    toggleHalfBoardCheckbox.checked = state.halfBoardBuild;
+    toggleHalfBoardCheckbox.addEventListener("change", () => {
+      state.halfBoardBuild = toggleHalfBoardCheckbox.checked;
+      setStatus(
+        state.halfBoardBuild
+          ? "Auto Build: Default Mode ON (dungeon stays in the lower part of the board)."
+          : "Auto Build: Default Mode OFF (dungeon can expand in any direction).",
+      );
+      void saveDataSetting(HALF_BOARD_BUILD_STORAGE_KEY, state.halfBoardBuild);
     });
   }
   if (toggleFaceFeedbackCheckbox) {
@@ -3689,6 +3680,17 @@ function bindGlobalControls() {
       event.target.value = "";
       if (!file) return;
       await importWallOverridesBackup(file);
+    });
+  }
+  if (copyGuideTemplateBtn) {
+    copyGuideTemplateBtn.addEventListener("click", () => {
+      if (!state.wallEditMode) {
+        setStatus("Copy Guide Template JSON is available only in Tile Editor.", true);
+        closeAdvancedMenuForElement(copyGuideTemplateBtn);
+        return;
+      }
+      copyGuidePointTemplateExport();
+      closeAdvancedMenuForElement(copyGuideTemplateBtn);
     });
   }
   if (reserveEditCheckbox) {
@@ -4258,6 +4260,10 @@ function loadShowPortalFlags() {
 
 function loadIgnoreContactRule() {
   return loadBoolStorage(IGNORE_CONTACT_RULE_STORAGE_KEY, false);
+}
+
+function loadHalfBoardBuild() {
+  return loadBoolStorage(HALF_BOARD_BUILD_STORAGE_KEY, true);
 }
 
 function loadUseFaceFeedback() {
@@ -5567,11 +5573,13 @@ async function autoBuildSelectedTiles(options = {}) {
     const candidates = [];
     const seen = new Set();
     const anchors = shuffle([...placedTiles]);
+    const halfBoardMinY = state.halfBoardBuild ? (entrance?.y ?? 0) : -Infinity;
     const registerCandidate = (x, y) => {
       if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) return;
       const snapped = snapTileCenterToHex(tile, x, y);
       const candidateX = clamp(snapped.x, 0, board.clientWidth);
       const candidateY = clamp(snapped.y, 0, board.clientHeight);
+      if (candidateY < halfBoardMinY) return;
       const key = `${candidateX.toFixed(2)}:${candidateY.toFixed(2)}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -7767,7 +7775,7 @@ function savePortalFlagOverrides() {
   saveJsonStorage(
     PORTAL_FLAG_OVERRIDES_STORAGE_KEY,
     pickBuiltInTileSetEntries(state.portalFlagOverrides),
-    "Could not save portal flag overrides to storage.",
+    "Could not save portal overrides to storage.",
   );
 }
 
@@ -7862,7 +7870,7 @@ async function importWallOverridesBackup(file) {
 
     saveJsonStorage(WALL_OVERRIDES_STORAGE_KEY, builtInWallOverrides, "Could not save wall overrides to storage.");
     saveJsonStorage(END_TILE_OVERRIDES_STORAGE_KEY, builtInEndTileOverrides, "Could not save end-tile overrides to storage.");
-    saveJsonStorage(PORTAL_FLAG_OVERRIDES_STORAGE_KEY, builtInPortalFlagOverrides, "Could not save portal flag overrides to storage.");
+    saveJsonStorage(PORTAL_FLAG_OVERRIDES_STORAGE_KEY, builtInPortalFlagOverrides, "Could not save portal overrides to storage.");
     syncStateOverrideMapsWithCustomEditorCache(
       builtInWallOverrides,
       builtInEndTileOverrides,
@@ -8223,7 +8231,7 @@ function syncTilePortalFlag(tile, options = {}) {
     const flag = createPortalFlagElement();
     if (options.interactive) {
       flag.classList.add("tile-portal-flag-interactive");
-      flag.title = "Portal flag. Drag to reposition.";
+      flag.title = "Portal. Drag to reposition.";
       flag.addEventListener("pointerdown", (event) => beginWallEditorPortalFlagDrag(tile, event));
     }
     tile.portalFlagDom = flag;

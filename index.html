@@ -47,9 +47,7 @@
                 <div id="ui-theme-dropdown" class="ui-theme-dropdown" role="menu" hidden></div>
                 <select id="ui-theme-select" aria-label="UI Theme" hidden></select>
               </div>
-              <button id="open-tile-set-folder-btn" class="tauri-only" type="button">Open Tile Set Folder</button>
-              <button id="save-tile-set-folder-btn" class="tauri-only" type="button">Save Tile Set As Folder</button>
-              <button id="open-debug-log-btn" class="tauri-only" type="button">Open Debug Log</button>
+              <button id="open-debug-log-btn" class="tauri-only dev-only" type="button">Open Debug Log</button>
               <label>
                 <input id="toggle-face-feedback-checkbox" type="checkbox" />
                 <span>Placement feedback: Faces</span>
@@ -62,6 +60,7 @@
               <button id="reset-tile-points-btn" class="wall-edit-only" type="button">Reset Tile Points</button>
               <button id="export-wall-data-btn" class="wall-edit-only dev-only" type="button">Export Debug Walls</button>
               <button id="import-wall-data-btn" class="wall-edit-only dev-only" type="button">Import Debug Walls</button>
+              <button id="copy-guide-template-btn" class="wall-edit-only dev-only" type="button">Copy Guide Template JSON</button>
               <div class="advanced-debug-group" aria-label="Debug controls">
                 <p class="dev-only">Debug Controls</p>
               <label class="dev-only">
@@ -80,6 +79,14 @@
                 <input id="toggle-ignore-contact-checkbox" type="checkbox" />
                 <span>Ignore 2 face connection rule</span>
               </label>
+              <label>
+                <input id="toggle-half-board-checkbox" type="checkbox" />
+                <span>Auto Build: Default Mode</span>
+              </label>
+              <label class="tauri-only data-folder-row">
+                <input id="choose-data-folder-indicator" type="checkbox" tabindex="-1" aria-hidden="true" />
+                <span id="choose-data-folder-btn">Choose Data Folder</span>
+              </label>
               </div>
               <details class="auto-build-tuning-panel dev-only" id="auto-build-tuning-panel">
                 <summary>
@@ -95,7 +102,6 @@
                   </div>
                 </div>
               </details>
-              <button id="choose-data-folder-btn" type="button">Choose Data Folder</button>
             </div>
           </details>
           <button id="toggle-wall-edit-btn" class="topbar-editor-btn" type="button">Tile Editor</button>

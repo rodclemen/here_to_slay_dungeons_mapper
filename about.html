@@ -484,7 +484,7 @@
       <div class="hero-copy">
         <div class="eyebrow">Guide</div>
         <h1>Here to Slay: DUNGEONS Mapper</h1>
-        <p class="lead">This website is a dungeon layout builder for <em>Here to Slay: DUNGEONS</em>. It lets you place tiles on a hex board, test valid layouts, auto-generate complete dungeons, and add bosses before needing to wrestle with the physical tiles.</p>
+        <p class="lead">This app is a dungeon layout builder for <em>Here to Slay: DUNGEONS</em>. It lets you place tiles on a hex board, test valid layouts, auto-generate complete dungeons, and add bosses before needing to wrestle with the physical tiles.</p>
         <p class="muted">The current tile, reference-card, and boss-card images should be treated as provisional stand-ins, not final released graphics. Right now the focus is on getting the rules, metadata, and overall framework solid so the official art can be swapped in cleanly as it becomes available.</p>
         <p class="muted">This page explains the user workflow, the important features, and the shortcuts built into the mapper.</p>
         <p class="muted">This project was made by one person, not a full studio with a dedicated QA team. That means bugs, weird edge cases, and the occasional bit of nonsense are bound to slip through now and then. If you run into something odd or have a suggestion for making the mapper better, I’m always happy to hear it.<br />/Rod</p>
@@ -509,7 +509,7 @@
           <p>The visual assets shown here are currently framework-first placeholders for ongoing development. As official graphics are finalized and released, they can be swapped into the existing structure without having to rebuild the placement logic around them.</p>
           <p>Your first job is simple: build a dungeon around the entrance tile. You can do that manually by dragging tiles from the tray, or you can let the Auto Build button do the heavy lifting.</p>
           <ul>
-            <li>Choose a tile set from the top bar.</li>
+            <li>Choose a tile set from the Tile Drawer heading.</li>
             <li>Review the six selected tiles in the right drawer.</li>
             <li>Drag tiles onto the board and rotate them as needed.</li>
             <li>When placing a tile, a green or red outline will tell you if the placement is allowed.</li>
@@ -528,9 +528,9 @@
       <div class="layout-overview-grid">
         <div class="card layout-overview-primary">
           <h3>Top Bar</h3>
-          <p>The top bar contains the app title, appearance mode control, Advanced Tools menu, Tile Editor / Build View button, Quick Actions menu, Guide link, and Tile Set menu. The Tile Set menu is on the far right.</p>
-          <p>Advanced Tools contains placement-feedback options, Random Boss: All Sets, Show Walls, Show Portals, and the ignore-contact-rule toggle. The theme selector appears there when Auto Theme is turned off. In Tile Editor, this menu also includes Reset Tile Points for built-in tile sets.</p>
-          <p>Quick Actions contains Auto Theme, Copy Share Link, and Export PDF. Reset Tiles and Boss Cards lives on the board as the reset icon, not inside the Quick Actions menu.</p>
+          <p>The top bar contains the app title, an appearance-mode button, the Advanced Tools menu, the Tile Editor / Build View toggle, the Quick Actions menu, and the Guide link. The Tile Set menu lives in the Selected Tiles heading in the right drawer.</p>
+          <p>Advanced Tools contains placement-feedback and build-rule toggles such as Random Boss: All Sets, Show Walls, Show Portals, Ignore 2 face connection rule, and Auto Build: Default Mode. When Auto Theme is off, the theme picker appears there too. In the desktop app, this menu also includes Choose Data Folder. In Tile Editor, Reset Tile Points appears for built-in sets, while some debug-only tools show up only in dev mode.</p>
+          <p>Quick Actions contains Auto Theme, Copy Share Link, and Export PDF. Export PDF works in Build View only and opens a print-ready preview for saving as PDF. Reset Tiles and Boss Cards stays on the board as the reset icon, not inside Quick Actions.</p>
           <p>Copy Share Link creates a URL that restores the current build when opened, including the selected tile set, entrance and reference-card setup, placed tile positions and rotations, tray and reserve order, boss placements, and board zoom and pan. If the layout depends on a custom tile set, the mapper can also export a matching custom-set package and helper HTML so the receiver can import the custom data before opening the link.</p>
         </div>
         <div class="card">
@@ -543,7 +543,7 @@
         </div>
         <div class="card">
           <h3>Right Drawer</h3>
-          <p>In the standard desktop layout, this is the Tile Drawer. It sits on the right side and contains the six selected tiles for the current build and the reserve pile for inactive tiles. In compact mode, the Tile Drawer becomes a compact rail on the left and the Info Drawer is hidden.</p>
+          <p>This is the Tile Drawer. It sits on the right side in the standard desktop layout and contains the Tile Set menu, the six selected tiles for the current build, and the reserve pile for inactive tiles. In compact mode, the Tile Drawer becomes a compact rail on the left and the Info Drawer is hidden.</p>
         </div>
       </div>
       <div class="callout">
@@ -607,6 +607,8 @@
           <p>If you want a complete dungeon quickly, use the Auto Build button on the board. The mapper chooses six regular tiles for the round, places them in a valid arrangement around the entrance tile, then also places a random boss.</p>
           <p>Auto Build is useful when you want a fast starting point, a random layout to play from, or just a break from dragging and rotating everything manually.</p>
           <p>If the auto-builder cannot find a legal result, the status panel will tell you and suggest trying again or rerolling the tile selection.</p>
+          <h3>Default Mode</h3>
+          <p><strong>Auto Build: Default Mode</strong> is enabled by default and keeps the dungeon in the lower part of the board, below the entrance tile. Turn it off in Advanced Tools if you want the dungeon to expand freely in any direction.</p>
         </div>
         <div class="hero-image-wrap section-media-plain">
           <img class="hero-image ratio-16x9" src="./Graphics/auto_build.gif" alt="Animated Auto Build preview" />
@@ -634,18 +636,18 @@
       <div class="section-grid">
         <div>
           <p>The Tile Editor is where tile metadata and custom tile sets are managed. Use it when you need to adjust walls, endpoint rules, portals, guide points, or build a full custom tile set with your own art.</p>
-          <p>You can open the editor for built-in sets to fine-tune placement data, or create a new custom tile set and manage everything from one page.</p>
+          <p>You can open the editor for built-in sets to fine-tune placement data, or create and manage custom tile sets from the same page. The top-bar button switches between Tile Editor and Build View, and the app restores your build layout when you return.</p>
           <ul>
-            <li>Use <strong>Add Custom Tile Set</strong> to create a new browser-local custom set and jump straight into the editor.</li>
+            <li>Use <strong>Add Custom Tile Set</strong> to create a new custom set and jump straight into the editor.</li>
             <li>Use <strong>Import Custom Tile Set</strong> to load a `.zip` package that contains `manifest.json`, assets, and optional `wall_editor.json` data.</li>
             <li>Replace art for the entrance tile, all nine regular tiles, the reference card, and both boss cards directly inside the editor.</li>
-            <li>Edit wall faces, end-tile flags, portal flags, and guide points without leaving the editor screen.</li>
+            <li>Edit wall faces, end-tile flags, portals, and guide points without leaving the editor screen.</li>
             <li>Use the same page to rename, export, or delete the current custom tile set.</li>
           </ul>
         </div>
         <div class="card">
           <h3>What the editor changes</h3>
-          <p>Wall faces affect placement validation. End-tile flags control whether Auto Build can use a tile as a dead end. Portal flags tell Auto Build to avoid portal-to-portal adjacency when possible. Guide points define the draggable outline handles that control how tile faces are interpreted.</p>
+          <p>Wall faces affect placement validation. End-tile flags control whether Auto Build can use a tile as a dead end. Portals tell Auto Build to avoid portal-to-portal adjacency when possible. Guide points define the draggable outline handles that control how tile faces are interpreted.</p>
           <p>For built-in sets, guide point templates are shared across the built-in catalog just like before. For custom sets, guide point templates are isolated per custom tile set, so editing one custom set will not rewrite the built-in defaults or another custom set's point layout.</p>
         </div>
       </div>
@@ -656,13 +658,14 @@
           <p>If you later import a package whose internal custom ID already exists locally, the mapper adds it as a new copy instead of overwriting the old one.</p>
         </div>
         <div class="card">
-          <h3>Local persistence and backups</h3>
-          <p>Custom tile sets are stored locally in this browser. They usually survive reloads, restarts, and crashes, but they are not the same thing as an external backup.</p>
-          <p>If browser site data is cleared, those local custom sets can be removed. Use the custom set's export button or the Tile Editor toolbar's <strong>Export All Custom Tile Sets</strong> button if you want a portable copy.</p>
+          <h3>Storage, data folders, and backups</h3>
+          <p>In the web app, custom tile sets and editor changes are stored in browser-local storage. In the desktop app, settings and custom tile sets live in the data folder you choose.</p>
+          <p>If the desktop app has no data folder yet, built-in content still works but edits and custom tile-set imports cannot be saved. The app may prompt for a folder on startup, and you can also use <strong>Choose Data Folder</strong> in Advanced Tools to set or change that location.</p>
+          <p>Either way, local persistence is not the same thing as a backup. Use the custom set's export button or the Tile Editor toolbar's <strong>Export All Custom Tile Sets</strong> button when you want a portable copy.</p>
         </div>
       </div>
       <div class="callout">
-        <p><strong>Important:</strong> Built-in tile metadata edits also stay local to this browser. Reset Tile Points is available only for built-in tile sets and clears guide-point edits back to the baked defaults. Custom-set backups should use the Tile Editor export controls.</p>
+        <p><strong>Important:</strong> Built-in tile metadata edits are local too, whether that means browser storage or the desktop data folder. Reset Tile Points is available only for built-in tile sets and clears guide-point edits back to the baked defaults. Auto Build is disabled while Tile Editor is open, and custom-set backups should use the Tile Editor export controls.</p>
       </div>
     </section>
 
@@ -671,7 +674,7 @@
       <div class="section-grid">
         <div>
           <p>The Boss Selection pile is in the left-side Info Drawer during the standard layout. In compact mode it moves into the compact tile rail. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
-          <p>Once placed, boss tokens snap to magnet positions around the reference card. They can be moved later, and dragging a placed boss back to the pile or info drawer returns it cleanly.</p>
+          <p>Once placed, boss tokens snap to magnet positions around the reference card. They can be moved later, and dragging a placed boss back to the pile or Info Drawer returns it cleanly.</p>
         </div>
         <div class="card">
           <h3>Boss Placement</h3>
