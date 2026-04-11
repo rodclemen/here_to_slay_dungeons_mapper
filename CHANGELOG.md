@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-11
+- Extracted ~25 board view functions into `modules/board-view.js` (344 lines) — zoom get/set/quantize/apply, board pan/translate/recenter, scene transform sync, board shift during layout transitions, drag-edge auto-pan, and utility layer/point checks (isOnBoardLayer, isPointInsideElement, isPointOverBoardSurface, isClickInTopRightCloseHit). app.js dropped from 8,725 to 8,565 lines (~160 net lines removed).
 - Extracted ~35 boss management functions into `modules/boss-management.js` (826 lines) — boss pile ordering/rendering, card cycling animation, boss token CRUD, spawn-from-pile drag, board token drag, magnet snap positioning, collision polygons, and boss edit mode. app.js dropped from ~9,300 to 8,725 lines (~575 net lines removed).
 - Extracted ~30 theme manager functions into `modules/theme-manager.js` (310 lines) — appearance mode (light/dark/system), UI theme selection, auto-theme-by-tileset, and theme menu sync. Load functions called during state init kept inline to avoid circular refs.
 - Extracted 9 share flow functions into `modules/share-flow.js` (280 lines) — share payload encoding, URL generation, custom tile set bundle export, and build-view layout capture/restore.

@@ -8,8 +8,8 @@
 
 | Area | Size | Notes |
 |------|------|-------|
-| `app.js` | ~8,725 lines | Main monolith — state, UI, rendering, validation, editor (was 10,745) |
-| `modules/` | 25 modules, ~6,900 lines | Well-separated: geometry, storage, rendering, UI, wall-editor, tile-placement, theme, share, boss |
+| `app.js` | ~8,565 lines | Main monolith — state, UI, rendering, validation, editor (was 10,745) |
+| `modules/` | 26 modules, ~7,250 lines | Well-separated: geometry, storage, rendering, UI, wall-editor, tile-placement, theme, share, boss, board-view |
 | `styles.css` | 4,220 lines | 100+ CSS variables, 12 theme variants |
 | `index.html` | 299 lines | Semantic, accessible, no inline styles |
 | `src-tauri/` | 152 lines Rust | 10 Tauri commands (filesystem, ZIP decompression) |
@@ -122,7 +122,7 @@ After extracting the wall editor (#5) and tile placement (#6), further candidate
 
 | Extract to | Lines saved | Content |
 |------------|-------------|---------|
-| `board-interaction-handler.js` | ~600 | Pointer events, drag state, auto-pan |
+| ~~`board-view.js`~~ | ~~~160~~ | ~~Zoom, pan, translate, scene transforms, auto-pan, layer/point checks~~ **Done (2026-04-11)** |
 | ~~`boss-management.js`~~ | ~~~575~~ | ~~Boss cycling, token rendering, multi-set mode~~ **Done (2026-04-11)** |
 | ~~`theme-manager.js`~~ | ~~~300~~ | ~~Appearance mode, theme selection, CSS variable updates~~ **Done (2026-04-11)** |
 | ~~`share-flow.js`~~ | ~~~300~~ | ~~URL snapshot encoding, share dialog, fallback payloads~~ **Done (2026-04-11)** |

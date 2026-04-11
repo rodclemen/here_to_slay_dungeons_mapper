@@ -291,6 +291,33 @@ import {
   triggerBossRandomizeAnimation as triggerBossRandomizeAnimationBM,
   updateBossTokenTransform as updateBossTokenTransformBM,
 } from "./modules/boss-management.js";
+import {
+  applyBoardZoom as applyBoardZoomBV,
+  applyDragEdgeAutoPan as applyDragEdgeAutoPanBV,
+  centerBoardViewOnEntranceX as centerBoardViewOnEntranceXBV,
+  forEachBoardTile as forEachBoardTileBV,
+  getBoardRawZoom as getBoardRawZoomBV,
+  getBoardZoom as getBoardZoomBV,
+  isClickInTopRightCloseHit as isClickInTopRightCloseHitBV,
+  isOnBoardLayer as isOnBoardLayerBV,
+  isPointInsideElement as isPointInsideElementBV,
+  isPointOverBoardSurface as isPointOverBoardSurfaceBV,
+  lockBoardSceneDuringLayoutTransition as lockBoardSceneDuringLayoutTransitionBV,
+  quantizeBoardZoom as quantizeBoardZoomBV,
+  recenterBoardView as recenterBoardViewBV,
+  resetBoardPan as resetBoardPanBV,
+  resetBoardView as resetBoardViewBV,
+  resetBoardViewToZoom as resetBoardViewToZoomBV,
+  shiftBoardSceneBy as shiftBoardSceneByBV,
+  stopDragEdgeAutoPan as stopDragEdgeAutoPanBV,
+  syncBoardSceneTransforms as syncBoardSceneTransformsBV,
+  translateBoardContent as translateBoardContentBV,
+  updateBoardZoomIndicator as updateBoardZoomIndicatorBV,
+  updateDragEdgeAutoPanState as updateDragEdgeAutoPanStateBV,
+  worldToBoardScreenX as worldToBoardScreenXBV,
+  worldToBoardScreenY as worldToBoardScreenYBV,
+  zoomBoardAtPoint as zoomBoardAtPointBV,
+} from "./modules/board-view.js";
 
 const DEV_MODE_ENABLED = (() => {
   const raw = new URLSearchParams(window.location.search).get("dev");
@@ -1775,6 +1802,38 @@ function getBossManagementCtx() {
     updatePlacementFeedbackChecklist,
     worldToBoardScreenX,
     worldToBoardScreenY,
+  };
+}
+
+function getBoardViewCtx() {
+  return {
+    state,
+    board,
+    workspace,
+    // Constants
+    BOARD_ZOOM_STEP,
+    DEFAULT_BOARD_ZOOM,
+    DRAG_EDGE_AUTO_PAN_MAX_SPEED,
+    DRAG_EDGE_AUTO_PAN_ZONE,
+    ENTRANCE_TILE_ID,
+    // Imported pure functions
+    clamp,
+    computeDragEdgeAutoPan,
+    isPointOverBoardSurfaceValue,
+    quantizeBoardZoomValue,
+    worldToBoardScreen,
+    // App-level helpers (passed so BV can call them via ctx)
+    forEachBoardBossToken,
+    markDevQaCheck,
+    positionBossToken,
+    positionTile,
+    recenterTrayAndReserveTiles,
+    renderBoardHexGrid,
+    scheduleBoardHexGridRender,
+    updateBoardAutoCenterViewportAnchor,
+    updateBossTokenTransform,
+    updateReferenceMarkerTransform,
+    updateTileTransform,
   };
 }
 
@@ -3556,10 +3615,7 @@ function recenterTrayAndReserveTiles() {
 }
 
 function forEachBoardTile(callback) {
-  for (const tile of state.tiles.values()) {
-    if (!tile.dom || !isOnBoardLayer(tile.dom.parentElement)) continue;
-    callback(tile);
-  }
+  forEachBoardTileBV(callback, getBoardViewCtx());
 }
 
 function forEachBoardBossToken(callback) {
@@ -3591,57 +3647,11 @@ function saveDrawerState(next) {
 }
 
 function shiftBoardSceneBy(dx, dy) {
-  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
-  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return;
-
-  state.boardPanX += dx;
-  state.boardPanY += dy;
-
-  forEachBoardTile((tile) => {
-    positionTile(tile, tile.x + dx, tile.y + dy);
-    updateTileTransform(tile);
-  });
-
-  if (state.referenceMarker?.dom) {
-    const nextX = state.referenceMarker.x + dx;
-    const nextY = state.referenceMarker.y + dy;
-    state.referenceMarker.x = nextX;
-    state.referenceMarker.y = nextY;
-    updateReferenceMarkerTransform(state.referenceMarker);
-  }
-
-  forEachBoardBossToken((token) => {
-    positionBossToken(token, token.x + dx, token.y + dy);
-    updateBossTokenTransform(token);
-  });
+  shiftBoardSceneByBV(dx, dy, getBoardViewCtx());
 }
 
 function lockBoardSceneDuringLayoutTransition(startRect, durationMs, onDone) {
-  let lastLeft = startRect.left;
-  let lastTop = startRect.top;
-  const endAt = performance.now() + durationMs;
-
-  const step = () => {
-    const rect = board.getBoundingClientRect();
-    const zoom = getBoardZoom();
-    const dx = (lastLeft - rect.left) / zoom;
-    const dy = (lastTop - rect.top) / zoom;
-    if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
-      shiftBoardSceneBy(dx, dy);
-    }
-    lastLeft = rect.left;
-    lastTop = rect.top;
-    recenterTrayAndReserveTiles();
-    renderBoardHexGrid();
-
-    if (performance.now() < endAt) {
-      requestAnimationFrame(step);
-      return;
-    }
-    if (typeof onDone === "function") onDone();
-  };
-
-  requestAnimationFrame(step);
+  lockBoardSceneDuringLayoutTransitionBV(startRect, durationMs, getBoardViewCtx(), onDone);
 }
 
 function toggleBothDrawers() {
@@ -3991,161 +4001,59 @@ function applyFeedbackMode(useFaceFeedback) {
 }
 
 function getBoardZoom() {
-  return Number.isFinite(state.boardZoom) ? state.boardZoom : 1;
+  return getBoardZoomBV(getBoardViewCtx());
 }
 
 function getBoardRawZoom() {
-  return Number.isFinite(state.boardZoomRaw) ? state.boardZoomRaw : getBoardZoom();
+  return getBoardRawZoomBV(getBoardViewCtx());
 }
 
 function worldToBoardScreenX(x, zoom = getBoardZoom()) {
-  return worldToBoardScreen(x, zoom);
+  return worldToBoardScreenXBV(x, getBoardViewCtx(), zoom);
 }
 
 function worldToBoardScreenY(y, zoom = getBoardZoom()) {
-  return worldToBoardScreen(y, zoom);
+  return worldToBoardScreenYBV(y, getBoardViewCtx(), zoom);
 }
 
 function syncBoardSceneTransforms() {
-  forEachBoardTile((tile) => {
-    updateTileTransform(tile);
-  });
-  updateReferenceMarkerTransform();
-  forEachBoardBossToken((token) => {
-    updateBossTokenTransform(token);
-  });
+  syncBoardSceneTransformsBV(getBoardViewCtx());
 }
 
 function quantizeBoardZoom(zoom) {
-  return quantizeBoardZoomValue(zoom, {
-    clamp,
-    min: 0.7,
-    max: 1.8,
-    step: BOARD_ZOOM_STEP,
-  });
+  return quantizeBoardZoomBV(zoom, getBoardViewCtx());
 }
 
 function applyBoardZoom(zoom, options = {}) {
-  const syncScene = options?.syncScene !== false;
-  const rawZoom = clamp(
-    Number.isFinite(options?.rawZoom) ? options.rawZoom : zoom,
-    0.7,
-    1.8,
-  );
-  const quantized = quantizeBoardZoom(zoom);
-  state.boardZoomRaw = rawZoom;
-  state.boardZoom = quantized;
-  board.style.setProperty("--board-zoom", quantized.toFixed(3));
-  updateBoardZoomIndicator();
-  scheduleBoardHexGridRender();
-  if (syncScene) syncBoardSceneTransforms();
+  applyBoardZoomBV(zoom, getBoardViewCtx(), options);
 }
 
 function recenterBoardView({ resetZoom = false } = {}) {
-  if (resetZoom) {
-    applyBoardZoom(DEFAULT_BOARD_ZOOM, { syncScene: false });
-  }
-  const dx = -state.boardPanX;
-  const dy = -state.boardPanY;
-  translateBoardContent(dx, dy, { syncScene: false });
-  centerBoardViewOnEntranceX({ syncScene: false });
-  syncBoardSceneTransforms();
-  updateBoardAutoCenterViewportAnchor();
+  recenterBoardViewBV(getBoardViewCtx(), { resetZoom });
 }
 
 function resetBoardViewToZoom(zoom = DEFAULT_BOARD_ZOOM, rawZoom = zoom) {
-  applyBoardZoom(zoom, { syncScene: false, rawZoom });
-  const dx = -state.boardPanX;
-  const dy = -state.boardPanY;
-  translateBoardContent(dx, dy, { syncScene: false });
-  centerBoardViewOnEntranceX({ syncScene: false });
-  syncBoardSceneTransforms();
-  updateBoardAutoCenterViewportAnchor();
+  resetBoardViewToZoomBV(getBoardViewCtx(), zoom, rawZoom);
 }
 
 function resetBoardView() {
-  resetBoardViewToZoom(DEFAULT_BOARD_ZOOM);
+  resetBoardViewBV(getBoardViewCtx());
 }
 
 function zoomBoardAtPoint(delta, anchorBoardX, anchorBoardY) {
-  const prevZoom = getBoardZoom();
-  const nextRawZoom = clamp(getBoardRawZoom() + delta, 0.7, 1.8);
-  const nextZoom = quantizeBoardZoom(nextRawZoom);
-  if (Math.abs(nextZoom - prevZoom) < 1e-6) {
-    state.boardZoomRaw = nextRawZoom;
-    return;
-  }
-
-  const worldXBefore = anchorBoardX / prevZoom;
-  const worldYBefore = anchorBoardY / prevZoom;
-  const worldXAfter = anchorBoardX / nextZoom;
-  const worldYAfter = anchorBoardY / nextZoom;
-
-  applyBoardZoom(nextZoom, { syncScene: false, rawZoom: nextRawZoom });
-  translateBoardContent(worldXAfter - worldXBefore, worldYAfter - worldYBefore, { syncScene: false });
-  syncBoardSceneTransforms();
-  markDevQaCheck("zoom_board", { detail: `${Math.round(nextZoom * 100)}%` });
+  zoomBoardAtPointBV(delta, anchorBoardX, anchorBoardY, getBoardViewCtx());
 }
 
 function translateBoardContent(dx, dy, options = {}) {
-  const syncScene = options?.syncScene !== false;
-  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
-  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return;
-
-  state.boardPanX += dx;
-  state.boardPanY += dy;
-
-  for (const tile of state.tiles.values()) {
-    if (!tile.dom || !isOnBoardLayer(tile.dom.parentElement)) continue;
-    positionTile(tile, tile.x + dx, tile.y + dy);
-    if (syncScene) updateTileTransform(tile);
-  }
-
-  if (state.referenceMarker?.dom) {
-    const rx = state.referenceMarker.x + dx;
-    const ry = state.referenceMarker.y + dy;
-    state.referenceMarker.x = rx;
-    state.referenceMarker.y = ry;
-    if (syncScene) updateReferenceMarkerTransform(state.referenceMarker);
-  }
-
-  for (const token of state.bossTokens) {
-    if (!token?.dom || !isOnBoardLayer(token.dom.parentElement)) continue;
-    positionBossToken(token, token.x + dx, token.y + dy);
-    if (syncScene) updateBossTokenTransform(token);
-  }
-  if (state.entranceFadeAnchor) {
-    state.entranceFadeAnchor = {
-      x: state.entranceFadeAnchor.x + dx,
-      y: state.entranceFadeAnchor.y + dy,
-    };
-  }
-
-  scheduleBoardHexGridRender();
+  translateBoardContentBV(dx, dy, getBoardViewCtx(), options);
 }
 
 function resetBoardPan() {
-  state.boardPanX = 0;
-  state.boardPanY = 0;
-  scheduleBoardHexGridRender();
+  resetBoardPanBV(getBoardViewCtx());
 }
 
 function updateBoardZoomIndicator() {
-  let badge = workspace.querySelector(".board-zoom-indicator");
-  if (!badge) {
-    badge = document.createElement("button");
-    badge.type = "button";
-    badge.className = "board-zoom-indicator";
-    badge.addEventListener("click", () => {
-      resetBoardView();
-    });
-    workspace.appendChild(badge);
-  }
-  const percent = Math.round(getBoardZoom() * 100);
-  badge.textContent = `Zoom ${percent}%`;
-  badge.setAttribute("aria-label", `Reset zoom (${percent} percent)`);
-  // Force a paint flush so rapid zoom updates don't leave stale/missing glyphs.
-  void badge.offsetWidth;
+  updateBoardZoomIndicatorBV(getBoardViewCtx());
 }
 
 function setWallEditMode(enabled) {
@@ -6065,87 +5973,27 @@ function setBossEditMode(enabled) {
 }
 
 function isClickInTopRightCloseHit(event, containerEl) {
-  if (!event || !containerEl) return false;
-  const rect = containerEl.getBoundingClientRect();
-  const hitSize = 28;
-  const inset = 6;
-  const left = rect.right - inset - hitSize;
-  const right = rect.right - inset;
-  const top = rect.top + inset;
-  const bottom = rect.top + inset + hitSize;
-  return (
-    event.clientX >= left
-    && event.clientX <= right
-    && event.clientY >= top
-    && event.clientY <= bottom
-  );
+  return isClickInTopRightCloseHitBV(event, containerEl);
 }
 
 function isPointInsideElement(clientX, clientY, element) {
-  if (!element) return false;
-  return isPointInsideRect(clientX, clientY, element.getBoundingClientRect());
+  return isPointInsideElementBV(clientX, clientY, element);
 }
 
 function isPointOverBoardSurface(clientX, clientY, boardRect = board.getBoundingClientRect()) {
-  return isPointOverBoardSurfaceValue(clientX, clientY, {
-    boardRect,
-    boardEl: board,
-    topEl: document.elementFromPoint(clientX, clientY),
-  });
+  return isPointOverBoardSurfaceBV(clientX, clientY, getBoardViewCtx(), boardRect);
 }
 
 function applyDragEdgeAutoPan(clientX, clientY, boardRect, dragPanState) {
-  if (!dragPanState) return;
-  const { dx, dy, lastTs } = computeDragEdgeAutoPan({
-    clientX,
-    clientY,
-    boardRect,
-    lastTs: dragPanState.lastTs,
-    now: performance.now(),
-    zone: DRAG_EDGE_AUTO_PAN_ZONE,
-    maxSpeed: DRAG_EDGE_AUTO_PAN_MAX_SPEED,
-    zoom: getBoardZoom(),
-    clamp,
-    isPointerOverBoard: isPointOverBoardSurface(clientX, clientY, boardRect),
-  });
-  dragPanState.lastTs = lastTs;
-  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return;
-  translateBoardContent(dx, dy);
+  applyDragEdgeAutoPanBV(clientX, clientY, boardRect, dragPanState, getBoardViewCtx());
 }
 
 function updateDragEdgeAutoPanState(dragPanState, clientX, clientY, boardRect) {
-  if (!dragPanState) return;
-  dragPanState.clientX = clientX;
-  dragPanState.clientY = clientY;
-  dragPanState.boardRect = boardRect;
-  dragPanState.active = true;
-  if (dragPanState.rafId != null) return;
-
-  const step = () => {
-    if (!dragPanState.active) {
-      dragPanState.rafId = null;
-      return;
-    }
-    applyDragEdgeAutoPan(
-      dragPanState.clientX,
-      dragPanState.clientY,
-      dragPanState.boardRect,
-      dragPanState,
-    );
-    dragPanState.rafId = requestAnimationFrame(step);
-  };
-
-  dragPanState.rafId = requestAnimationFrame(step);
+  updateDragEdgeAutoPanStateBV(dragPanState, clientX, clientY, boardRect, getBoardViewCtx());
 }
 
 function stopDragEdgeAutoPan(dragPanState) {
-  if (!dragPanState) return;
-  dragPanState.active = false;
-  dragPanState.lastTs = null;
-  if (dragPanState.rafId != null) {
-    cancelAnimationFrame(dragPanState.rafId);
-    dragPanState.rafId = null;
-  }
+  stopDragEdgeAutoPanBV(dragPanState);
 }
 
 function getBossReferenceMagnetBoardPosition(boardX, boardY) {
@@ -6323,13 +6171,7 @@ function setEntranceFadeAnchorFromTile(tile) {
 }
 
 function centerBoardViewOnEntranceX(options = {}) {
-  const entrance = state.tiles.get(ENTRANCE_TILE_ID);
-  if (!entrance?.placed) return;
-  if (!entrance.dom || !isOnBoardLayer(entrance.dom.parentElement)) return;
-  const targetX = board.clientWidth / (2 * getBoardZoom());
-  const dx = targetX - entrance.x;
-  if (Math.abs(dx) < 0.5) return;
-  translateBoardContent(dx, 0, options);
+  centerBoardViewOnEntranceXBV(getBoardViewCtx(), options);
 }
 
 function updateReferenceMarkerTransform(reference = state.referenceMarker) {
@@ -8394,9 +8236,7 @@ function updateTileParent(tile, parent) {
 }
 
 function isOnBoardLayer(parent) {
-  if (!parent) return false;
-  if (parent === board) return true;
-  return parent.classList?.contains("board-content") ?? false;
+  return isOnBoardLayerBV(parent, getBoardViewCtx());
 }
 
 function updateTileTransform(tile) {
