@@ -8,8 +8,8 @@
 
 | Area | Size | Notes |
 |------|------|-------|
-| `app.js` | 10,745 lines | Main monolith — state, UI, rendering, validation, editor |
-| `modules/` | 20 modules, 3,314 lines | Well-separated: geometry, storage, rendering, UI |
+| `app.js` | ~9,600 lines | Main monolith — state, UI, rendering, validation, editor (was 10,745) |
+| `modules/` | 22 modules, ~5,000 lines | Well-separated: geometry, storage, rendering, UI, wall-editor, tile-placement |
 | `styles.css` | 4,220 lines | 100+ CSS variables, 12 theme variants |
 | `index.html` | 299 lines | Semantic, accessible, no inline styles |
 | `src-tauri/` | 152 lines Rust | 10 Tauri commands (filesystem, ZIP decompression) |
@@ -50,13 +50,7 @@ If a tile PNG fails to load (corrupt file, missing custom asset), placement sile
 
 ### 6. Extract tile placement logic into a module
 
-Placement validation, contact snapping, and alpha-pixel testing (~1,000 lines) are spread across `app.js`. Consolidate into `modules/tile-placement.js`:
-
-- `isPlacementValid()`
-- `scheduleTileDragDropFeedback()`
-- Snapping/rotation helpers
-
-Would bring `app.js` down to ~5,000 lines.
+~~Placement validation, contact snapping, and alpha-pixel testing (~1,000 lines) are spread across `app.js`. Consolidate into `modules/tile-placement.js`.~~ **Done (2026-04-11).** Extracted 48 functions (763 lines) to `modules/tile-placement.js` — snap, overlap detection, contact validation, rotation, invalid-drop recovery, drag feedback, and placement guides. Net ~420 lines removed from `app.js`. Thin wrappers delegate via `getTilePlacementCtx()`.
 
 ### 7. Implement render batching
 
@@ -164,9 +158,9 @@ Playwright or Cypress tests for critical flows:
 
 ## Suggested Priority Order
 
-1. CSP hardening (#3) — 30 min, high safety value
-2. Wall editor extraction (#5) — biggest readability win
-3. Tile placement extraction (#6) — second biggest readability win
+1. ~~CSP hardening (#3) — 30 min, high safety value~~ **Done**
+2. ~~Wall editor extraction (#5) — biggest readability win~~ **Done**
+3. ~~Tile placement extraction (#6) — second biggest readability win~~ **Done**
 4. Geometry unit tests (#8) — safety net for refactoring
 5. Minification (#1) — easy shipping size reduction
 6. Render batching (#7) — cleaner code + fewer re-renders
