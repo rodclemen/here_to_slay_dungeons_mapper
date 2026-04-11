@@ -3359,9 +3359,7 @@ function bindGlobalControls() {
   }
   if (chooseDataFolderBtn) {
     const isEnabled = typeof window.__TAURI__?.core?.invoke === "function";
-    chooseDataFolderBtn.setAttribute("aria-disabled", String(!isEnabled));
-    chooseDataFolderBtn.tabIndex = isEnabled ? 0 : -1;
-    chooseDataFolderBtn.classList.toggle("is-disabled", !isEnabled);
+    chooseDataFolderBtn.disabled = !isEnabled;
     chooseDataFolderBtn.addEventListener("click", async () => {
       if (!isEnabled) return;
       try {
@@ -3377,12 +3375,6 @@ function bindGlobalControls() {
         console.error(error);
         setStatus(error?.message || "Could not choose a data folder.", true);
       }
-    });
-    chooseDataFolderBtn.addEventListener("keydown", async (event) => {
-      if (!isEnabled) return;
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      chooseDataFolderBtn.click();
     });
   }
   if (openTileSetFolderBtn) {

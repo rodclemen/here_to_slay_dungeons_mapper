@@ -701,6 +701,8 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   margin: 4px 0 0;
   cursor: pointer;
   text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .advanced-menu-panel .menu-text-action:hover,

@@ -1,9 +1,7 @@
 # Changelog
 
 ## 2026-04-11
-- Shifted `Choose Data Folder` into the same text column as the other cogwheel menu rows so it lines up with the checkbox labels instead of sitting flush left.
-- Aligned `Choose Data Folder` with the other cogwheel rows and colored it green when a data folder exists, red when the app is still using defaults.
-- Moved `Choose Data Folder` to the bottom of the cogwheel menu and restyled it as a non-button text action, while keeping it keyboard and click accessible.
+- Restyled `Choose Data Folder` as a button with plain-text chrome, kept it at the bottom of the cogwheel menu, and aligned it with the other rows while preserving the green/red data-folder state.
 - Shrunk the selected-tile-set header text when it truncates, so long names fit more cleanly without crowding the `Selected Tiles` title.
 - Capped the selected-tile-set label at 18 visible characters with an ellipsis so longer set names stay readable in the header.
 - Forced the `Selected Tiles` header to stay on one line so the section title no longer wraps under the tile-set control.
