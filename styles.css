@@ -707,7 +707,7 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   outline: none;
 }
 
-.advanced-menu-panel .menu-text-action.is-disabled {
+.advanced-menu-panel .menu-text-action:disabled {
   opacity: 0.5;
   cursor: default;
   pointer-events: none;
