@@ -1100,8 +1100,8 @@ button:hover {
 }
 
 .workspace {
-  --left-drawer-width: 335px;
-  --right-drawer-width: 320px;
+  --left-drawer-width: 320px;
+  --right-drawer-width: 335px;
   --collapsed-drawer-width: 0px;
   flex: 1 1 auto;
   min-height: 0;
@@ -1135,13 +1135,9 @@ button:hover {
   color: var(--control-text);
 }
 
-/* Historical naming: the DOM ids/classes (`left-drawer` / `drawer-left`, `right-drawer` /
-   `drawer-right`) no longer match the on-screen sides. Keep the selectors stable for JS and
-   saved state, but treat `.drawer-right` as the left visual rail and `.drawer-left` as the
-   right visual rail unless the markup is fully renamed in one coordinated refactor. */
-.drawer-right {
+.drawer-left {
   left: 0;
-  width: var(--right-drawer-width);
+  width: var(--left-drawer-width);
   border-top: 0;
   border-left: 0;
   border-bottom: 0;
@@ -1150,9 +1146,9 @@ button:hover {
   box-shadow: var(--drawer-side-shadow-left);
 }
 
-.drawer-left {
+.drawer-right {
   right: 0;
-  width: var(--left-drawer-width);
+  width: var(--right-drawer-width);
   border-top: 0;
   border-right: 0;
   border-bottom: 0;
@@ -1161,7 +1157,7 @@ button:hover {
   box-shadow: var(--drawer-side-shadow-right);
 }
 
-.drawer-left .drawer-toolbar {
+.drawer-right .drawer-toolbar {
   position: absolute;
   top: 10px;
   left: 10px;
@@ -1170,7 +1166,7 @@ button:hover {
   flex-direction: row-reverse;
 }
 
-.drawer-left .drawer-content {
+.drawer-right .drawer-content {
   padding-top: 40px;
 }
 
@@ -1243,11 +1239,11 @@ body.right-drawer-collapsed .workspace {
 }
 
 body.left-drawer-collapsed .drawer-left {
-  margin-right: 0;
+  margin-left: 0;
 }
 
 body.right-drawer-collapsed .drawer-right {
-  margin-left: 0;
+  margin-right: 0;
 }
 
 body.left-drawer-collapsed .drawer-left,
@@ -1267,7 +1263,7 @@ body.right-drawer-collapsed .drawer-right .drawer-toolbar h2 {
 
 body.left-drawer-collapsed .drawer-left .drawer-toolbar {
   top: 10px;
-  right: 0;
+  left: 0;
   z-index: 20;
   pointer-events: auto;
 }
@@ -1284,7 +1280,7 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left .drawer-toolbar h2 {
 body.right-drawer-collapsed .drawer-right .drawer-toolbar {
   position: absolute;
   top: 10px;
-  left: 0;
+  right: 0;
   z-index: 20;
   pointer-events: auto;
 }
@@ -2042,8 +2038,8 @@ body.multi-set-preview-mode .board {
   backface-visibility: visible;
 }
 
-body:not(.left-drawer-collapsed) .board-zoom-indicator {
-  right: calc(var(--left-drawer-width) + 10px);
+body:not(.right-drawer-collapsed) .board-zoom-indicator {
+  right: calc(var(--right-drawer-width) + 10px);
 }
 
 .board .board-zoom-indicator {
@@ -4180,6 +4176,10 @@ body.compact-sidepanel-mode .topbar {
   grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
 }
 
+body.compact-sidepanel-mode .topbar-brand h1 {
+  font-size: calc(0.72rem + 5px);
+}
+
 body.compact-sidepanel-mode .actions {
   justify-content: flex-start;
 }
@@ -4193,7 +4193,7 @@ body.compact-sidepanel-mode .drawer {
   gap: 6px;
 }
 
-body.compact-sidepanel-mode .drawer-left {
+body.compact-sidepanel-mode .drawer-right {
   width: 72px !important;
   left: 0;
   right: auto;
@@ -4207,33 +4207,33 @@ body.compact-sidepanel-mode .board-zoom-indicator {
   right: 12px;
 }
 
-body.compact-sidepanel-mode .drawer-right {
+body.compact-sidepanel-mode .drawer-left {
   display: none !important;
 }
 
-body.compact-sidepanel-mode .drawer-left .drawer-toolbar {
+body.compact-sidepanel-mode .drawer-right .drawer-toolbar {
   position: static;
   padding: 0;
   min-height: 0;
 }
 
-body.compact-sidepanel-mode .drawer-left .drawer-toolbar h2,
-body.compact-sidepanel-mode .drawer-left .section-helper,
-body.compact-sidepanel-mode .drawer-left .tray-head h2,
-body.compact-sidepanel-mode .drawer-left .reserve-section h2,
-body.compact-sidepanel-mode .drawer-left .boss-section .section-title-with-icon,
-body.compact-sidepanel-mode .drawer-left #placed-progress {
+body.compact-sidepanel-mode .drawer-right .drawer-toolbar h2,
+body.compact-sidepanel-mode .drawer-right .section-helper,
+body.compact-sidepanel-mode .drawer-right .tray-head h2,
+body.compact-sidepanel-mode .drawer-right .reserve-section h2,
+body.compact-sidepanel-mode .drawer-right .boss-section .section-title-with-icon,
+body.compact-sidepanel-mode .drawer-right #placed-progress {
   display: none !important;
 }
 
-body.compact-sidepanel-mode .drawer-left #left-drawer-content {
+body.compact-sidepanel-mode .drawer-right #right-drawer-content {
   display: grid !important;
   gap: 6px;
 }
 
-body.compact-sidepanel-mode .drawer-left .selected-tiles-section,
-body.compact-sidepanel-mode .drawer-left .reserve-section,
-body.compact-sidepanel-mode .drawer-left .boss-section {
+body.compact-sidepanel-mode .drawer-right .selected-tiles-section,
+body.compact-sidepanel-mode .drawer-right .reserve-section,
+body.compact-sidepanel-mode .drawer-right .boss-section {
   width: auto;
   margin: 0;
   padding: 4px;
@@ -4241,20 +4241,20 @@ body.compact-sidepanel-mode .drawer-left .boss-section {
   background: transparent;
 }
 
-body.compact-sidepanel-mode .drawer-left .reserve-section {
+body.compact-sidepanel-mode .drawer-right .reserve-section {
   display: none !important;
 }
 
-body.compact-sidepanel-mode .drawer-left .tray-head {
+body.compact-sidepanel-mode .drawer-right .tray-head {
   margin: 0;
   justify-content: center;
 }
 
-body.compact-sidepanel-mode .drawer-left .tray-head-actions {
+body.compact-sidepanel-mode .drawer-right .tray-head-actions {
   display: none;
 }
 
-body.compact-sidepanel-mode .drawer-left .tray {
+body.compact-sidepanel-mode .drawer-right .tray {
   grid-template-columns: 1fr;
   justify-content: center;
   justify-items: center;
@@ -4262,7 +4262,7 @@ body.compact-sidepanel-mode .drawer-left .tray {
   margin-top: 0;
 }
 
-body.compact-sidepanel-mode .drawer-left .tray-slot {
+body.compact-sidepanel-mode .drawer-right .tray-slot {
   --tile-size: 40px;
   min-height: 46px;
   min-width: 46px;
@@ -4270,11 +4270,11 @@ body.compact-sidepanel-mode .drawer-left .tray-slot {
   margin: 0 auto;
 }
 
-body.compact-sidepanel-mode .drawer-left .tray-slot-guide {
+body.compact-sidepanel-mode .drawer-right .tray-slot-guide {
   display: none;
 }
 
-body.compact-sidepanel-mode .drawer-left .reserve-pile {
+body.compact-sidepanel-mode .drawer-right .reserve-pile {
   height: auto;
   min-height: 0;
   padding: 0;
@@ -4284,8 +4284,8 @@ body.compact-sidepanel-mode .drawer-left .reserve-pile {
   overflow: visible;
 }
 
-body.compact-sidepanel-mode .drawer-left .reserve-card,
-body.compact-sidepanel-mode .drawer-left .reserve-pile.edit-mode .reserve-card {
+body.compact-sidepanel-mode .drawer-right .reserve-card,
+body.compact-sidepanel-mode .drawer-right .reserve-pile.edit-mode .reserve-card {
   position: relative;
   left: auto;
   top: auto;
@@ -4295,7 +4295,7 @@ body.compact-sidepanel-mode .drawer-left .reserve-pile.edit-mode .reserve-card {
   justify-self: center;
 }
 
-body.compact-sidepanel-mode .drawer-left .boss-pile {
+body.compact-sidepanel-mode .drawer-right .boss-pile {
   height: auto;
   min-height: 0;
   display: flex;
@@ -4305,8 +4305,8 @@ body.compact-sidepanel-mode .drawer-left .boss-pile {
   overflow: visible;
 }
 
-body.compact-sidepanel-mode .drawer-left .boss-card,
-body.compact-sidepanel-mode.boss-edit-mode .drawer-left .boss-card {
+body.compact-sidepanel-mode .drawer-right .boss-card,
+body.compact-sidepanel-mode.boss-edit-mode .drawer-right .boss-card {
   width: 40px !important;
   position: relative;
   left: auto;
@@ -4315,7 +4315,7 @@ body.compact-sidepanel-mode.boss-edit-mode .drawer-left .boss-card {
   z-index: 1 !important;
 }
 
-body.compact-sidepanel-mode .drawer-left .tile-controls {
+body.compact-sidepanel-mode .drawer-right .tile-controls {
   display: none !important;
 }
 

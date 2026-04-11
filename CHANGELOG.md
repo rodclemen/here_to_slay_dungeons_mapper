@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-04-11
+- Fixed the left/right drawer refactor properly instead of relying on inverted internal naming: the left drawer markup/CSS/JS now maps to the visual Info Drawer, the right drawer now maps to the visual Tile Drawer, collapse labels and keyboard shortcuts (`A` left / `S` right) now match the real layout, and compact mode still keeps the Tile Drawer rail on the left while hiding the Info Drawer.
+- Tightened the compact-mode top bar so the main `Here to Slay: DUNGEONS Mapper` title renders smaller, `Guide` abbreviates to `G`, and `Tile Editor` abbreviates to `TE` while preserving full `title` / `aria-label` text for clarity.
 - Moved the completed maintenance and drawer refactor planning docs into `docs/done/` so finished implementation guides stop sitting beside active planning notes, while leaving the still-open optimization, Tauri, and wall-editor planning files in the main `docs/` folder.
 - Added `docs/maintenance-audit-plan.md` as a repeatable cleanup playbook for optimization checks, stale-code audits, label verification, comment quality, and phased maintenance passes.
 - Ran the first maintenance slices across the UI and docs: moved `Placement feedback: Faces` below the Advanced Tools divider, aligned menu/status wording with the visible control names, clarified Tile Editor / Build View messaging, refreshed README + Guide docs for the browser/Tauri split, made local-data notices runtime-aware for browser vs data-folder storage, and documented the CSS drawer-side naming inversion right where it happens.

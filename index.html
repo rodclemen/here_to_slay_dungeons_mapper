@@ -138,13 +138,94 @@
       <section class="workspace">
         <aside id="left-drawer" class="drawer drawer-left">
           <div class="drawer-toolbar">
+            <h2>Info Drawer</h2>
+            <button
+              id="toggle-left-drawer-btn"
+              class="drawer-toggle-btn icon-toggle-btn"
+              type="button"
+              aria-controls="left-drawer-content"
+              aria-expanded="true"
+              aria-label="Toggle info drawer"
+              title="Toggle info drawer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-panel-left"
+                aria-hidden="true"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                <path d="M9 3v18"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="left-drawer-content" class="drawer-content">
+            <section id="boss-section-panel" class="panel-section boss-section">
+              <h3 class="section-title-with-icon">
+                <span class="section-title-label">
+                  Boss Selection <span id="boss-tileset-name" class="selected-tileset-name"></span>
+                </span>
+                <button id="boss-random-btn" class="icon-image-btn icon-dice-btn" type="button" aria-label="Random Boss" title="Random Boss">
+                  <img src="./icons/dice.png" alt="" aria-hidden="true" />
+                </button>
+              </h3>
+              <p class="section-helper">Step 4: click boss cards to cycle options, then drag one to board.</p>
+              <div id="boss-pile" class="boss-pile" aria-label="Boss Selection"></div>
+            </section>
+
+            <section class="panel-section feedback-section">
+              <h3>Placement Feedback</h3>
+              <p class="section-helper">Step 3: place tiles with valid contact. Full-tile feedback is default.</p>
+              <div id="feedback-checklist" class="feedback-checklist" aria-live="polite">
+                <div id="feedback-tiles-row" class="feedback-check-row">
+                  <span id="feedback-tiles-check" class="feedback-check" aria-hidden="true">○</span>
+                  <span>Tiles placed</span>
+                </div>
+                <div id="feedback-boss-row" class="feedback-check-row">
+                  <span id="feedback-boss-check" class="feedback-check" aria-hidden="true">○</span>
+                  <span>Boss selected</span>
+                </div>
+              </div>
+              <div id="status" class="status" role="status" aria-live="polite" aria-label="Placement Feedback"></div>
+            </section>
+            <div id="local-data-notice" class="local-data-notice" role="note" hidden>
+              <div class="local-data-notice-head">
+                <strong id="local-data-notice-title">Local Data Notice</strong>
+              </div>
+              <p id="local-data-notice-body" class="local-data-notice-body"></p>
+              <div class="local-data-notice-actions">
+                <button id="local-data-notice-action-btn" class="local-data-notice-action" type="button" hidden></button>
+                <button id="local-data-notice-dismiss-btn" class="local-data-notice-dismiss" type="button" aria-label="Dismiss local data notice">Dismiss</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div id="board" class="board" aria-label="Placement board">
+          <button id="auto-build-btn" class="icon-image-btn icon-dice-btn board-auto-build-btn" type="button" aria-label="Auto Build Dungeon" title="Auto Build Dungeon">
+            <img src="./icons/dice.png" alt="" aria-hidden="true" />
+          </button>
+          <button id="reset-all-btn" class="icon-image-btn icon-reset-btn board-reset-btn" type="button" aria-label="Reset Tiles and Boss Cards" title="Reset Tiles and Boss Cards">
+            <img src="./icons/reset.png" alt="" aria-hidden="true" />
+          </button>
+        </div>
+
+        <aside id="right-drawer" class="drawer drawer-right">
+          <div class="drawer-toolbar">
             <h2>Tile Drawer</h2>
             <div class="drawer-toolbar-actions">
               <button
-                id="toggle-left-drawer-btn"
+                id="toggle-right-drawer-btn"
                 class="drawer-toggle-btn icon-toggle-btn"
                 type="button"
-                aria-controls="left-drawer-content"
+                aria-controls="right-drawer-content"
                 aria-expanded="true"
                 aria-label="Toggle tile drawer"
                 title="Toggle tile drawer"
@@ -168,7 +249,7 @@
               </button>
             </div>
           </div>
-          <div id="left-drawer-content" class="drawer-content">
+          <div id="right-drawer-content" class="drawer-content">
             <section class="panel-section selected-tiles-section">
               <div class="tray-head">
                 <h2 class="selected-tiles-heading">
@@ -220,87 +301,6 @@
                 <input id="reserve-edit-checkbox" type="checkbox" hidden />
               </div>
             </section>
-          </div>
-        </aside>
-
-        <div id="board" class="board" aria-label="Placement board">
-          <button id="auto-build-btn" class="icon-image-btn icon-dice-btn board-auto-build-btn" type="button" aria-label="Auto Build Dungeon" title="Auto Build Dungeon">
-            <img src="./icons/dice.png" alt="" aria-hidden="true" />
-          </button>
-          <button id="reset-all-btn" class="icon-image-btn icon-reset-btn board-reset-btn" type="button" aria-label="Reset Tiles and Boss Cards" title="Reset Tiles and Boss Cards">
-            <img src="./icons/reset.png" alt="" aria-hidden="true" />
-          </button>
-        </div>
-
-        <aside id="right-drawer" class="drawer drawer-right">
-          <div class="drawer-toolbar">
-            <h2>Info Drawer</h2>
-            <button
-              id="toggle-right-drawer-btn"
-              class="drawer-toggle-btn icon-toggle-btn"
-              type="button"
-              aria-controls="right-drawer-content"
-              aria-expanded="true"
-              aria-label="Toggle info drawer"
-              title="Toggle info drawer"
-            >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  class="lucide lucide-panel-left"
-                  aria-hidden="true"
-                >
-                <rect width="18" height="18" x="3" y="3" rx="2"></rect>
-                <path d="M9 3v18"></path>
-              </svg>
-            </button>
-          </div>
-          <div id="right-drawer-content" class="drawer-content">
-            <section id="boss-section-panel" class="panel-section boss-section">
-              <h3 class="section-title-with-icon">
-                <span class="section-title-label">
-                  Boss Selection <span id="boss-tileset-name" class="selected-tileset-name"></span>
-                </span>
-                <button id="boss-random-btn" class="icon-image-btn icon-dice-btn" type="button" aria-label="Random Boss" title="Random Boss">
-                  <img src="./icons/dice.png" alt="" aria-hidden="true" />
-                </button>
-              </h3>
-              <p class="section-helper">Step 4: click boss cards to cycle options, then drag one to board.</p>
-              <div id="boss-pile" class="boss-pile" aria-label="Boss Selection"></div>
-            </section>
-
-            <section class="panel-section feedback-section">
-              <h3>Placement Feedback</h3>
-              <p class="section-helper">Step 3: place tiles with valid contact. Full-tile feedback is default.</p>
-              <div id="feedback-checklist" class="feedback-checklist" aria-live="polite">
-                <div id="feedback-tiles-row" class="feedback-check-row">
-                  <span id="feedback-tiles-check" class="feedback-check" aria-hidden="true">○</span>
-                  <span>Tiles placed</span>
-                </div>
-                <div id="feedback-boss-row" class="feedback-check-row">
-                  <span id="feedback-boss-check" class="feedback-check" aria-hidden="true">○</span>
-                  <span>Boss selected</span>
-                </div>
-              </div>
-              <div id="status" class="status" role="status" aria-live="polite" aria-label="Placement Feedback"></div>
-            </section>
-            <div id="local-data-notice" class="local-data-notice" role="note" hidden>
-              <div class="local-data-notice-head">
-                <strong id="local-data-notice-title">Local Data Notice</strong>
-              </div>
-              <p id="local-data-notice-body" class="local-data-notice-body"></p>
-              <div class="local-data-notice-actions">
-                <button id="local-data-notice-action-btn" class="local-data-notice-action" type="button" hidden></button>
-                <button id="local-data-notice-dismiss-btn" class="local-data-notice-dismiss" type="button" aria-label="Dismiss local data notice">Dismiss</button>
-              </div>
-            </div>
           </div>
         </aside>
       </section>

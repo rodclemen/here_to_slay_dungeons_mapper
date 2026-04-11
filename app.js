@@ -2140,6 +2140,10 @@ const leftDrawer = document.getElementById("left-drawer");
 const rightDrawer = document.getElementById("right-drawer");
 const leftDrawerContent = document.getElementById("left-drawer-content");
 const rightDrawerContent = document.getElementById("right-drawer-content");
+const infoDrawer = leftDrawer;
+const tileDrawer = rightDrawer;
+const infoDrawerContent = leftDrawerContent;
+const tileDrawerContent = rightDrawerContent;
 const bossSectionPanel = document.getElementById("boss-section-panel");
 const bossSectionPanelMountMarker = document.createComment("boss-section-panel-mount");
 if (bossSectionPanel?.parentElement) {
@@ -2169,6 +2173,7 @@ const importCustomTileSetInput = document.getElementById("import-custom-tileset-
 const copyShareLinkBtn = document.getElementById("copy-share-link-btn");
 const toggleLabelsCheckbox = document.getElementById("toggle-labels-checkbox");
 const toggleWallEditBtn = document.getElementById("toggle-wall-edit-btn");
+const aboutLinkBtn = document.querySelector(".about-link-btn");
 const clearTileWallsBtn = document.getElementById("clear-tile-walls-btn");
 const resetTilePointsBtn = document.getElementById("reset-tile-points-btn");
 const exportWallDataBtn = document.getElementById("export-wall-data-btn");
@@ -3733,14 +3738,14 @@ function bindGlobalControls() {
     toggleLeftDrawerBtn.addEventListener("click", () => {
       state.leftDrawerCollapsed = !state.leftDrawerCollapsed;
       applyDrawerCollapseState({ preserveBoardScreenPosition: true });
-      setStatus(state.leftDrawerCollapsed ? "Tile drawer collapsed." : "Tile drawer expanded.");
+      setStatus(state.leftDrawerCollapsed ? "Info drawer collapsed." : "Info drawer expanded.");
     });
   }
   if (toggleRightDrawerBtn) {
     toggleRightDrawerBtn.addEventListener("click", () => {
       state.rightDrawerCollapsed = !state.rightDrawerCollapsed;
       applyDrawerCollapseState({ preserveBoardScreenPosition: true });
-      setStatus(state.rightDrawerCollapsed ? "Info drawer collapsed." : "Info drawer expanded.");
+      setStatus(state.rightDrawerCollapsed ? "Tile drawer collapsed." : "Tile drawer expanded.");
     });
   }
   if (bossRandomBtn) {
@@ -3769,17 +3774,17 @@ function bindGlobalControls() {
 
     if (key === "a") {
       event.preventDefault();
-      state.rightDrawerCollapsed = !state.rightDrawerCollapsed;
+      state.leftDrawerCollapsed = !state.leftDrawerCollapsed;
       applyDrawerCollapseState({ preserveBoardScreenPosition: true });
-      setStatus(state.rightDrawerCollapsed ? "Info drawer collapsed." : "Info drawer expanded.");
+      setStatus(state.leftDrawerCollapsed ? "Info drawer collapsed." : "Info drawer expanded.");
       return;
     }
 
     if (key === "s") {
       event.preventDefault();
-      state.leftDrawerCollapsed = !state.leftDrawerCollapsed;
+      state.rightDrawerCollapsed = !state.rightDrawerCollapsed;
       applyDrawerCollapseState({ preserveBoardScreenPosition: true });
-      setStatus(state.leftDrawerCollapsed ? "Tile drawer collapsed." : "Tile drawer expanded.");
+      setStatus(state.rightDrawerCollapsed ? "Tile drawer collapsed." : "Tile drawer expanded.");
       return;
     }
 
@@ -3970,7 +3975,10 @@ function scheduleBoardAutoCenterOnViewportResize() {
 
 function updateCompactSidePanelMode() {
   const shouldCompact = shouldUseCompactSidePanelMode();
-  if (state.compactSidePanelMode === shouldCompact) return;
+  if (state.compactSidePanelMode === shouldCompact) {
+    syncCompactTopbarLabels();
+    return;
+  }
   setCompactSidePanelMode(shouldCompact);
 }
 
@@ -4013,14 +4021,14 @@ function setCompactSidePanelMode(enabled) {
       clearPendingReserveSwap();
     }
     if (reserveEditCheckbox) reserveEditCheckbox.checked = false;
-    state.leftDrawerCollapsed = false;
-    state.rightDrawerCollapsed = true;
+    state.leftDrawerCollapsed = true;
+    state.rightDrawerCollapsed = false;
     if (
       bossSectionPanel
-      && leftDrawerContent
-      && bossSectionPanel.parentElement !== leftDrawerContent
+      && tileDrawerContent
+      && bossSectionPanel.parentElement !== tileDrawerContent
     ) {
-      leftDrawerContent.appendChild(bossSectionPanel);
+      tileDrawerContent.appendChild(bossSectionPanel);
     }
     rerenderTrayAndReserve();
   } else if (
@@ -4069,10 +4077,31 @@ function setCompactSidePanelMode(enabled) {
       compactModeTransitionTimer = null;
     }, 260);
   }
+
+  syncCompactTopbarLabels();
 }
 
 function syncWallEditorPointEditModeClass() {
   document.body.classList.toggle("wall-editor-point-edit-mode", Boolean(state.wallEditorPointEditMode));
+}
+
+function syncCompactTopbarLabels() {
+  const useCompactLabels = Boolean(state.compactSidePanelMode);
+  if (aboutLinkBtn) {
+    aboutLinkBtn.textContent = useCompactLabels ? "G" : "Guide";
+    setAttributeIfChanged(aboutLinkBtn, "aria-label", "Open Guide");
+    setAttributeIfChanged(aboutLinkBtn, "title", "Guide");
+  }
+  if (toggleWallEditBtn) {
+    const isWallEdit = Boolean(state.wallEditMode);
+    const visibleLabel = isWallEdit
+      ? "Build View"
+      : (useCompactLabels ? "TE" : "Tile Editor");
+    const actionLabel = isWallEdit ? "Build View" : "Tile Editor";
+    toggleWallEditBtn.textContent = visibleLabel;
+    setAttributeIfChanged(toggleWallEditBtn, "aria-label", actionLabel);
+    setAttributeIfChanged(toggleWallEditBtn, "title", actionLabel);
+  }
 }
 
 function setAttributeIfChanged(element, name, value) {
@@ -4117,19 +4146,19 @@ function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardS
     }
   }
 
-  setAttributeIfChanged(leftDrawer, "aria-expanded", String(!leftCollapsed));
-  setAttributeIfChanged(rightDrawer, "aria-expanded", String(!rightCollapsed));
-  setAttributeIfChanged(leftDrawerContent, "aria-hidden", String(leftCollapsed));
-  setAttributeIfChanged(rightDrawerContent, "aria-hidden", String(rightCollapsed));
+  setAttributeIfChanged(infoDrawer, "aria-expanded", String(!leftCollapsed));
+  setAttributeIfChanged(tileDrawer, "aria-expanded", String(!rightCollapsed));
+  setAttributeIfChanged(infoDrawerContent, "aria-hidden", String(leftCollapsed));
+  setAttributeIfChanged(tileDrawerContent, "aria-hidden", String(rightCollapsed));
 
   if (toggleLeftDrawerBtn) {
-    const label = leftCollapsed ? "Expand tile drawer" : "Collapse tile drawer";
+    const label = leftCollapsed ? "Expand info drawer" : "Collapse info drawer";
     setAttributeIfChanged(toggleLeftDrawerBtn, "aria-expanded", String(!leftCollapsed));
     setAttributeIfChanged(toggleLeftDrawerBtn, "aria-label", label);
     setAttributeIfChanged(toggleLeftDrawerBtn, "title", label);
   }
   if (toggleRightDrawerBtn) {
-    const label = rightCollapsed ? "Expand info drawer" : "Collapse info drawer";
+    const label = rightCollapsed ? "Expand tile drawer" : "Collapse tile drawer";
     setAttributeIfChanged(toggleRightDrawerBtn, "aria-expanded", String(!rightCollapsed));
     setAttributeIfChanged(toggleRightDrawerBtn, "aria-label", label);
     setAttributeIfChanged(toggleRightDrawerBtn, "title", label);
@@ -4622,9 +4651,7 @@ function setWallEditMode(enabled) {
     state.wallEditorPointEditMode = false;
   }
   syncWallEditorPointEditModeClass();
-  if (toggleWallEditBtn) {
-    toggleWallEditBtn.textContent = enabled ? "Build View" : "Tile Editor";
-  }
+  syncCompactTopbarLabels();
   if (enabled) {
     // Tile Editor clears and rebuilds the board, so capture the live Build View layout first.
     state.buildViewSnapshot = captureBuildViewLayout();
@@ -8366,7 +8393,7 @@ function beginDrag(tile, event) {
   const startedFromBoard = isOnBoardLayer(tile.dom.parentElement);
   const tileRect = tile.dom.getBoundingClientRect();
   const startedFromCompactTray = state.compactSidePanelMode && !startedFromBoard;
-  const compactDragGrowAnchorX = leftDrawer.getBoundingClientRect().right;
+  const compactDragGrowAnchorX = tileDrawer.getBoundingClientRect().right;
   const compactTraySize = getCompactTrayTileSize(tile);
   const pointerOffsetX = event.clientX - (tileRect.left + tileRect.width / 2);
   const pointerOffsetY = event.clientY - (tileRect.top + tileRect.height / 2);
@@ -8524,10 +8551,10 @@ function beginDrag(tile, event) {
     }
 
     if (tile.dom.parentElement === dragLayer) {
-      const droppedInsideLeftDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, leftDrawer);
+      const droppedInsideTileDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, tileDrawer);
       const isInsideBoard = isPointOverBoardSurface(upEvent.clientX, upEvent.clientY, boardRect);
 
-      if (!isInsideBoard && (droppedInsideLeftDrawer || !tile.drag.startedFromBoard)) {
+      if (!isInsideBoard && (droppedInsideTileDrawer || !tile.drag.startedFromBoard)) {
         placeTileInTray(tile);
         setPlacementFeedback(tile, null);
         updatePlacedProgress();
