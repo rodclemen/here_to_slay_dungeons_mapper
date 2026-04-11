@@ -697,7 +697,7 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   font: inherit;
   font-size: 0.84rem;
   line-height: 1.2;
-  padding: 2px 0 0;
+  padding: 2px 0 0 22px;
   margin: 4px 0 0;
   cursor: pointer;
   text-align: left;
