@@ -3377,7 +3377,7 @@ function bindGlobalControls() {
         const previousPath = getStoredDataFolderPath();
         const selectedPath = await chooseDataFolder(previousPath, { persist: false });
         if (!selectedPath) {
-          setStatus("Data folder selection canceled.");
+          setStatus("Choose Data Folder canceled.");
           return;
         }
         syncChooseDataFolderAction();
@@ -3480,8 +3480,8 @@ function bindGlobalControls() {
       applyFeedbackMode(state.useFaceFeedback);
       setStatus(
         state.useFaceFeedback
-          ? "Connection feedback mode: face-by-face."
-          : "Connection feedback mode: classic full outline.",
+          ? "Placement feedback: Faces ON."
+          : "Placement feedback: Faces OFF (classic full outline).",
       );
       void saveDataSetting(USE_FACE_FEEDBACK_STORAGE_KEY, state.useFaceFeedback);
     });
@@ -3495,8 +3495,8 @@ function bindGlobalControls() {
       syncBossTileSetHeading();
       setStatus(
         state.useAllBosses
-          ? "Random boss: drawing from all tile sets."
-          : "Random boss: drawing from current tile set only.",
+          ? "Random Boss: All Sets ON."
+          : "Random Boss: All Sets OFF (current tile set only).",
       );
       void saveDataSetting(USE_ALL_BOSSES_STORAGE_KEY, state.useAllBosses);
     });
@@ -4626,9 +4626,10 @@ function setWallEditMode(enabled) {
     toggleWallEditBtn.textContent = enabled ? "Build View" : "Tile Editor";
   }
   if (enabled) {
+    // Tile Editor clears and rebuilds the board, so capture the live Build View layout first.
     state.buildViewSnapshot = captureBuildViewLayout();
     startWallEditSession();
-    setStatus("Tile Editor: edit walls, portals, endpoints, guide points, and custom tile assets. Changes are saved per tile set + tile.");
+    setStatus("Tile Editor: edit walls, portals, end-tile flags, guide points, and custom tile assets. Changes are saved per tile set and tile.");
   } else {
     syncSelectedTileSetWallsFromOverrides();
     const snapshot = state.buildViewSnapshot;
@@ -4640,19 +4641,19 @@ function setWallEditMode(enabled) {
           if (tileSetSelect) tileSetSelect.value = snapshot.tileSetId;
           syncTileSetMenuOptions();
           if (restored) {
-            setStatus("Build view restored.");
+            setStatus("Build View restored.");
           } else {
             startRound();
-            setStatus("Build view restored. Round reset.");
+            setStatus("Build View restored. Round reset.");
           }
         })
         .catch((error) => {
           console.error(error);
-          setStatus("Returned to build view, but the previous tileset could not be restored.", true);
+          setStatus("Returned to Build View, but the previous tile set could not be restored.", true);
         });
     } else {
       startRound();
-      setStatus("Build view restored. Round reset.");
+      setStatus("Build View restored. Round reset.");
     }
   }
   updateModeIndicators();
@@ -4679,7 +4680,7 @@ function openTileEditorForLocalBackup(tileSetId = "") {
       setStatus("Could not open Tile Editor backup view.", true);
     });
   }
-  setStatus("Tile Editor: use the backup marker on the custom tile set to export it.");
+  setStatus("Tile Editor: use the custom tile set export action to save a backup.");
 }
 
 function startWallEditSession() {
@@ -5553,6 +5554,8 @@ async function autoBuildSelectedTiles(options = {}) {
   ) => {
     const enforceEnd = options?.enforceEndTileRule ? 1 : 0;
     const enforcePortal = options?.enforcePortalSpacing ? 1 : 0;
+    // Auto-build evaluates the same tile/rotation/position combinations repeatedly while
+    // scoring candidates, so memoize by placed-layout signature plus rule toggles.
     const key = `${placedSignature}|${tile.tileId}|${tile.rotation}|${roundForCache(x)},${roundForCache(y)}|e:${enforceEnd}|p:${enforcePortal}`;
     const cached = placementEvalCache.get(key);
     if (cached) return cached;
@@ -5573,6 +5576,8 @@ async function autoBuildSelectedTiles(options = {}) {
     const candidates = [];
     const seen = new Set();
     const anchors = shuffle([...placedTiles]);
+    // Default Mode keeps generated layouts below the entrance by rejecting snapped candidates
+    // above the entrance anchor instead of trying to "fix" them later in scoring.
     const halfBoardMinY = state.halfBoardBuild ? (entrance?.y ?? 0) : -Infinity;
     const registerCandidate = (x, y) => {
       if (candidates.length >= AUTO_BUILD_CANDIDATE_HARD_LIMIT) return;
@@ -8112,6 +8117,7 @@ async function resetGuidePointTemplatesForActiveEditorTileSet() {
   const tileSetId = state.wallEditorActiveTileSetId || state.selectedTileSetId;
   const tileSet = getTileSetConfig(tileSetId);
   if (!tileSet) return;
+  // Built-in sets share the baked template defaults; custom sets own their template data.
   if (tileSet.source === "custom") {
     setStatus("Reset Tile Points is only available for built-in tile sets.", true);
     return;
@@ -8144,10 +8150,10 @@ async function copyGuidePointTemplateExport() {
   const payload = JSON.stringify(exportData, null, 2);
   try {
     await navigator.clipboard.writeText(payload);
-    setStatus("Guide template JSON copied. Paste it here and I can bake it in as the default.");
+    setStatus("Copy Guide Template JSON: copied to clipboard.");
   } catch (error) {
     console.warn("Could not copy guide template JSON.", error);
-    setStatus("Could not copy guide template JSON. Use devtools localStorage key hts_guide_point_templates_v1.", true);
+    setStatus("Could not copy Guide Template JSON. Use devtools localStorage key hts_guide_point_templates_v1.", true);
   }
 }
 
@@ -8975,10 +8981,13 @@ function setLocalDataNoticeBody(notice) {
 function showLocalDataNotice(kind, tileSetId = "") {
   if (!localDataNoticeEl || !localDataNoticeTitleEl || !localDataNoticeBodyEl) return;
   const tileSet = tileSetId ? getTileSetConfig(tileSetId) : null;
+  // The same notice types are reused in browser and Tauri, so pass runtime storage context here.
   const notice = buildLocalDataNotice(kind, {
     tileSetId,
     tileSetLabel: tileSet?.label || "",
     tileSetLabels: kind === "custom" ? getCustomTileSetBackupNeededLabels() : [],
+    isTauriRuntime: IS_TAURI_RUNTIME,
+    hasDataFolder: Boolean(getStoredDataFolderPath()),
   });
   if (!notice) {
     hideLocalDataNotice();

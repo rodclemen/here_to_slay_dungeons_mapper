@@ -36,13 +36,13 @@ Plan your dungeon. Randomize the crawl. See every layout before you play.
 
 Here to Slay: Dungeons ships with beautifully illustrated hex tiles, but laying them out on a table is fiddly. You draw six tiles from a stack of nine, rotate them, check wall faces, verify contacts — and if you want variety, you do it all again from scratch. There's no easy way to preview or compare layouts before committing a game night to one (I made it sound worse than it probably is).
 
-This project exists because I wanted a tool that respects the game's placement rules while making it effortless to explore layout possibilities — manually or with a single keypress. It started as an idea, but turned into a webapp that hopefully will be a fun useful tool.
+This project exists because I wanted a tool that respects the game's placement rules while making it effortless to explore layout possibilities — manually or with a single keypress. It started as an idea, then grew into a browser-first app with an optional Tauri desktop shell.
 
 ---
 
 ## What It Is
 
-Here to Slay DUNGEONS Mapper is a browser-based dungeon layout tool. It lets you drag, rotate, and snap hex tiles onto a board that enforces the game's real placement rules — contact requirements, wall-face exclusions, blocked entrance points — so every layout you build or generate is legal.
+Here to Slay DUNGEONS Mapper is a browser-first dungeon layout tool with an optional Tauri desktop app. It lets you drag, rotate, and snap hex tiles onto a board that enforces the game's real placement rules — contact requirements, wall-face exclusions, blocked entrance points — so every layout you build or generate is legal.
 
 It supports all six dungeon tile sets, and can generate random layouts with one click.
 
@@ -57,12 +57,12 @@ The core problem it solves: **seeing the dungeon before you build it**. Whether 
 - **Hex-snapped tile placement** with real-time contact validation and visual feedback
 - **Auto Build** — generates a complete, rule-legal dungeon layout in one action
 - **Six dungeon tile sets** with matching UI themes that shift the entire interface
-- **Custom tile sets** you can create, import, edit, export, and delete in the browser
+- **Custom tile sets** you can create, import, edit, export, and delete in the browser or desktop app
 - **Reserve tile swapping** — swap any active tile with a reserve tile without losing board state
 - **Boss selection and magnetic placement** — boss tokens snap to reference card positions
 - **Shareable layout links** — copy the current dungeon state into a URL, with custom-set fallback/export help
 - **Light and dark themes** per tile set, with automatic or manual switching
-- **Zero dependencies** — pure vanilla JavaScript, HTML, and CSS. No build step, no framework
+- **Browser-first runtime** — vanilla HTML, CSS, and JavaScript for the app itself, plus an optional Tauri desktop wrapper
 
 ---
 
@@ -74,7 +74,7 @@ Six dungeon sets, each with its own entrance tile, nine regular tiles, a referen
 
 **Available sets:** Molten · Overgrown · Dreamscape · Nightmare · Submerged · Deep Freeze
 
-The app also supports browser-local custom tile sets. A custom set follows the same v1 shape as a built-in set: one entrance tile, nine regular tiles, one reference card, and two boss cards. Custom sets appear in the main tile set selector after you create or import them.
+The app also supports custom tile sets. A custom set follows the same v1 shape as a built-in set: one entrance tile, nine regular tiles, one reference card, and two boss cards. In the web app they live in browser-local storage. In the desktop app they live in the data folder you choose. Custom sets appear in the main tile set selector after you create or import them.
 
 ### Manual Placement
 
@@ -83,6 +83,8 @@ Drag tiles from the tray onto the board. As you drag, the tile snaps to the near
 ### Auto Build
 
 Press `R` or click the dice icon to generate a random legal layout from the current active tiles. The algorithm uses recursive backtracking with scored candidate positions, evaluating contact quality, layout compactness, and spatial variety. It tracks recent layouts per tile set and actively avoids repeating shapes, so consecutive builds produce meaningfully different dungeons. By default, Auto Build also spawns a random boss at the reference card when it succeeds.
+
+`Auto Build: Default Mode` is enabled by default in Advanced Tools. When it is on, generated layouts stay in the lower part of the board beneath the entrance tile. Turn it off if you want Auto Build to expand freely in any direction.
 
 ### Reserve Tile Swapping
 
@@ -102,6 +104,18 @@ If the active layout uses a custom tile set, the app can also export a matching 
 
 Two feedback modes: a full-tile outline that shows overall validity, or a face-by-face view that highlights exactly which edges are making valid contact (green) and which are failing (red). Useful for understanding why a specific placement is being rejected.
 
+### Advanced Tools & Quick Actions
+
+The top bar is split across a few focused controls:
+
+- `Advanced Tools` contains rule and visibility toggles such as `Placement feedback: Faces`, `Random Boss: All Sets`, `Show Walls`, `Show Portals`, `Ignore 2 face connection rule`, and `Auto Build: Default Mode`
+- when `Auto Theme` is off, the manual theme picker appears inside `Advanced Tools`
+- in the desktop app, `Choose Data Folder` also appears in `Advanced Tools`
+- in `Tile Editor`, built-in sets expose `Reset Tile Points`, and dev mode adds extra debug helpers
+- `Quick Actions` contains `Auto Theme`, `Copy Share Link`, and `Export PDF`
+
+`Export PDF` works in Build View only and opens a print-ready preview. From there, use the browser or webview print flow to save the PDF.
+
 ### Zoom, Pan, and Board Interaction
 
 Mouse wheel zooms the board at the cursor position. Drag empty board space to pan. A zoom indicator in the corner shows the current level and resets to 100% on click. The board auto-recenters after meaningful viewport changes.
@@ -116,11 +130,11 @@ Every tile set has paired light and dark UI themes — twelve total. Themes shif
 
 In the standard desktop layout, the Info Drawer is on the left and the Tile Drawer is on the right. Compact mode keeps the compact tile rail on the left and hides the Info Drawer.
 
-1. **Choose a tile set** from the dropdown in the top bar. The interface theme shifts to match.
+1. **Choose a tile set** from the `Selected Tiles` heading in the right-side Tile Drawer. The interface theme shifts to match when auto-theme is enabled.
 
 2. **Six tiles appear in the right-side tray.** These are your active tiles for this round, drawn from the set's nine regular tiles. Three more sit in reserve below.
 
-3. **Start from the entrance tile** already placed on the board. It snaps to the hex grid automatically at round start. You can rotate it in 90° steps with `W`/`E` — but only before placing the first regular tile.
+3. **Start from the entrance tile** already placed on the board. It snaps to the hex grid automatically at round start.
 
 4. **Drag regular tiles** from the tray to the board. Each must contact at least two connected faces of already-placed tiles. Wall faces don't count. The app shows green or red feedback as you drag.
 
@@ -134,7 +148,7 @@ In the standard desktop layout, the Info Drawer is on the left and the Tile Draw
 
 9. **Press `X` to reset** all tiles back to the tray and clear boss tokens.
 
-If you want to work with your own tile art instead of only the built-in sets, open `Tile Editor` and use the custom-set toolbar actions described below.
+If you want to work with your own tile art instead of only the built-in sets, open `Tile Editor` and use the custom-set tools described below.
 
 ---
 
@@ -145,12 +159,12 @@ This page serves two jobs:
 - per-tile metadata editing for built-in sets
 - the main create/import/edit/export workflow for custom tile sets
 
-Open `Advanced Tools` and click `Tile Editor` to switch from the normal board view into the editor page. The same button changes to `Build View` while active, which takes you back to the mapper.
+Use the top-bar `Tile Editor` button to switch from the normal board view into the editor page. The same button changes to `Build View` while active, which takes you back to the mapper and restores the previous build layout when possible.
 
 What the page is for:
 
 - mark which tile faces are treated as walls and therefore ignored by contact validation
-- allow or disallow specific tiles as legal endpoint tiles
+- allow or disallow specific tiles as legal end tiles
 - mark portal tiles so auto-build can avoid placing portal-to-portal adjacency when possible
 - edit shared guide-point templates for `Entrance` and `Tile 01`
 - load or replace custom art for entrance, 9 regular tiles, reference card, and 2 boss cards
@@ -162,7 +176,7 @@ How the page is laid out:
 - the top intro explains the current editing actions
 - the left toolbar icons handle `Add Custom Tile Set`, `Import Custom Tileset`, `Point Edit`, and `Export All Custom Tile Sets`
 - the right toolbar holds `Tile Set Group`, which swaps between the built-in groupings and a dynamic `Custom Tile Sets` group when custom sets exist
-- `Copy Guide Template JSON` remains available in the toolbar, but only when dev mode is enabled
+- `Copy Guide Template JSON` is available from `Advanced Tools` in dev mode while Tile Editor is open
 - each panel below shows one tile set and all of its editable tiles
 
 Working with built-in tile sets:
@@ -182,6 +196,12 @@ Working with custom tile sets:
 5. Use the panel actions to rename, export, or delete the custom set.
 6. Use the toolbar `Export All Custom Tile Sets` icon when you want a browser-wide backup zip containing one importable package per custom set.
 
+Desktop-specific note:
+
+- importing custom tile sets in the desktop app requires a chosen data folder
+- the app prompts for a data folder on startup when needed, and `Choose Data Folder` in `Advanced Tools` lets you change it later
+- without a data folder, built-in content still loads, but custom-tile-set imports and persistent edits cannot be saved
+
 Naming and identity:
 
 - `Rename` changes the custom tile set's display label only
@@ -197,10 +217,11 @@ Guide template editing:
 
 Persistence and backup behavior:
 
-- custom tile-set manifests and image assets are stored in browser-local IndexedDB
-- custom wall data, endpoint permissions, portal flags, and guide-template edits are stored with the custom tile set in browser-local IndexedDB
-- built-in wall data, endpoint permissions, portal flags, and shared built-in guide-template edits are still stored locally in browser storage
-- this local persistence survives normal reloads, browser restarts, and likely even crashes in the same browser profile
+- in the web app, custom tile-set manifests and image assets are stored in browser-local IndexedDB
+- in the web app, custom wall data, end-tile permissions, portals, and guide-template edits are stored with the custom tile set in IndexedDB
+- built-in wall data, end-tile permissions, portals, guide-template edits, and UI preferences are stored locally too
+- in the desktop app, settings and custom tile-set data live in the chosen data folder instead of browser site storage
+- this local persistence survives normal reloads, restarts, and likely even crashes in the same profile or chosen data folder
 - this is not the same thing as backup: clearing site data, switching browsers, changing browser profiles, or moving to another device can still lose local edits
 - the app now shows an in-app local-data notice after creating or editing custom sets and after editing built-in wall/portal/guide data
 - use custom tile-set export as the backup/transfer path for custom sets
@@ -255,7 +276,7 @@ Placement validation is the heart of the app. When a tile is positioned on the b
 
 **Wall face exclusion.** Faces marked as walls in the tile's wall data are excluded from contact matching entirely. A sequence like `valid → wall → valid` is still considered continuous — walls are skipped, not treated as gaps.
 
-**Blocked entrance points.** Points A and B at the top of the entrance tile are hard-blocked. If any opaque pixel of a placed tile touches these points within a 4px radius, placement is unconditionally invalid — regardless of how many contact faces match. This enforces the game rule that nothing routes through the dungeon entrance opening.
+**Blocked entrance points.** The entrance tile has hard-blocked top points. If any opaque pixel of a placed tile touches these points within a 4px radius, placement is unconditionally invalid — regardless of how many contact faces match. This enforces the game rule that nothing routes through the dungeon entrance opening. In `Auto Build: Default Mode`, additional entrance faces are treated as blocked so generated layouts stay in the lower half of the board.
 
 **Overlap detection.** Tiles are checked against all placed tiles using inset guide polygons (3px inset from the true edge). The check combines center-in-polygon containment tests with polygon edge intersection tests, catching both stacking and partial overlaps.
 
@@ -298,17 +319,17 @@ Dark themes adjust the hex grid's lighting gradient, increasing the falloff dist
 
 ## Architecture Notes
 
-The application is a single-page vanilla JavaScript app — one HTML file, one CSS file, one JS file (~8,500 lines). No framework, no build step, no dependencies.
+The application is a browser-first vanilla JavaScript app with an optional Tauri desktop shell. The runtime UI is still plain HTML, CSS, and JS modules with no frontend framework.
 
-**State management.** A single global `state` object holds all application state: tile data (stored in a `Map` by tile ID), board position, zoom level, tray ordering, boss tokens, theme selection, and UI flags. State mutations trigger targeted DOM updates rather than full re-renders.
+**State management.** A single global `state` object holds all application state: tile data (stored in a `Map` by tile ID), board position, zoom level, tray ordering, boss tokens, theme selection, editor state, persistence flags, and UI toggles. State mutations trigger targeted DOM updates rather than full re-renders.
 
 **Rendering.** The hex grid is SVG. Tiles, boss tokens, and the reference card are absolutely positioned DOM elements with CSS transforms for rotation and scaling. Drag operations use pointer events with manual hit-testing. The board viewport uses CSS `scale()` for zoom and offset transforms for pan.
 
 **Geometry.** All placement math operates in world coordinates. Tile polygons are rotated via 2D matrix multiplication. Face matching uses dot-product comparisons for normal and tangent alignment. Overlap detection combines point-in-polygon tests with edge intersection checks. The auto-builder's candidate scoring uses Euclidean distance, aspect-ratio analysis, and graph-degree heuristics.
 
-**Caching.** Performance-sensitive paths cache aggressively: hex layout metrics by viewport size, hex vertex paths by radius, side-direction geometry per tile and rotation, placement evaluations during auto-build, and theme-derived grid colors per active theme. DOM updates batch through `DocumentFragment` where possible.
+**Caching.** Performance-sensitive paths cache aggressively: hex layout metrics by viewport size, hex vertex paths by radius, side-direction geometry per tile and rotation, placement evaluations during auto-build, theme-derived grid colors per active theme, and guide geometry derived from tile data. DOM updates batch through `DocumentFragment` where possible.
 
-**Persistence.** UI preferences (theme, appearance mode, auto-theme toggle, drawer state) persist to `localStorage`. Custom tile-set manifests and image assets persist in browser-local IndexedDB. Wall face overrides, portal flags, endpoint permissions, and guide-point template edits also persist locally. Board layouts are ephemeral by design except when encoded into a share link.
+**Persistence.** In the browser, UI preferences persist to local storage and custom tile-set payloads persist in IndexedDB. In the Tauri desktop app, settings and custom tile-set data are moved into a user-chosen data folder. Board layouts are ephemeral by design except when encoded into a share link.
 
 ---
 
@@ -358,9 +379,12 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 
 ```
 ├── index.html              # Application shell and UI structure
-├── app.js                  # All application logic (~8,500 lines)
-├── styles.css              # Complete styling and theme definitions
-├── about.html              # Guide and manual page
+├── app.js                  # Main browser/runtime app logic
+├── styles.css              # Styling and theme definitions
+├── about.html              # In-app guide / manual page
+├── modules/                # Extracted runtime modules (theme, board, share, tile placement, etc.)
+├── src-tauri/              # Optional Tauri desktop shell
+├── scripts/                # Build helpers such as Tauri asset staging
 ├── tiles/
 │   ├── molten/             # Molten tile set assets
 │   ├── overgrown/          # Overgrown tile set assets
@@ -370,23 +394,26 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 │   └── deep_freeze/        # Deep Freeze tile set assets
 ├── icons/                  # UI icons (dice, reroll, reset, etc.)
 ├── Graphics/               # Banner, logo, guide images
+├── qa-checks.html          # QA checklist page for dev workflow
 └── CHANGELOG.md            # Detailed version history
 ```
 
 Each tile set folder contains: entrance tile, nine regular tiles, a reference card, and boss card images — all PNG, all following a strict naming convention (`{setId}_{tileId}.png`).
 
-Custom tile sets do not need to live in the repository. They are imported/exported as `.zip` packages and stored in the browser at runtime.
+Custom tile sets do not need to live in the repository. They are imported/exported as `.zip` packages and stored either in browser-local storage or the desktop app's chosen data folder at runtime.
 
 ---
 
 ## Running Locally
 
-This is a static app with no build step and no dependencies.
+### Browser App
+
+The browser version is still a static app. You only need a local file server.
 
 ```bash
 # Clone the repository
-git clone https://github.com/rodclemen/here_to_slay_dungeons_randomizer.git
-cd here_to_slay_dungeons_randomizer
+git clone https://github.com/rodclemen/here_to_slay_dungeons_mapper.git
+cd here_to_slay_dungeons_mapper
 
 # Serve with any static file server
 python3 -m http.server 8000
@@ -398,7 +425,7 @@ Then open `http://localhost:8000` in your browser.
 
 > **Note:** Opening `index.html` directly via `file://` may not work due to browser CORS restrictions on image loading. Use a local server.
 
-### Dev Mode
+### Browser Dev Mode
 
 Open the app with `?dev=1` when you want internal tools and QA helpers visible:
 
@@ -422,16 +449,59 @@ http://localhost:8000/qa-checks.html
 
 Keep that page open beside the mapper and it will mark supported user actions as you trigger them. If the mapper and QA page are on different local origins (`localhost` vs `127.0.0.1`), use the same port and prefer matching origins for the simplest live updates.
 
+### Tauri Desktop App
+
+Prerequisites:
+
+- Node.js and npm
+- Rust toolchain (`rustup`, `cargo`)
+- platform prerequisites required by Tauri 2 for your OS
+
+Install the JS dependencies once:
+
+```bash
+npm install
+```
+
+Run the desktop app in development:
+
+```bash
+npm run tauri:dev
+```
+
+That command automatically runs `npm run build:tauri-web` first, which copies the browser app into `dist/tauri/` and minifies JS/CSS when a local `esbuild` binary is available.
+
+Build the desktop app bundle:
+
+```bash
+npm run tauri:build
+```
+
+That also runs `npm run build:tauri-web` first, then builds the Tauri app from `src-tauri/`. Bundles are emitted under the normal Tauri target directories, typically `src-tauri/target/release/bundle/`.
+
+### Desktop Dev Mode
+
+In the browser, use `?dev=1`.
+
+In the Tauri desktop app, use the native Help menu and enable `Dev Mode`. That exposes the same dev-only controls inside the app, including items such as:
+
+- `Open Debug Log`
+- `Copy Guide Template JSON` while Tile Editor is open
+- `Export Debug Walls` / `Import Debug Walls`
+- `Clear Tile Walls`
+- `Show Numbers`
+- `Auto Build Tuning`
+
 ---
 
 ## Limitations
 
-- **Single-page architecture.** The entire app lives in one JS file. This is intentional for simplicity but means there's no module boundary enforcement.
-- **Entrance rotation locks** after the first regular tile is placed. This matches the intended gameplay flow but can surprise new users.
+- **Vanilla architecture.** The app is still deliberately framework-free, but the main runtime is stateful and geometry-heavy, so changes still require careful manual testing.
+- **Entrance rotation is locked.** The entrance tile stays fixed; only regular tiles rotate.
 - **Auto-build is bounded.** The generator retries up to 600 attempts and 120 novelty checks. In rare edge cases with unusual wall configurations, it may not find a layout.
 - **No built-in save library yet.** Layouts can now be shared and restored through `Copy Share Link`, but the app still does not provide named local save slots or a layout browser.
-- **Custom tile sets are browser-local by default.** They persist on this browser, but clearing site data or moving to a different browser/device will lose them unless you exported a backup package.
-- **Built-in wall-edit changes are also local.** Portal flags, wall overrides, endpoint flags, and guide-template edits are not synced anywhere unless you export/import them manually.
+- **Custom tile sets are local by design.** In the browser they live in browser storage; in the desktop app they live in the selected data folder. They are still local-only unless you export them.
+- **Built-in wall-edit changes are also local.** Portal markers, wall overrides, endpoint flags, and guide-template edits are not synced anywhere unless you export/import them manually.
 - **Bridge-tile disconnects are possible.** If you move a placed tile that was acting as a bridge between two parts of the dungeon, you can leave behind a disconnected island of tiles. The mapper does not currently prevent that state.
 - **Tile set readiness varies.** Not all six sets may have complete assets and wall data at any given time. The app audits readiness at startup and disables incomplete sets.
 - **Current art is not final.** The tile, reference-card, and boss-card graphics currently in use are placeholders or interim assets while official releases are still incomplete. The framework is being built now so final art can be dropped in later with minimal friction.
@@ -476,4 +546,4 @@ If you are a rights holder and want any asset removed or changed, please open an
 
 This is a solo passion project built for a game I love. If you play Here to Slay: Dungeons and want a faster way to set up or explore layouts, I hope this is useful.
 
-If you find a bug or have an idea, [open an issue](https://github.com/rodclemen/here_to_slay_dungeons_randomizer/issues). Contributions and feedback are welcome.
+If you find a bug or have an idea, [open an issue](https://github.com/rodclemen/here_to_slay_dungeons_mapper/issues). Contributions and feedback are welcome.

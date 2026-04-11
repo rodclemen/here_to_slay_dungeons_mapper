@@ -218,8 +218,8 @@ pub fn run() {
                 "File",
                 true,
                 &[
-                    &MenuItem::with_id(handle, "menu_import_tile_set", "Import Tile Set", true, None::<&str>)?,
-                    &MenuItem::with_id(handle, "menu_export_all_custom_tile_sets", "Export All", true, None::<&str>)?,
+                    &MenuItem::with_id(handle, "menu_import_tile_set", "Import Custom Tile Set", true, None::<&str>)?,
+                    &MenuItem::with_id(handle, "menu_export_all_custom_tile_sets", "Export All Custom Tile Sets", true, None::<&str>)?,
                     &MenuItem::with_id(handle, "menu_export_pdf", "Export PDF", true, None::<&str>)?,
                     &PredefinedMenuItem::separator(handle)?,
                     &PredefinedMenuItem::close_window(handle, None)?,

@@ -1135,6 +1135,10 @@ button:hover {
   color: var(--control-text);
 }
 
+/* Historical naming: the DOM ids/classes (`left-drawer` / `drawer-left`, `right-drawer` /
+   `drawer-right`) no longer match the on-screen sides. Keep the selectors stable for JS and
+   saved state, but treat `.drawer-right` as the left visual rail and `.drawer-left` as the
+   right visual rail unless the markup is fully renamed in one coordinated refactor. */
 .drawer-right {
   left: 0;
   width: var(--right-drawer-width);

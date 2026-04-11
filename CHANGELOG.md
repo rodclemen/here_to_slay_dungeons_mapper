@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-04-11
+- Added `docs/maintenance-audit-plan.md` as a repeatable cleanup playbook for optimization checks, stale-code audits, label verification, comment quality, and phased maintenance passes.
+- Ran the first maintenance slices across the UI and docs: moved `Placement feedback: Faces` below the Advanced Tools divider, aligned menu/status wording with the visible control names, clarified Tile Editor / Build View messaging, refreshed README + Guide docs for the browser/Tauri split, made local-data notices runtime-aware for browser vs data-folder storage, and documented the CSS drawer-side naming inversion right where it happens.
 - Added a native `Dev Mode` check item to the Tauri Help menu, refreshed the bundled app icons, and kept the remaining desktop-shell changes together so the desktop app branding and debugging controls stay in sync.
 - Reworked the Tile Editor intro into a clearer structured summary, moved `Copy Guide Template JSON` into Advanced Tools dev-only controls, and renamed portal-related UI/status copy from `portal flag` to plain `portal`/`portal marker` so the editor language matches the rest of the app.
 - Fixed the Advanced Tools `Choose Data Folder` row so it matches the checkbox-style menu items again, aligns with the rest of the list, keeps its ready/missing indicator, and opens the folder picker when clicked instead of rendering like inert text.
@@ -24,6 +26,7 @@
 - Added a Content Security Policy to the Tauri app config, locking down resource loading to `'self'`, inline styles, blob/data images, and Tauri IPC — closes the wide-open `"csp": null` that allowed any origin.
 - Thought the drawer names were the truth. CSS disagreed.
 - Swapped icons, words, and menu toggles around until the app finally stopped arguing back.
+- Spent a cleanup pass teaching the docs, status text, and CSS comments to admit what the app is actually doing.
 - Extracted the wall editor UI into `modules/wall-editor-ui.js` (896 lines) — page renderer, panel builders, asset slot constructors, tile element builder, toolbar hints, portal flag drag, and group management all moved out of the monolith. app.js dropped from 10,745 to 10,002 lines; thin wrappers delegate to the module via a `ctx` bridge object.
 - Session note: Spent quality time with a ghost id. The ghost was `tile-set-trigger`.
 - Session note: Lost a whole afternoon to a shadow that only existed when nobody was looking.

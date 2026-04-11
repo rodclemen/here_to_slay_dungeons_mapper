@@ -248,6 +248,8 @@ export function getTileSnapAnchorForRotation(tile, rotationDeg, ctx) {
   const rad = (rotationDeg * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
+  // The entrance art is visually top-heavy, so its snap anchor shifts vertically with
+  // rotation to keep the board alignment feeling centered to the player.
   const entranceAnchorScaleY = 0.32;
   return {
     x: 0,
@@ -484,6 +486,8 @@ export function findBestOpenHex(tile, placedTiles, preferredX, preferredY, ctx, 
       const anchorCenterDistance = anchorTile
         ? Math.hypot(snapped.x - anchorTile.x, snapped.y - anchorTile.y)
         : Number.POSITIVE_INFINITY;
+      // Prefer positions that genuinely open space around the bad drop, but keep a looser
+      // fallback so the tile can still be parked somewhere readable instead of overlapping.
       const score = metrics.minCenterDist * 2.0 + metrics.avgCenterDist * 0.4 + metrics.minFaceDist * 0.7 - cur.depth * 2.6;
 
       if (
@@ -578,6 +582,8 @@ export function rotateTile(tile, delta, ctx) {
     tile.rotation = ctx.normalizeAngle(tile.rotation + delta);
     if (tile.placed && otherPlacedTiles) {
       let result = getPlacedTileRotationState(tile, otherPlacedTiles, ctx);
+      // If exactly one neighbor was holding the tile in place, keep rotating in the same
+      // direction to find the next legal orientation instead of forcing manual trial-and-error.
       if (!result.valid && connectedNeighborsBefore.length === 1) {
         const step = ctx.ROTATION_STEP * direction;
         let attempts = Math.max(1, Math.round(360 / ctx.ROTATION_STEP) - 1);
