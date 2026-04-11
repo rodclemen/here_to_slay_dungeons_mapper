@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2026-04-11
-- Restyled `Choose Data Folder` back into a normal menu button with the menu's default chrome, kept it at the bottom of the cogwheel menu, and preserved the green/red data-folder state color.
+- Restyled `Choose Data Folder` back into a normal button with a leading spacer so it lines up with the menu rows, kept it at the bottom of the cogwheel menu, and preserved the green/red data-folder state color.
 - Shrunk the selected-tile-set header text when it truncates, so long names fit more cleanly without crowding the `Selected Tiles` title.
 - Capped the selected-tile-set label at 18 visible characters with an ellipsis so longer set names stay readable in the header.
 - Forced the `Selected Tiles` header to stay on one line so the section title no longer wraps under the tile-set control.
