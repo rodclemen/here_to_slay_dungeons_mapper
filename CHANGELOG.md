@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-11
+- Removed the extra internal padding from `Choose Data Folder` and shifted it with outer spacing instead, so the text stays aligned without looking padded.
 - Restyled `Choose Data Folder` as a button with plain-text chrome, kept it at the bottom of the cogwheel menu, and aligned it with the other rows while preserving the green/red data-folder state.
 - Shrunk the selected-tile-set header text when it truncates, so long names fit more cleanly without crowding the `Selected Tiles` title.
 - Capped the selected-tile-set label at 18 visible characters with an ellipsis so longer set names stay readable in the header.
