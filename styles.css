@@ -2142,7 +2142,7 @@ body:not(.left-drawer-collapsed) .board-zoom-indicator {
 
 .selected-tileset-name {
   display: inline-block;
-  max-width: 16ch;
+  max-width: 18ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
