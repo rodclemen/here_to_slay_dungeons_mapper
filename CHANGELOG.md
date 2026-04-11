@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-11
+- Moved the completed maintenance and drawer refactor planning docs into `docs/done/` so finished implementation guides stop sitting beside active planning notes, while leaving the still-open optimization, Tauri, and wall-editor planning files in the main `docs/` folder.
 - Added `docs/maintenance-audit-plan.md` as a repeatable cleanup playbook for optimization checks, stale-code audits, label verification, comment quality, and phased maintenance passes.
 - Ran the first maintenance slices across the UI and docs: moved `Placement feedback: Faces` below the Advanced Tools divider, aligned menu/status wording with the visible control names, clarified Tile Editor / Build View messaging, refreshed README + Guide docs for the browser/Tauri split, made local-data notices runtime-aware for browser vs data-folder storage, and documented the CSS drawer-side naming inversion right where it happens.
 - Added a native `Dev Mode` check item to the Tauri Help menu, refreshed the bundled app icons, and kept the remaining desktop-shell changes together so the desktop app branding and debugging controls stay in sync.
