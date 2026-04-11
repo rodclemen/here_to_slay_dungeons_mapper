@@ -114,6 +114,8 @@ The top bar is split across a few focused controls:
 - in `Tile Editor`, built-in sets expose `Reset Tile Points`, and dev mode adds extra debug helpers
 - `Quick Actions` contains `Auto Theme`, `Copy Share Link`, and `Export PDF`
 
+In compact mode, the top bar shortens `Guide` to `G` and `Tile Editor` to `TE` until the editor is opened.
+
 `Export PDF` works in Build View only and opens a print-ready preview. From there, use the browser or webview print flow to save the PDF.
 
 ### Zoom, Pan, and Board Interaction
@@ -128,11 +130,11 @@ Every tile set has paired light and dark UI themes — twelve total. Themes shif
 
 ## How To Use It
 
-In the standard desktop layout, the Info Drawer is on the left and the Tile Drawer is on the right. Compact mode keeps the compact tile rail on the left and hides the Info Drawer.
+In the standard desktop layout, the Info Drawer is on the left and the Tile Drawer is on the right. Compact mode keeps the Tile Drawer as a compact rail on the left and hides the Info Drawer.
 
 1. **Choose a tile set** from the `Selected Tiles` heading in the right-side Tile Drawer. The interface theme shifts to match when auto-theme is enabled.
 
-2. **Six tiles appear in the right-side tray.** These are your active tiles for this round, drawn from the set's nine regular tiles. Three more sit in reserve below.
+2. **Six tiles appear in the Tile Drawer tray.** These are your active tiles for this round, drawn from the set's nine regular tiles. Three more sit in reserve below.
 
 3. **Start from the entrance tile** already placed on the board. It snaps to the hex grid automatically at round start.
 
@@ -159,7 +161,7 @@ This page serves two jobs:
 - per-tile metadata editing for built-in sets
 - the main create/import/edit/export workflow for custom tile sets
 
-Use the top-bar `Tile Editor` button to switch from the normal board view into the editor page. The same button changes to `Build View` while active, which takes you back to the mapper and restores the previous build layout when possible.
+Use the top-bar `Tile Editor` button to switch from the normal board view into the editor page. In compact mode that same control is labeled `TE` until opened. The control changes to `Build View` while active, which takes you back to the mapper and restores the previous build layout when possible.
 
 What the page is for:
 
@@ -339,8 +341,8 @@ The application is a browser-first vanilla JavaScript app with an optional Tauri
 
 | Key | Action |
 |-----|--------|
-| `A` | Toggle the left-side Info Drawer |
-| `S` | Toggle the right-side Tile Drawer |
+| `A` | Toggle the Info Drawer |
+| `S` | Toggle the Tile Drawer |
 | `W` | Rotate tile counter-clockwise |
 | `E` | Rotate tile clockwise |
 | `R` | Auto Build (random layout) |

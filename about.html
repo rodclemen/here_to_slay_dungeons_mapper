@@ -510,7 +510,7 @@
           <p>Your first job is simple: build a dungeon around the entrance tile. You can do that manually by dragging tiles from the tray, or you can let the Auto Build button do the heavy lifting.</p>
           <ul>
             <li>Choose a tile set from the Tile Drawer heading.</li>
-            <li>Review the six selected tiles in the right drawer.</li>
+            <li>Review the six selected tiles in the right-side Tile Drawer.</li>
             <li>Drag tiles onto the board and rotate them as needed.</li>
             <li>When placing a tile, a green or red outline will tell you if the placement is allowed.</li>
             <li>The feedback panel will give info for placement success or warnings.</li>
@@ -528,7 +528,7 @@
       <div class="layout-overview-grid">
         <div class="card layout-overview-primary">
           <h3>Top Bar</h3>
-          <p>The top bar contains the app title, an appearance-mode button, the Advanced Tools menu, the Tile Editor / Build View toggle, the Quick Actions menu, and the Guide link. The Tile Set menu lives in the Selected Tiles heading in the right drawer.</p>
+          <p>The top bar contains the app title, an appearance-mode button, the Advanced Tools menu, the Tile Editor / Build View toggle, the Quick Actions menu, and the Guide link. In compact mode, the Guide link shortens to <strong>G</strong> and Tile Editor shortens to <strong>TE</strong>. The Tile Set menu lives in the Selected Tiles heading in the right-side Tile Drawer.</p>
           <p>Advanced Tools contains placement-feedback and build-rule toggles such as Random Boss: All Sets, Show Walls, Show Portals, Ignore 2 face connection rule, and Auto Build: Default Mode. When Auto Theme is off, the theme picker appears there too. In the desktop app, this menu also includes Choose Data Folder. In Tile Editor, Reset Tile Points appears for built-in sets, while some debug-only tools show up only in dev mode.</p>
           <p>Quick Actions contains Auto Theme, Copy Share Link, and Export PDF. Export PDF works in Build View only and opens a print-ready preview for saving as PDF. Reset Tiles and Boss Cards stays on the board as the reset icon, not inside Quick Actions.</p>
           <p>Copy Share Link creates a URL that restores the current build when opened, including the selected tile set, entrance and reference-card setup, placed tile positions and rotations, tray and reserve order, boss placements, and board zoom and pan. If the layout depends on a custom tile set, the mapper can also export a matching custom-set package and helper HTML so the receiver can import the custom data before opening the link.</p>
@@ -591,7 +591,7 @@
         </div>
         <div class="card">
           <h3>Status Messages</h3>
-          <p>The left-side Info Drawer explains why a tile is valid, invalid, returning to the tray, or causing some other change in state.</p>
+          <p>The Info Drawer explains why a tile is valid, invalid, returning to the tray, or causing some other change in state.</p>
         </div>
         <div class="card">
           <h3>Checklist</h3>
@@ -636,7 +636,7 @@
       <div class="section-grid">
         <div>
           <p>The Tile Editor is where tile metadata and custom tile sets are managed. Use it when you need to adjust walls, end-tile flags, portals, guide points, or build a full custom tile set with your own art.</p>
-          <p>You can open the editor for built-in sets to fine-tune placement data, or create and manage custom tile sets from the same page. The top-bar button switches between Tile Editor and Build View, and the app restores your build layout when you return.</p>
+          <p>You can open the editor for built-in sets to fine-tune placement data, or create and manage custom tile sets from the same page. The top-bar control switches between Tile Editor and Build View, and the app restores your build layout when you return. In compact mode, the same control is abbreviated to <strong>TE</strong> until you enter the editor.</p>
           <ul>
             <li>Use <strong>Add Custom Tile Set</strong> to create a new custom set and jump straight into the editor.</li>
             <li>Use <strong>Import Custom Tile Set</strong> to load a `.zip` package that contains `manifest.json`, assets, and optional `wall_editor.json` data.</li>
@@ -673,7 +673,7 @@
       <h2>Boss Cards</h2>
       <div class="section-grid">
         <div>
-          <p>The Boss Selection pile is in the left-side Info Drawer during the standard layout. In compact mode it moves into the compact tile rail. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
+          <p>The Boss Selection pile is in the Info Drawer during the standard layout. In compact mode it moves into the compact Tile Drawer rail. You can click the pile to cycle available bosses, use the random-boss dice button, or drag the top boss card onto the board manually.</p>
           <p>Once placed, boss tokens snap to magnet positions around the reference card. They can be moved later, and dragging a placed boss back to the pile or Info Drawer returns it cleanly.</p>
         </div>
         <div class="card">
@@ -711,7 +711,7 @@
         <tbody>
           <tr>
             <td><span class="kbd">A</span></td>
-            <td>Collapse or expand the left-side Info Drawer.</td>
+            <td>Collapse or expand the Info Drawer.</td>
             <td>When you are not typing into an input.</td>
           </tr>
           <tr>
@@ -741,7 +741,7 @@
           </tr>
           <tr>
             <td><span class="kbd">S</span></td>
-            <td>Collapse or expand the right-side Tile Drawer.</td>
+            <td>Collapse or expand the Tile Drawer.</td>
             <td>When you are not typing into an input.</td>
           </tr>
           <tr>

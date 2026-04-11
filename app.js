@@ -1963,8 +1963,8 @@ function getBossManagementCtx() {
     bossPile,
     bossTileSetNameEl,
     dragLayer,
-    leftDrawer,
-    rightDrawer,
+    infoDrawer,
+    tileDrawer,
     workspace,
     // Constants
     BOARD_ITEM_SCALE,
@@ -2136,14 +2136,10 @@ const uiThemeDropdown = document.getElementById("ui-theme-dropdown");
 const uiThemeSelect = document.getElementById("ui-theme-select");
 let uiThemeOptionCatalog = null;
 const workspace = document.querySelector(".workspace");
-const leftDrawer = document.getElementById("left-drawer");
-const rightDrawer = document.getElementById("right-drawer");
-const leftDrawerContent = document.getElementById("left-drawer-content");
-const rightDrawerContent = document.getElementById("right-drawer-content");
-const infoDrawer = leftDrawer;
-const tileDrawer = rightDrawer;
-const infoDrawerContent = leftDrawerContent;
-const tileDrawerContent = rightDrawerContent;
+const infoDrawer = document.getElementById("left-drawer");
+const tileDrawer = document.getElementById("right-drawer");
+const infoDrawerContent = document.getElementById("left-drawer-content");
+const tileDrawerContent = document.getElementById("right-drawer-content");
 const bossSectionPanel = document.getElementById("boss-section-panel");
 const bossSectionPanelMountMarker = document.createComment("boss-section-panel-mount");
 if (bossSectionPanel?.parentElement) {
@@ -2202,7 +2198,7 @@ const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
 let boardHexRenderRaf = 0;
-let leftDrawerClosingTimer = null;
+let infoDrawerClosingTimer = null;
 let compactModeTransitionTimer = null;
 let compactModeTransitionFrame = 0;
 let boardAutoCenterResizeTimer = null;
@@ -4112,59 +4108,59 @@ function setAttributeIfChanged(element, name, value) {
 
 function applyDrawerCollapseState({ save = true, rerender = true, preserveBoardScreenPosition = false } = {}) {
   const beforeRect = preserveBoardScreenPosition ? board.getBoundingClientRect() : null;
-  const wasLeftCollapsed = document.body.classList.contains("left-drawer-collapsed");
-  const wasRightCollapsed = document.body.classList.contains("right-drawer-collapsed");
+  const wasInfoCollapsed = document.body.classList.contains("left-drawer-collapsed");
+  const wasTileCollapsed = document.body.classList.contains("right-drawer-collapsed");
   const canCollapse = window.matchMedia("(min-width: 981px)").matches;
-  const leftCollapsed = canCollapse && state.leftDrawerCollapsed;
-  const rightCollapsed = canCollapse && state.rightDrawerCollapsed;
-  const collapseStateUnchanged = wasLeftCollapsed === leftCollapsed && wasRightCollapsed === rightCollapsed;
+  const infoCollapsed = canCollapse && state.leftDrawerCollapsed;
+  const tileCollapsed = canCollapse && state.rightDrawerCollapsed;
+  const collapseStateUnchanged = wasInfoCollapsed === infoCollapsed && wasTileCollapsed === tileCollapsed;
 
   if (collapseStateUnchanged && !save && !rerender && !preserveBoardScreenPosition) {
     return;
   }
 
-  document.body.classList.toggle("left-drawer-collapsed", leftCollapsed);
-  document.body.classList.toggle("right-drawer-collapsed", rightCollapsed);
+  document.body.classList.toggle("left-drawer-collapsed", infoCollapsed);
+  document.body.classList.toggle("right-drawer-collapsed", tileCollapsed);
   if (cornerLogo) {
-    cornerLogo.src = leftCollapsed && rightCollapsed
+    cornerLogo.src = infoCollapsed && tileCollapsed
       ? "./Graphics/mapper_logo.png"
       : "./Graphics/logo.png";
   }
 
-  if (leftCollapsed && !wasLeftCollapsed) {
+  if (infoCollapsed && !wasInfoCollapsed) {
     document.body.classList.add("left-drawer-closing");
-    if (leftDrawerClosingTimer) clearTimeout(leftDrawerClosingTimer);
-    leftDrawerClosingTimer = setTimeout(() => {
+    if (infoDrawerClosingTimer) clearTimeout(infoDrawerClosingTimer);
+    infoDrawerClosingTimer = setTimeout(() => {
       document.body.classList.remove("left-drawer-closing");
-      leftDrawerClosingTimer = null;
+      infoDrawerClosingTimer = null;
     }, 220);
-  } else if (!leftCollapsed) {
+  } else if (!infoCollapsed) {
     document.body.classList.remove("left-drawer-closing");
-    if (leftDrawerClosingTimer) {
-      clearTimeout(leftDrawerClosingTimer);
-      leftDrawerClosingTimer = null;
+    if (infoDrawerClosingTimer) {
+      clearTimeout(infoDrawerClosingTimer);
+      infoDrawerClosingTimer = null;
     }
   }
 
-  setAttributeIfChanged(infoDrawer, "aria-expanded", String(!leftCollapsed));
-  setAttributeIfChanged(tileDrawer, "aria-expanded", String(!rightCollapsed));
-  setAttributeIfChanged(infoDrawerContent, "aria-hidden", String(leftCollapsed));
-  setAttributeIfChanged(tileDrawerContent, "aria-hidden", String(rightCollapsed));
+  setAttributeIfChanged(infoDrawer, "aria-expanded", String(!infoCollapsed));
+  setAttributeIfChanged(tileDrawer, "aria-expanded", String(!tileCollapsed));
+  setAttributeIfChanged(infoDrawerContent, "aria-hidden", String(infoCollapsed));
+  setAttributeIfChanged(tileDrawerContent, "aria-hidden", String(tileCollapsed));
 
   if (toggleLeftDrawerBtn) {
-    const label = leftCollapsed ? "Expand info drawer" : "Collapse info drawer";
-    setAttributeIfChanged(toggleLeftDrawerBtn, "aria-expanded", String(!leftCollapsed));
+    const label = infoCollapsed ? "Expand info drawer" : "Collapse info drawer";
+    setAttributeIfChanged(toggleLeftDrawerBtn, "aria-expanded", String(!infoCollapsed));
     setAttributeIfChanged(toggleLeftDrawerBtn, "aria-label", label);
     setAttributeIfChanged(toggleLeftDrawerBtn, "title", label);
   }
   if (toggleRightDrawerBtn) {
-    const label = rightCollapsed ? "Expand tile drawer" : "Collapse tile drawer";
-    setAttributeIfChanged(toggleRightDrawerBtn, "aria-expanded", String(!rightCollapsed));
+    const label = tileCollapsed ? "Expand tile drawer" : "Collapse tile drawer";
+    setAttributeIfChanged(toggleRightDrawerBtn, "aria-expanded", String(!tileCollapsed));
     setAttributeIfChanged(toggleRightDrawerBtn, "aria-label", label);
     setAttributeIfChanged(toggleRightDrawerBtn, "title", label);
   }
 
-  if (save) saveDrawerState({ left: leftCollapsed, right: rightCollapsed });
+  if (save) saveDrawerState({ left: infoCollapsed, right: tileCollapsed });
   const completeRerender = () => {
     if (!rerender) return;
     recenterTrayAndReserveTiles();

@@ -787,9 +787,9 @@ export function beginBossTokenDrag(token, event, ctx) {
   const handleUp = (upEvent) => {
     if (upEvent.pointerId !== pointerId) return;
     const droppedInsideBossPile = ctx.isPointInsideElement(upEvent.clientX, upEvent.clientY, ctx.bossPile);
-    const droppedInsideLeftDrawer = ctx.isPointInsideElement(upEvent.clientX, upEvent.clientY, ctx.leftDrawer);
-    const droppedInsideInfoDrawer = ctx.isPointInsideElement(upEvent.clientX, upEvent.clientY, ctx.rightDrawer);
-    if (droppedInsideBossPile || droppedInsideLeftDrawer || droppedInsideInfoDrawer) {
+    const droppedInsideInfoDrawer = ctx.isPointInsideElement(upEvent.clientX, upEvent.clientY, ctx.infoDrawer);
+    const droppedInsideTileDrawer = ctx.isPointInsideElement(upEvent.clientX, upEvent.clientY, ctx.tileDrawer);
+    if (droppedInsideBossPile || droppedInsideInfoDrawer || droppedInsideTileDrawer) {
       pushBossBackToPile(token.bossKey, ctx, ctx.state.selectedTileSetId);
       ctx.state.bossTokens = ctx.state.bossTokens.filter((entry) => entry.id !== token.id);
       token.dom.remove();
