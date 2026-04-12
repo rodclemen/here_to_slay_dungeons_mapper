@@ -3836,6 +3836,8 @@ function bindGlobalControls() {
     { passive: false },
   );
 
+  bindDelegatedTileEvents();
+
   window.addEventListener(
     "resize",
     () => {
@@ -6635,11 +6637,6 @@ function renderReservePile() {
       state.pendingSwapSource?.zone === "reserve"
       && state.pendingSwapSource?.tileId === tile.tileId;
     card.classList.toggle("selected", isSelectedSource);
-    card.addEventListener("click", () => {
-      if (state.wallEditMode) return;
-      if (!state.reserveEditMode) return;
-      handleSwapClick("reserve", tile.tileId);
-    });
 
     const img = document.createElement("img");
     img.src = tile.imageSrc;
@@ -7065,6 +7062,139 @@ function beginBoardPan(event) {
   window.addEventListener("pointercancel", handleUp);
 }
 
+function getTileFromEvent(event) {
+  const tileEl = event.target.closest(".tile");
+  if (!tileEl) return null;
+  const tileId = tileEl.dataset.tileId;
+  return tileId ? state.tiles.get(tileId) || null : null;
+}
+
+function handleDelegatedTilePointerDown(event) {
+  const tile = getTileFromEvent(event);
+  if (!tile || tile.previewOnly) return;
+  if (event.button !== 0) return;
+  if (state.reserveEditMode && isTraySwapTarget(tile)) {
+    event.preventDefault();
+    event.stopPropagation();
+    handleSwapClick("tray", tile.tileId);
+    return;
+  }
+  const faceHit = event.target.closest(".tile-guide-face-hit");
+  if (state.wallEditMode && faceHit) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isEntranceTile(tile)) {
+      setStatus("Entrance tile wall editing is disabled. Edit regular tiles only.", true);
+      return;
+    }
+    const faceIdx = Number.parseInt(faceHit.dataset.faceIndex || "", 10);
+    if (!Number.isInteger(faceIdx)) return;
+    if (tile.wallFaceSet.has(faceIdx)) {
+      tile.wallFaceSet.delete(faceIdx);
+    } else {
+      tile.wallFaceSet.add(faceIdx);
+    }
+    persistTileWallFaces(state.selectedTileSetId, tile.tileId, tile.wallFaceSet);
+    refreshTileWallGuide(tile);
+    setStatus(
+      `${getTileDisplayLabel(tile.tileId)} wall faces: ${Array.from(tile.wallFaceSet).sort((a, b) => a - b).join(", ") || "none"}.`,
+    );
+    return;
+  }
+  if (event.target.closest(".tile-controls")) return;
+  if (state.wallEditMode) return;
+  if (state.pendingSwapSource) {
+    if (!state.reserveEditMode) {
+      clearPendingReserveSwap();
+      return;
+    }
+    if (state.pendingSwapSource.zone === "tray") {
+      if (!isReserveSwapSource(tile)) {
+        setStatus("Choose a reserve tile to swap with the selected tray tile.", true);
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      performReserveToTraySwap(tile.tileId, state.pendingSwapSource.tileId);
+    } else if (isTraySwapTarget(tile)) {
+      event.preventDefault();
+      event.stopPropagation();
+      performReserveToTraySwap(state.pendingSwapSource.tileId, tile.tileId);
+    } else {
+      setStatus("Choose a tile currently in the tray to swap with the selected reserve tile.", true);
+    }
+    return;
+  }
+  event.preventDefault();
+  selectTile(tile.tileId);
+  beginDrag(tile, event);
+}
+
+function handleDelegatedTileClick(event) {
+  const tile = getTileFromEvent(event);
+  if (!tile || tile.previewOnly) return;
+  if (event.target.closest(".rotate-ccw")) {
+    event.stopPropagation();
+    rotateTile(tile, -ROTATION_STEP);
+    return;
+  }
+  if (event.target.closest(".rotate-cw")) {
+    event.stopPropagation();
+    rotateTile(tile, ROTATION_STEP);
+    return;
+  }
+  if (state.pendingSwapSource) return;
+  selectTile(tile.tileId);
+}
+
+function handleDelegatedTileMouseOver(event) {
+  const tileEl = event.target.closest(".tile");
+  if (!tileEl) return;
+  const tile = state.tiles.get(tileEl.dataset.tileId);
+  if (!tile || tile.previewOnly) return;
+  if (state.hoveredTileId === tile.tileId) return;
+  state.hoveredTileId = tile.tileId;
+  if (state.selectedTileId && state.selectedTileId !== tile.tileId) {
+    selectTile(null);
+  }
+}
+
+function handleDelegatedTileMouseOut(event) {
+  const tileEl = event.target.closest(".tile");
+  if (!tileEl) return;
+  const tile = state.tiles.get(tileEl.dataset.tileId);
+  if (!tile || tile.previewOnly) return;
+  const related = event.relatedTarget;
+  if (related && tileEl.contains(related)) return;
+  if (state.hoveredTileId === tile.tileId) state.hoveredTileId = null;
+  if (state.selectedTileId && !state.hoveredTileId) selectTile(null);
+}
+
+function handleDelegatedReserveClick(event) {
+  const card = event.target.closest(".reserve-card");
+  if (!card) return;
+  const tileId = card.dataset.tileId;
+  if (!tileId) return;
+  if (state.wallEditMode) return;
+  if (!state.reserveEditMode) return;
+  handleSwapClick("reserve", tileId);
+}
+
+function handleDelegatedDragStart(event) {
+  if (event.target.closest(".tile")) event.preventDefault();
+}
+
+function bindDelegatedTileEvents() {
+  for (const container of [board, tray]) {
+    container.addEventListener("pointerdown", handleDelegatedTilePointerDown);
+    container.addEventListener("click", handleDelegatedTileClick);
+    container.addEventListener("mouseover", handleDelegatedTileMouseOver);
+    container.addEventListener("mouseout", handleDelegatedTileMouseOut);
+    container.addEventListener("dragstart", handleDelegatedDragStart);
+  }
+  reservePile.addEventListener("click", handleDelegatedReserveClick);
+}
+
 function createTileElement(tile) {
   const tileEl = document.createElement("div");
   tileEl.className = "tile";
@@ -7082,7 +7212,6 @@ function createTileElement(tile) {
   if (isMoltenRegularTile(tile)) img.classList.add("molten-regular-img");
   if (isMoltenEntranceTile(tile)) img.classList.add("molten-entrance-img");
   img.draggable = false;
-  img.addEventListener("dragstart", (event) => event.preventDefault());
   img.addEventListener("error", () => {
     if (img.src !== TILE_PLACEHOLDER_SRC) {
       img.src = TILE_PLACEHOLDER_SRC;
@@ -7113,10 +7242,6 @@ function createTileElement(tile) {
     leftIcon.textContent = "⟲";
     leftBtn.appendChild(leftIcon);
     leftBtn.title = "Rotate -60°";
-    leftBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      rotateTile(tile, -ROTATION_STEP);
-    });
 
     const rightBtn = document.createElement("button");
     rightBtn.type = "button";
@@ -7125,90 +7250,11 @@ function createTileElement(tile) {
     rightIcon.textContent = "⟳";
     rightBtn.appendChild(rightIcon);
     rightBtn.title = "Rotate +60°";
-    rightBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      rotateTile(tile, ROTATION_STEP);
-    });
 
     controls.appendChild(leftBtn);
     controls.appendChild(rightBtn);
     tileEl.appendChild(controls);
   }
-
-  tileEl.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0) return;
-    if (state.reserveEditMode && isTraySwapTarget(tile)) {
-      event.preventDefault();
-      event.stopPropagation();
-      handleSwapClick("tray", tile.tileId);
-      return;
-    }
-    const faceHit = event.target.closest(".tile-guide-face-hit");
-    if (state.wallEditMode && faceHit) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (isEntranceTile(tile)) {
-        setStatus("Entrance tile wall editing is disabled. Edit regular tiles only.", true);
-        return;
-      }
-      const faceIdx = Number.parseInt(faceHit.dataset.faceIndex || "", 10);
-      if (!Number.isInteger(faceIdx)) return;
-      if (tile.wallFaceSet.has(faceIdx)) {
-        tile.wallFaceSet.delete(faceIdx);
-      } else {
-        tile.wallFaceSet.add(faceIdx);
-      }
-      persistTileWallFaces(state.selectedTileSetId, tile.tileId, tile.wallFaceSet);
-      refreshTileWallGuide(tile);
-      setStatus(
-        `${getTileDisplayLabel(tile.tileId)} wall faces: ${Array.from(tile.wallFaceSet).sort((a, b) => a - b).join(", ") || "none"}.`,
-      );
-      return;
-    }
-    if (event.target.closest(".tile-controls")) return;
-    if (state.wallEditMode) return;
-    if (state.pendingSwapSource) {
-      if (!state.reserveEditMode) {
-        clearPendingReserveSwap();
-        return;
-      }
-      if (state.pendingSwapSource.zone === "tray") {
-        if (!isReserveSwapSource(tile)) {
-          setStatus("Choose a reserve tile to swap with the selected tray tile.", true);
-          return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        performReserveToTraySwap(tile.tileId, state.pendingSwapSource.tileId);
-      } else if (isTraySwapTarget(tile)) {
-        event.preventDefault();
-        event.stopPropagation();
-        performReserveToTraySwap(state.pendingSwapSource.tileId, tile.tileId);
-      } else {
-        setStatus("Choose a tile currently in the tray to swap with the selected reserve tile.", true);
-      }
-      return;
-    }
-    event.preventDefault();
-    selectTile(tile.tileId);
-    beginDrag(tile, event);
-  });
-
-  tileEl.addEventListener("click", () => {
-    if (state.pendingSwapSource) return;
-    selectTile(tile.tileId);
-  });
-  tileEl.addEventListener("mouseenter", () => {
-    state.hoveredTileId = tile.tileId;
-    if (state.selectedTileId && state.selectedTileId !== tile.tileId) {
-      selectTile(null);
-    }
-  });
-  tileEl.addEventListener("mouseleave", () => {
-    if (state.hoveredTileId === tile.tileId) state.hoveredTileId = null;
-    if (state.selectedTileId && !state.hoveredTileId) selectTile(null);
-  });
-  tileEl.addEventListener("dragstart", (event) => event.preventDefault());
   if (state.pendingSwapSource && isSwapTargetHighlight(tile)) {
     tileEl.classList.add("swap-target");
   }
