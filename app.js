@@ -345,6 +345,7 @@ const INVALID_DROP_PUSH_PX = 140;
 const ENTRANCE_BLOCKED_FACE_INDICES_DEFAULT = new Set([11, 12]);
 const ENTRANCE_BLOCKED_FACE_INDICES_HALF_BOARD = new Set([0, 9, 11, 12]);
 const BLOCKED_POINT_TOUCH_RADIUS = 4;
+const TILE_PLACEHOLDER_SRC = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="170" height="170" viewBox="0 0 170 170"><polygon points="85,5 160,45 160,125 85,165 10,125 10,45" fill="#8b3a3a" stroke="#c96" stroke-width="3"/><text x="85" y="92" text-anchor="middle" fill="#fff" font-size="18" font-family="sans-serif">Missing</text></svg>')}`;
 const WALL_OVERRIDES_STORAGE_KEY = "hts_wall_overrides_v1";
 const END_TILE_OVERRIDES_STORAGE_KEY = "hts_end_tile_overrides_v1";
 const PORTAL_FLAG_OVERRIDES_STORAGE_KEY = "hts_portal_flag_overrides_v1";
@@ -2739,8 +2740,9 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
       try {
         img = await loadImage(fallbackSrc);
       } catch (fallbackError) {
-        console.warn(`Fallback tile image also failed for ${def.imageSrc}; using a blank placeholder.`, fallbackError);
-        img = await loadImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2fK0QAAAAASUVORK5CYII=");
+        console.warn(`Fallback tile image also failed for ${def.imageSrc}; using a visible placeholder.`, fallbackError);
+        img = await loadImage(TILE_PLACEHOLDER_SRC);
+        def.imageLoadFailed = true;
       }
     }
     const shape = getOpaqueBounds(img);
@@ -2770,8 +2772,13 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
       portalFlag: getStoredPortalFlag(tileSetId, def.tileId),
     };
   }));
+  let failedCount = 0;
   for (const tile of preparedTiles) {
     state.tiles.set(tile.tileId, tile);
+    if (tile.imageLoadFailed) failedCount += 1;
+  }
+  if (failedCount > 0) {
+    setStatus(`${failedCount} tile image(s) could not be loaded. Placeholder tiles are shown.`, true);
   }
 }
 
@@ -7064,6 +7071,12 @@ function createTileElement(tile) {
   if (isMoltenEntranceTile(tile)) img.classList.add("molten-entrance-img");
   img.draggable = false;
   img.addEventListener("dragstart", (event) => event.preventDefault());
+  img.addEventListener("error", () => {
+    if (img.src !== TILE_PLACEHOLDER_SRC) {
+      img.src = TILE_PLACEHOLDER_SRC;
+      tile.imageLoadFailed = true;
+    }
+  }, { once: true });
   body.appendChild(img);
   body.appendChild(createPlacementOverlay(tile));
   const guideOverlay = createTileGuideOverlay(tile);
