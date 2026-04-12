@@ -17,17 +17,41 @@ struct DirEntryInfo {
     is_dir: bool,
 }
 
-fn normalized_path(path: String) -> PathBuf {
-    PathBuf::from(path)
+/// Maximum decompressed output size (100 MB) to prevent zip bombs.
+const MAX_INFLATE_OUTPUT_BYTES: usize = 100 * 1024 * 1024;
+
+fn normalized_path(path: String) -> Result<PathBuf, String> {
+    let path = PathBuf::from(&path);
+    if !path.is_absolute() {
+        return Err("Only absolute paths are allowed.".to_string());
+    }
+    // Reject paths that contain traversal segments.
+    for component in path.components() {
+        if let std::path::Component::ParentDir = component {
+            return Err("Path traversal (..) is not allowed.".to_string());
+        }
+    }
+    Ok(path)
 }
 
 #[tauri::command]
 fn inflate_raw_deflate(bytes: Vec<u8>) -> Result<Vec<u8>, String> {
     let mut decoder = DeflateDecoder::new(bytes.as_slice());
-    let mut out = Vec::new();
-    decoder
-        .read_to_end(&mut out)
-        .map_err(|error| format!("Could not inflate zip entry: {error}"))?;
+    let mut out = Vec::with_capacity(bytes.len().min(1024 * 1024));
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = decoder.read(&mut buf).map_err(|error| format!("Could not inflate zip entry: {error}"))?;
+        if n == 0 {
+            break;
+        }
+        if out.len() + n > MAX_INFLATE_OUTPUT_BYTES {
+            return Err(format!(
+                "Decompressed output exceeds {} MB limit.",
+                MAX_INFLATE_OUTPUT_BYTES / (1024 * 1024)
+            ));
+        }
+        out.extend_from_slice(&buf[..n]);
+    }
     Ok(out)
 }
 
@@ -60,7 +84,7 @@ fn save_blob_to_downloads(filename: String, bytes: Vec<u8>) -> Result<String, St
 
 #[tauri::command]
 fn save_blob_to_path(path: String, bytes: Vec<u8>) -> Result<String, String> {
-    let path = normalized_path(path);
+    let path = normalized_path(path)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| format!("Could not create output directory: {error}"))?;
     }
@@ -70,19 +94,19 @@ fn save_blob_to_path(path: String, bytes: Vec<u8>) -> Result<String, String> {
 
 #[tauri::command]
 fn path_exists(path: String) -> Result<bool, String> {
-    Ok(normalized_path(path).exists())
+    Ok(normalized_path(path)?.exists())
 }
 
 #[tauri::command]
 fn ensure_dir(path: String) -> Result<String, String> {
-    let path = normalized_path(path);
+    let path = normalized_path(path)?;
     fs::create_dir_all(&path).map_err(|error| format!("Could not create directory: {error}"))?;
     Ok(path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
 fn remove_path(path: String) -> Result<(), String> {
-    let path = normalized_path(path);
+    let path = normalized_path(path)?;
     if !path.exists() {
         return Ok(());
     }
@@ -97,12 +121,12 @@ fn remove_path(path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn read_text_file(path: String) -> Result<String, String> {
-    fs::read_to_string(normalized_path(path)).map_err(|error| format!("Could not read file: {error}"))
+    fs::read_to_string(normalized_path(path)?).map_err(|error| format!("Could not read file: {error}"))
 }
 
 #[tauri::command]
 fn write_text_file(path: String, text: String) -> Result<String, String> {
-    let path = normalized_path(path);
+    let path = normalized_path(path)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| format!("Could not create output directory: {error}"))?;
     }
@@ -112,12 +136,12 @@ fn write_text_file(path: String, text: String) -> Result<String, String> {
 
 #[tauri::command]
 fn read_file_bytes(path: String) -> Result<Vec<u8>, String> {
-    fs::read(normalized_path(path)).map_err(|error| format!("Could not read file: {error}"))
+    fs::read(normalized_path(path)?).map_err(|error| format!("Could not read file: {error}"))
 }
 
 #[tauri::command]
 fn list_dir_entries(path: String) -> Result<Vec<DirEntryInfo>, String> {
-    let path = normalized_path(path);
+    let path = normalized_path(path)?;
     if !path.exists() {
         return Ok(Vec::new());
     }
