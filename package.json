@@ -4,6 +4,7 @@
   "private": true,
   "description": "A browser-first Here to Slay DUNGEONS mapper with an optional Tauri desktop shell.",
   "scripts": {
+    "test": "node --test 'tests/**/*.test.mjs'",
     "sync:version": "node scripts/sync-version.mjs",
     "prebuild:tauri-web": "npm run sync:version",
     "build:tauri-web": "node scripts/build-tauri-web.mjs",
