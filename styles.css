@@ -3262,22 +3262,22 @@ body.boss-edit-mode .boss-card:active {
 
 .boss-card.boss-card-cycling-out {
   pointer-events: none;
-  z-index: 12 !important;
+  z-index: 102 !important;
   animation: boss-card-cycle-out 320ms cubic-bezier(0.25, 0.75, 0.3, 1) forwards;
 }
 
 .boss-card.boss-card-cycling-in {
   pointer-events: none;
-  z-index: 11 !important;
+  z-index: 101 !important;
   animation: boss-card-cycle-in 320ms cubic-bezier(0.25, 0.75, 0.3, 1) forwards;
 }
 
 .boss-pile.is-cycling.is-cycle-mid .boss-card.boss-card-cycling-out {
-  z-index: 10 !important;
+  z-index: 100 !important;
 }
 
 .boss-pile.is-cycling.is-cycle-mid .boss-card.boss-card-cycling-in {
-  z-index: 13 !important;
+  z-index: 103 !important;
 }
 
 @keyframes boss-card-cycle-out {

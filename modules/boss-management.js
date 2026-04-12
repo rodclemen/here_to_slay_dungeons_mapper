@@ -248,9 +248,6 @@ export function renderBossPile(ctx) {
       window.setTimeout(() => {
         if (!ctx.state.bossPileCycleInProgress) return;
         ctx.bossPile?.classList.add("is-cycle-mid");
-        if (ctx.state.useAllBosses) {
-          card.style.setProperty("z-index", "0", "important");
-        }
       }, midSwapDelay);
       window.setTimeout(() => {
         if (ctx.state.useAllBosses) {
