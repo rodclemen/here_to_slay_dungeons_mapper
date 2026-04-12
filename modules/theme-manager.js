@@ -274,7 +274,15 @@ export function applyUiTheme(uiThemeId, ctx) {
   for (const theme of ctx.UI_THEME_CATALOG) {
     document.body.classList.toggle(theme.className, theme.id === uiThemeId);
   }
+  syncThemeColorMeta();
   ctx.scheduleBoardHexGridRender();
+}
+
+function syncThemeColorMeta() {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+  const bg = getComputedStyle(document.body).getPropertyValue("--bg").trim();
+  if (bg) meta.setAttribute("content", bg);
 }
 
 export function applyAppearanceMode(mode, ctx, { showStatus = true, save = true } = {}) {
