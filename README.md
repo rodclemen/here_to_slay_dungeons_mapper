@@ -280,7 +280,7 @@ During auto-build, a more sophisticated snap search (`computeBestSnap()`) derive
 
 Each tile carries a guide polygon — a set of numbered perimeter points that define its placeable shape. Faces are the edge segments between consecutive points. The app prefers shared guide-point templates and local overrides when they exist, falling back to face geometry derived from the tile PNG alpha channel at load time.
 
-Rotation transforms the polygon by applying a 2D rotation matrix to each point around the tile center. Regular tiles rotate in 60° steps; the entrance tile also in 60° steps. All downstream systems — contact detection, wall exclusion, overlap checks — operate on the rotated geometry.
+Rotation transforms the polygon by applying a 2D rotation matrix to each point around the tile center. Regular tiles rotate in 60° steps; the entrance tile is locked at 0° and cannot be rotated. All downstream systems — contact detection, wall exclusion, overlap checks — operate on the rotated geometry.
 
 ### Placement Validation
 
@@ -309,7 +309,7 @@ The auto-builder is a recursive backtracking search that places all six active t
 4. **Score each candidate** on layout compactness (aspect ratio), contact quality, face clearance, radial distance from the placement centroid, straight-line extension penalties, and local density.
 5. **Select from the top bucket** (up to 8 candidates within a score delta of 22), randomize the rest.
 6. **Recurse.** If a placement leads to a dead end, backtrack and try the next candidate.
-7. **Novelty filtering.** After a successful layout, compute a shape signature (pairwise tile distances, entrance distances, connection degree). If the signature matches a recent layout for this tile set, retry — up to 120 novelty retries and 600 total attempts.
+7. **Novelty filtering.** After a successful layout, compute a shape signature (pairwise tile distances, entrance distances, connection degree). If the signature matches a recent layout for this tile set, retry. The generator collects multiple completed layouts within a time budget (up to 600 total attempts), scores them for quality and novelty, then picks the best from a randomized top pool.
 
 The result is layouts that are legal, compact, varied, and fast — typically generated in under a second.
 
@@ -365,7 +365,7 @@ The application is a browser-first vanilla JavaScript app with an optional Tauri
 | `D` | Toggle both drawers |
 | `Z` | Reset zoom and board pan |
 
-Rotation targets the tile under the cursor. All tiles rotate in 60° steps.
+Rotation targets the tile under the cursor. Regular tiles rotate in 60° steps; the entrance tile is locked.
 
 ### Mouse / Pointer
 
@@ -431,9 +431,9 @@ Custom tile sets do not need to live in the repository. They are imported/export
 
 ## Running Locally
 
-### Browser App
+### Run the Web App
 
-The browser version is still a static app. You only need a local file server.
+The browser version is a static app — no build step required. You only need a local file server.
 
 ```bash
 # Clone the repository
@@ -450,37 +450,25 @@ Then open `http://localhost:8000` in your browser.
 
 > **Note:** Opening `index.html` directly via `file://` may not work due to browser CORS restrictions on image loading. Use a local server.
 
-### Browser Dev Mode
+### Build for Web Deployment
 
-Open the app with `?dev=1` when you want internal tools and QA helpers visible:
+The web app has no compile or bundle step. To deploy, copy the project files to your web server as-is. The key runtime files are:
 
-```text
-http://localhost:8000/?dev=1
-```
+- `index.html`, `app.js`, `styles.css` — main app
+- `about.html`, `changelog.html`, `download.html`, `pdf-export.html` — supplementary pages
+- `modules/` — JS modules loaded by the main app
+- `tiles/`, `icons/`, `Graphics/` — assets
+- `download.php`, `download-stats.php` — server-side download handling (requires PHP)
 
-This enables dev-only controls such as:
+No minification or bundling is needed for the web version. The `build:tauri-web` script exists only for preparing a copy for the Tauri desktop shell (see below).
 
-- `Export Debug Walls JSON` / `Import Debug Walls JSON`
-- `Clear Tile Walls`
-- `Show Numbers`
-- `Auto Build Tuning`
-- Tile Editor dev helpers like `Copy Guide Template JSON`
-
-There is also a separate live QA checklist page at:
-
-```text
-http://localhost:8000/qa-checks.html
-```
-
-Keep that page open beside the mapper and it will mark supported user actions as you trigger them. If the mapper and QA page are on different local origins (`localhost` vs `127.0.0.1`), use the same port and prefer matching origins for the simplest live updates.
-
-### Tauri Desktop App
+### Run the Desktop App
 
 Prerequisites:
 
 - Node.js and npm
 - Rust toolchain (`rustup`, `cargo`)
-- platform prerequisites required by Tauri 2 for your OS
+- Platform prerequisites required by Tauri 2 for your OS
 
 Install the JS dependencies once:
 
@@ -494,28 +482,48 @@ Run the desktop app in development:
 npm run tauri:dev
 ```
 
-That command automatically runs `npm run build:tauri-web` first, which syncs the version from `package.json` into the Tauri config and Cargo manifest, then copies the browser app into `dist/tauri/` and minifies JS/CSS when a local `esbuild` binary is available.
+That command automatically runs `npm run build:tauri-web` first, which syncs the version from `package.json` into the Tauri config and Cargo manifest, then copies the browser app into `dist/tauri/` and minifies JS/CSS when a local `esbuild` binary is available. The Tauri dev server then launches the app with hot reload.
 
-Build the desktop app bundle:
+### Build the Desktop App
+
+Build the release bundle:
 
 ```bash
 npm run tauri:build
 ```
 
-That also runs `npm run build:tauri-web` first, then builds the Tauri app from `src-tauri/`. Bundles are emitted under the normal Tauri target directories, typically `src-tauri/target/release/bundle/`.
+That also runs `npm run build:tauri-web` first, then compiles the Tauri app from `src-tauri/`. Release bundles (`.app` and `.dmg`) are emitted under the normal Tauri target directories, typically `src-tauri/target/release/bundle/`.
 
-### Desktop Dev Mode
+The version in the bundle is always sourced from `package.json` — the `sync:version` script copies it into `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` automatically before each build, so you only need to bump the version in one place.
 
-In the browser, use `?dev=1`.
+### Dev Mode
 
-In the Tauri desktop app, use the native Help menu and enable `Dev Mode`. That exposes the same dev-only controls inside the app, including items such as:
+In the browser, append `?dev=1` to the URL:
 
-- `Open Debug Log`
+```text
+http://localhost:8000/?dev=1
+```
+
+In the Tauri desktop app, use the native Help menu and enable `Dev Mode`.
+
+Both expose the same dev-only controls:
+
+- `Open Debug Log` (desktop only)
 - `Copy Guide Template JSON` while Tile Editor is open
 - `Export Debug Walls JSON` / `Import Debug Walls JSON`
 - `Clear Tile Walls`
 - `Show Numbers`
 - `Auto Build Tuning`
+
+### QA Checklist
+
+There is a separate live QA checklist page at:
+
+```text
+http://localhost:8000/qa-checks.html
+```
+
+Keep that page open beside the mapper and it will mark supported user actions as you trigger them. If the mapper and QA page are on different local origins (`localhost` vs `127.0.0.1`), use the same port and prefer matching origins for the simplest live updates.
 
 ---
 
@@ -532,8 +540,8 @@ The desktop app includes a native Help menu with Dev Mode access, window state p
 ## Limitations
 
 - **Vanilla architecture.** The app is still deliberately framework-free, but the main runtime is stateful and geometry-heavy, so changes still require careful manual testing.
-- **Entrance rotation resets on placement.** The entrance tile can be rotated like any tile (in 60° steps), but it resets to 0° when placed by Auto Build or on round start.
-- **Auto-build is bounded.** The generator retries up to 600 attempts and 120 novelty checks. In rare edge cases with unusual wall configurations, it may not find a layout.
+- **Entrance rotation is locked.** The entrance tile stays fixed at 0°; only regular tiles rotate.
+- **Auto-build is bounded.** The generator retries up to 600 attempts with a time budget and novelty filtering. In rare edge cases with unusual wall configurations, it may not find a layout.
 - **No built-in save library yet.** Layouts can now be shared and restored through `Copy Share Link`, but the app still does not provide named local save slots or a layout browser.
 - **Custom tile sets are local by design.** In the browser they live in browser storage; in the desktop app they live in the selected data folder. They are still local-only unless you export them.
 - **Built-in Tile Editor changes are also local.** Portal markers, wall overrides, end-tile flags, and guide-template edits are not synced anywhere unless you export/import them manually.
