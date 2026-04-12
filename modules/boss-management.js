@@ -244,7 +244,7 @@ export function renderBossPile(ctx) {
         }
       }
       card.classList.add("boss-card-cycling-out");
-      const midSwapDelay = Math.round(ctx.BOSS_PILE_CYCLE_ANIMATION_MS * 0.36);
+      const midSwapDelay = Math.round(ctx.BOSS_PILE_CYCLE_ANIMATION_MS * 0.38);
       window.setTimeout(() => {
         if (!ctx.state.bossPileCycleInProgress) return;
         ctx.bossPile?.classList.add("is-cycle-mid");
