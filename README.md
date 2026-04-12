@@ -26,6 +26,7 @@ Plan your dungeon. Randomize the crawl. See every layout before you play.
 - [Themes & Visual Design](#themes--visual-design)
 - [Project Structure](#project-structure)
 - [Running Locally](#running-locally)
+- [Desktop App & Downloads](#desktop-app--downloads)
 - [Limitations](#limitations)
 - [Future Possibilities](#future-possibilities)
 - [Closing](#closing)
@@ -61,6 +62,9 @@ The core problem it solves: **seeing the dungeon before you build it**. Whether 
 - **Reserve tile swapping** — swap any active tile with a reserve tile without losing board state
 - **Boss selection and magnetic placement** — boss tokens snap to reference card positions
 - **Shareable layout links** — copy the current dungeon state into a URL, with custom-set fallback/export help
+- **PDF export** — print-ready dungeon layout preview from Build View
+- **In-app changelog** — version history accessible from the Guide page, with styled release notes
+- **Desktop app with download page** — optional Tauri-based macOS app with a dedicated download page for the web version
 - **Light and dark themes** per tile set, with automatic or manual switching
 - **Browser-first runtime** — vanilla HTML, CSS, and JavaScript for the app itself, plus an optional Tauri desktop wrapper
 
@@ -116,7 +120,17 @@ The top bar is split across a few focused controls:
 
 In compact mode, the top bar shortens `Guide` to `G` and `Tile Editor` to `TE` until the editor is opened.
 
-`Export PDF` works in Build View only and opens a print-ready preview. From there, use the browser or webview print flow to save the PDF.
+### PDF Export
+
+`Export PDF` works in Build View only and opens a dedicated print-ready preview page (`pdf-export.html`). The preview renders the current dungeon layout for clean printing. From there, use the browser or webview print flow to save the PDF.
+
+### In-App Changelog
+
+The app includes a styled changelog page (`changelog.html`) that shows the full version history with release notes. The version number displayed in the Guide page hero row links directly to the changelog. In the desktop app, the changelog is also accessible from the native menu.
+
+### Download Page
+
+A dedicated download page (`download.html`) lets users download the macOS desktop app directly from the web version. The page shows version info and file metadata. A "Download HtSD Mapper" link appears in the Tile Drawer in the web version (hidden in compact mode and in the desktop app). Server-side scripts (`download.php`, `download-stats.php`) handle download redirection and statistics tracking.
 
 ### Zoom, Pan, and Board Interaction
 
@@ -266,7 +280,7 @@ During auto-build, a more sophisticated snap search (`computeBestSnap()`) derive
 
 Each tile carries a guide polygon — a set of numbered perimeter points that define its placeable shape. Faces are the edge segments between consecutive points. The app prefers shared guide-point templates and local overrides when they exist, falling back to face geometry derived from the tile PNG alpha channel at load time.
 
-Rotation transforms the polygon by applying a 2D rotation matrix to each point around the tile center. Regular tiles rotate in 60° steps; the entrance tile in 90° steps. All downstream systems — contact detection, wall exclusion, overlap checks — operate on the rotated geometry.
+Rotation transforms the polygon by applying a 2D rotation matrix to each point around the tile center. Regular tiles rotate in 60° steps; the entrance tile also in 60° steps. All downstream systems — contact detection, wall exclusion, overlap checks — operate on the rotated geometry.
 
 ### Placement Validation
 
@@ -351,7 +365,7 @@ The application is a browser-first vanilla JavaScript app with an optional Tauri
 | `D` | Toggle both drawers |
 | `Z` | Reset zoom and board pan |
 
-Rotation targets the tile under the cursor. Entrance tiles rotate in 90° steps; regular tiles in 60° steps.
+Rotation targets the tile under the cursor. All tiles rotate in 60° steps.
 
 ### Mouse / Pointer
 
@@ -384,9 +398,16 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 ├── app.js                  # Main browser/runtime app logic
 ├── styles.css              # Styling and theme definitions
 ├── about.html              # In-app guide / manual page
-├── modules/                # Extracted runtime modules (theme, board, share, tile placement, etc.)
+├── changelog.html          # Styled version history / release notes page
+├── download.html           # macOS desktop app download page (web only)
+├── pdf-export.html         # Print-ready dungeon layout preview
+├── download.php            # Download redirection handler
+├── download-stats.php      # Download statistics tracking
+├── modules/                # Extracted runtime modules (26 modules — theme, board, share, tile placement, etc.)
 ├── src-tauri/              # Optional Tauri desktop shell
-├── scripts/                # Build helpers such as Tauri asset staging
+├── scripts/
+│   ├── build-tauri-web.mjs # Copies browser app into dist/tauri/, minifies JS/CSS
+│   └── sync-version.mjs    # Syncs version from package.json to Tauri config and Cargo.toml
 ├── tiles/
 │   ├── molten/             # Molten tile set assets
 │   ├── overgrown/          # Overgrown tile set assets
@@ -395,8 +416,10 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 │   ├── submerged/          # Submerged tile set assets
 │   └── deep_freeze/        # Deep Freeze tile set assets
 ├── icons/                  # UI icons (dice, reroll, reset, etc.)
-├── Graphics/               # Banner, logo, guide images
+├── Graphics/               # Banner, logo, guide images, download icon
+├── docs/                   # Planning docs, editor notes, sample custom tile sets
 ├── qa-checks.html          # QA checklist page for dev workflow
+├── qa-checks-bridge.html   # Cross-tab QA communication bridge
 └── CHANGELOG.md            # Detailed version history
 ```
 
@@ -471,7 +494,7 @@ Run the desktop app in development:
 npm run tauri:dev
 ```
 
-That command automatically runs `npm run build:tauri-web` first, which copies the browser app into `dist/tauri/` and minifies JS/CSS when a local `esbuild` binary is available.
+That command automatically runs `npm run build:tauri-web` first, which syncs the version from `package.json` into the Tauri config and Cargo manifest, then copies the browser app into `dist/tauri/` and minifies JS/CSS when a local `esbuild` binary is available.
 
 Build the desktop app bundle:
 
@@ -496,10 +519,20 @@ In the Tauri desktop app, use the native Help menu and enable `Dev Mode`. That e
 
 ---
 
+## Desktop App & Downloads
+
+The Tauri desktop app bundles the mapper as a native macOS application (`.app` and `.dmg` targets). The app version is maintained in `package.json` as the single source of truth, and the `sync:version` script propagates it to `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` automatically before each build.
+
+The web version includes a download page (`download.html`) where users can grab the latest macOS build. A "Download HtSD Mapper" link in the Tile Drawer points to this page (web only — hidden in compact mode and in the desktop app itself). Server-side scripts track download counts and file metadata.
+
+The desktop app includes a native Help menu with Dev Mode access, window state persistence via the `@tauri-apps/plugin-window-state` plugin, and a file dialog (`@tauri-apps/plugin-dialog`) for choosing the custom tile-set data folder.
+
+---
+
 ## Limitations
 
 - **Vanilla architecture.** The app is still deliberately framework-free, but the main runtime is stateful and geometry-heavy, so changes still require careful manual testing.
-- **Entrance rotation is locked.** The entrance tile stays fixed; only regular tiles rotate.
+- **Entrance rotation resets on placement.** The entrance tile can be rotated like any tile (in 60° steps), but it resets to 0° when placed by Auto Build or on round start.
 - **Auto-build is bounded.** The generator retries up to 600 attempts and 120 novelty checks. In rare edge cases with unusual wall configurations, it may not find a layout.
 - **No built-in save library yet.** Layouts can now be shared and restored through `Copy Share Link`, but the app still does not provide named local save slots or a layout browser.
 - **Custom tile sets are local by design.** In the browser they live in browser storage; in the desktop app they live in the selected data folder. They are still local-only unless you export them.
