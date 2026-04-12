@@ -54,19 +54,13 @@ If a tile PNG fails to load (corrupt file, missing custom asset), placement sile
 
 ### 7. Implement render batching
 
-`renderActiveTiles()`, `renderBossPile()`, and `renderBoardHexGrid()` are called from 8+ locations without coordination. A simple dirty-flag + RAF queue would:
+~~`renderActiveTiles()`, `renderBossPile()`, and `renderBoardHexGrid()` are called from 8+ locations without coordination. A simple dirty-flag + RAF queue would:~~
 
-- Coalesce redundant calls (~30% fewer re-renders)
-- Make render dependencies explicit
-- Centralize the render lifecycle
+~~- Coalesce redundant calls (~30% fewer re-renders)~~
+~~- Make render dependencies explicit~~
+~~- Centralize the render lifecycle~~
 
-```js
-// Example pattern
-function scheduleRender(...types) {
-  for (const t of types) renderDirty.add(t);
-  if (!renderRafId) renderRafId = requestAnimationFrame(flushRenders);
-}
-```
+**Done (2026-04-12).** Added `scheduleRender(...types)` with dirty-flag + single-RAF coalescing. Converted all 8 `renderBossPile` calls in `boss-management.js` and `scheduleBoardHexGridRender` to the unified system. `renderActiveTiles` kept synchronous because callers depend on immediate DOM.
 
 ### 8. Add unit tests for geometry & contact analysis
 
@@ -163,6 +157,6 @@ Playwright or Cypress tests for critical flows:
 3. ~~Tile placement extraction (#6) — second biggest readability win~~ **Done**
 4. ~~Geometry unit tests (#8) — safety net for refactoring~~ **Done**
 5. ~~Minification (#1) — easy shipping size reduction~~ **Done**
-6. Render batching (#7) — cleaner code + fewer re-renders
+6. ~~Render batching (#7) — cleaner code + fewer re-renders~~ **Done**
 7. Tauri filesystem scoping (#10, #11) — security hardening
 8. Everything else as time allows
