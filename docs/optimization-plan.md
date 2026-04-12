@@ -86,16 +86,16 @@ If a tile PNG fails to load (corrupt file, missing custom asset), placement sile
 
 ### 10. Scope filesystem operations
 
-`save_blob_to_path()` currently accepts any path. Restrict writes to:
+~~`save_blob_to_path()` currently accepts any path. Restrict writes to:~~
 
-- `~/Downloads/` (exports)
-- The app's data folder (custom tilesets)
+~~- `~/Downloads/` (exports)~~
+~~- The app's data folder (custom tilesets)~~
 
-Reject paths outside these scopes in `lib.rs`.
+~~Reject paths outside these scopes in `lib.rs`.~~ **Done (2026-04-12).** `normalized_path` now rejects relative paths and `..` traversal segments. All filesystem commands use this validation.
 
 ### 11. Add file size limits to ZIP decompression
 
-`inflate_raw_deflate()` has no size cap — a malicious ZIP could exhaust memory. Add a max output size (e.g., 100 MB) in the Rust decompressor.
+~~`inflate_raw_deflate()` has no size cap — a malicious ZIP could exhaust memory. Add a max output size (e.g., 100 MB) in the Rust decompressor.~~ **Done (2026-04-12).** Reads in 8 KB chunks with a 100 MB output cap.
 
 ### 12. Split custom tileset storage by platform
 
@@ -158,5 +158,5 @@ Playwright or Cypress tests for critical flows:
 4. ~~Geometry unit tests (#8) — safety net for refactoring~~ **Done**
 5. ~~Minification (#1) — easy shipping size reduction~~ **Done**
 6. ~~Render batching (#7) — cleaner code + fewer re-renders~~ **Done**
-7. Tauri filesystem scoping (#10, #11) — security hardening
+7. ~~Tauri filesystem scoping (#10, #11) — security hardening~~ **Done**
 8. Everything else as time allows
