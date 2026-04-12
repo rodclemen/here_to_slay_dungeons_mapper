@@ -118,13 +118,13 @@ export function triggerBossRandomizeAnimation(ctx, tileSetId = ctx.state.selecte
     const order = ensureAllBossesPileOrder(ctx);
     if (order.length <= 1) return;
     ctx.state.allBossesPileOrder = ctx.shuffleDistinctOrder(order, ctx.shuffle);
-    renderBossPile(ctx);
+    ctx.scheduleRenderBossPile();
     return;
   }
   const order = ensureBossPileOrder(ctx, tileSetId);
   if (order.length <= 1) return;
   ctx.state.bossPileOrderByTileSet[tileSetId] = ctx.shuffleDistinctOrder(order, ctx.shuffle, { swapPair: true });
-  renderBossPile(ctx);
+  ctx.scheduleRenderBossPile();
 }
 
 export function getTileSetIdForBossSrc(src, ctx) {
@@ -258,7 +258,7 @@ export function renderBossPile(ctx) {
         } else {
           rotateBossPileTop(ctx, ctx.state.selectedTileSetId);
         }
-        renderBossPile(ctx);
+        ctx.scheduleRenderBossPile();
         ctx.bossPile?.classList.remove("is-cycle-mid");
         ctx.bossPile?.classList.remove("is-cycling");
         ctx.state.bossPileCycleInProgress = false;
@@ -306,7 +306,7 @@ export function resetTilesAndBossCards(ctx) {
   const tileSetId = ctx.state.selectedTileSetId;
   ctx.resetTiles();
   ctx.state.bossPileOrderByTileSet[tileSetId] = getBossTileSources(ctx, tileSetId);
-  renderBossPile(ctx);
+  ctx.scheduleRenderBossPile();
   ctx.setStatus("Tiles and boss cards reset.");
 }
 
@@ -515,7 +515,7 @@ export async function spawnRandomBossAtReferenceTopMagnet(ctx, options = {}) {
     ctx,
     ctx.TILE_SIZE,
   );
-  renderBossPile(ctx);
+  ctx.scheduleRenderBossPile();
   if (showStatus) {
     ctx.setStatus(existingTopToken ? "Boss card exchanged at the top reference magnet." : "Random boss placed at the top reference magnet.");
   }
@@ -711,7 +711,7 @@ export function beginBossSpawnDrag(event, bossKey, ctx, onDragStart = null) {
       const { x: bx, y: by } = getBoardDropPositionFromPointer(upEvent.clientX, upEvent.clientY, boardRect, ctx, zoom);
       createBossToken(bossKey, bx, by, ctx, ctx.TILE_SIZE);
       droppedToBoard = true;
-      renderBossPile(ctx);
+      ctx.scheduleRenderBossPile();
     }
     cleanup();
   };
@@ -793,7 +793,7 @@ export function beginBossTokenDrag(token, event, ctx) {
       pushBossBackToPile(token.bossKey, ctx, ctx.state.selectedTileSetId);
       ctx.state.bossTokens = ctx.state.bossTokens.filter((entry) => entry.id !== token.id);
       token.dom.remove();
-      renderBossPile(ctx);
+      ctx.scheduleRenderBossPile();
       cleanup();
       return;
     }

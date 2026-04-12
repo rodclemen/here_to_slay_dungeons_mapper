@@ -1944,6 +1944,7 @@ function getBossManagementCtx() {
     updateDragEdgeAutoPanState,
     updateModeIndicators,
     updatePlacementFeedbackChecklist,
+    scheduleRenderBossPile() { scheduleRender("bossPile"); },
     worldToBoardScreenX,
     worldToBoardScreenY,
   };
@@ -2129,7 +2130,25 @@ const autoBuildTuningCopyBtn = document.getElementById("auto-build-tuning-copy-b
 const dragLayer = document.createElement("div");
 dragLayer.className = "drag-layer";
 workspace.appendChild(dragLayer);
-let boardHexRenderRaf = 0;
+// ── Render scheduler ─────────────────────────────────────────────
+// Dirty-flag + single-RAF queue that coalesces redundant render calls.
+// Use scheduleRender("hexGrid"), scheduleRender("bossPile"), etc.
+// Direct render calls are still available for synchronous paths.
+const renderDirty = new Set();
+let renderRafId = 0;
+
+function scheduleRender(...types) {
+  for (const t of types) renderDirty.add(t);
+  if (!renderRafId) renderRafId = requestAnimationFrame(flushRenders);
+}
+
+function flushRenders() {
+  renderRafId = 0;
+  const pending = new Set(renderDirty);
+  renderDirty.clear();
+  if (pending.has("hexGrid")) renderBoardHexGrid();
+  if (pending.has("bossPile")) renderBossPile();
+}
 let infoDrawerClosingTimer = null;
 let compactModeTransitionTimer = null;
 let compactModeTransitionFrame = 0;
@@ -3420,7 +3439,7 @@ function bindGlobalControls() {
     toggleAllBossesCheckbox.addEventListener("change", () => {
       markDevQaCheck("all_bosses_toggle");
       state.useAllBosses = toggleAllBossesCheckbox.checked;
-      renderBossPile();
+      scheduleRender("bossPile");
       syncBossTileSetHeading();
       setStatus(
         state.useAllBosses
@@ -5980,8 +5999,7 @@ function mountBoardHexGrid() {
 }
 
 function scheduleBoardHexGridRender() {
-  if (boardHexRenderRaf) return;
-  boardHexRenderRaf = requestAnimationFrame(renderBoardHexGrid);
+  scheduleRender("hexGrid");
 }
 
 function getBoardHexThemeMetrics() {
@@ -5999,7 +6017,6 @@ function getBoardHexThemeMetrics() {
 }
 
 function renderBoardHexGrid() {
-  boardHexRenderRaf = 0;
   const svg = boardHexSvg?.isConnected ? boardHexSvg : getBoardContentLayer().querySelector(".board-hex-grid");
   if (!svg) return;
   boardHexSvg = svg;
