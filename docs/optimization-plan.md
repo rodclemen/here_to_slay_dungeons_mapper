@@ -99,12 +99,7 @@
 
 ### 12. Split custom tileset storage by platform
 
-`custom-tileset-storage.js` (433 lines) handles both IndexedDB (browser) and Tauri filesystem paths. Splitting into:
-
-- `custom-tileset-storage-idb.js` — browser-only IndexedDB logic
-- `custom-tileset-storage-tauri.js` — Tauri folder I/O
-
-Would simplify each path and make testing easier.
+~~`custom-tileset-storage.js` (433 lines) handles both IndexedDB (browser) and Tauri filesystem paths. Splitting into browser-only and folder-based backends would simplify each path and make testing easier.~~ **Done (2026-04-12).** Split into three files: `custom-tileset-storage-idb.js` (IndexedDB backend, 155 lines), `custom-tileset-storage-folder.js` (Tauri data-folder backend, 183 lines), and `custom-tileset-storage.js` (thin router, 96 lines). Each backend is self-contained. The router's exported API is unchanged — no consumer modifications needed.
 
 ---
 
