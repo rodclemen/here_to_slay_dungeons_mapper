@@ -3285,7 +3285,7 @@ body.boss-edit-mode .boss-card:active {
     transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(var(--scale, 1));
   }
   30% {
-    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) - 140px)) rotate(0deg) scale(calc(var(--scale, 1) * 1.04));
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) - 140px)) rotate(var(--rot)) scale(calc(var(--scale, 1) * 1.04));
   }
   100% {
     transform: translate(
