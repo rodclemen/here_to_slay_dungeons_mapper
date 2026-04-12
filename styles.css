@@ -3263,13 +3263,13 @@ body.boss-edit-mode .boss-card:active {
 .boss-card.boss-card-cycling-out {
   pointer-events: none;
   z-index: 102 !important;
-  animation: boss-card-cycle-out 320ms cubic-bezier(0.25, 0.75, 0.3, 1) forwards;
+  animation: boss-card-cycle-out 480ms cubic-bezier(0.25, 0.75, 0.3, 1) forwards;
 }
 
 .boss-card.boss-card-cycling-in {
   pointer-events: none;
   z-index: 101 !important;
-  animation: boss-card-cycle-in 320ms cubic-bezier(0.25, 0.75, 0.3, 1) forwards;
+  animation: boss-card-cycle-in 480ms cubic-bezier(0.25, 0.75, 0.3, 1) forwards;
 }
 
 .boss-pile.is-cycling.is-cycle-mid .boss-card.boss-card-cycling-out {
@@ -3284,8 +3284,22 @@ body.boss-edit-mode .boss-card:active {
   0% {
     transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(var(--scale, 1));
   }
+  15% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) - 80px)) rotate(calc(var(--rot) * 0.5)) scale(calc(var(--scale, 1) * 1.02));
+  }
   30% {
-    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) - 140px)) rotate(var(--rot)) scale(calc(var(--scale, 1) * 1.04));
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) - 140px)) rotate(0deg) scale(calc(var(--scale, 1) * 1.04));
+  }
+  38% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) - 140px)) rotate(0deg) scale(calc(var(--scale, 1) * 1.04));
+  }
+  55% {
+    transform: translate(
+        calc(-50% + var(--cycle-target-dx, var(--dx))),
+        calc(-50% + var(--cycle-target-dy, var(--dy)) - 40px)
+      )
+      rotate(calc(var(--cycle-target-rot, var(--rot)) * 0.5))
+      scale(var(--cycle-target-scale, var(--scale, 1)));
   }
   100% {
     transform: translate(
