@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-12
+- Updated README to match current project state: added documentation for PDF export, in-app changelog, download page, and a new Desktop App & Downloads section; updated the project structure tree with all new files (changelog.html, download.html, pdf-export.html, PHP scripts, build scripts, docs folder, QA bridge); fixed the entrance tile rotation from incorrect 90° to actual 60° steps and corrected the locked-rotation limitation to describe reset-on-placement behavior.
 - Added a dedicated in-app/public `changelog.html` page, wired the Guide and Download version surfaces into it, and changed the MacOS App path to navigate directly to the changelog page instead of relying on `_blank`, which was not reliably opening there.
 - Added build-time changelog rendering in `scripts/build-tauri-web.mjs` so the published/app-bundled changelog page no longer depends on fetching `CHANGELOG.md` at runtime, and added a visible `Version v0.8.0` release header at the top of the page.
 - Added single-source version syncing from `package.json` into `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` through `scripts/sync-version.mjs`, then hooked that sync into the web build so the web app and MacOS App stay aligned automatically.
