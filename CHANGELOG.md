@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-12
+- Added a visible colored hexagonal "Missing" placeholder for failed tile image loads, replacing the previous invisible 1px transparent PNG. Also added `onerror` handlers on tile `<img>` elements so runtime failures (e.g. revoked blob URLs) swap to the placeholder, and a status warning reports how many tiles failed to load. This is optimization plan item #4.
 - Hardened the Tauri filesystem commands: `normalized_path` now rejects relative paths and `..` traversal segments across all filesystem IPC commands (save, read, write, ensure_dir, remove_path, list_dir, path_exists). Added a 100 MB decompression output cap to `inflate_raw_deflate` to prevent zip bombs from exhausting memory. This is optimization plan items #10 and #11.
 - Added a unified render scheduler with dirty-flag RAF coalescing (`scheduleRender`). Converted all 8 `renderBossPile` calls in `boss-management.js` and the all-bosses toggle handler to use the scheduled variant. Migrated `scheduleBoardHexGridRender` to the same system. Eliminates redundant re-renders when multiple state changes fire in the same frame. This is optimization plan item #7.
 - Added `esbuild` as a devDependency so JS/CSS minification runs on every Tauri build instead of being silently skipped. Shipped asset size drops from 664 KB to 368 KB (44.6% reduction). This is optimization plan item #1.

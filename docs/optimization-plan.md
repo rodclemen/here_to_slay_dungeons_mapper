@@ -38,7 +38,7 @@
 
 ### 4. Add fallback for failed tile image loads
 
-If a tile PNG fails to load (corrupt file, missing custom asset), placement silently breaks. Show a colored placeholder tile + a warning badge on the tile set selector.
+~~If a tile PNG fails to load (corrupt file, missing custom asset), placement silently breaks. Show a colored placeholder tile + a warning badge on the tile set selector.~~ **Done (2026-04-12).** Visible hex-shaped "Missing" SVG placeholder replaces the 1px transparent PNG. `onerror` handlers on tile `<img>` elements catch runtime failures. Status bar reports failed tile count.
 
 ---
 
