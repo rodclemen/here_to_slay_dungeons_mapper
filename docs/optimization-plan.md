@@ -26,7 +26,7 @@
 
 ### 1. Add JS/CSS minification to the Tauri build
 
-`app.js` is 379 KB unminified; `styles.css` is 95 KB. Running `terser` + `clean-css` (or `esbuild`) as a post-copy step in `build-tauri-web.mjs` would cut ~40-50% off the shipped size with zero impact on the dev workflow.
+~~`app.js` is 379 KB unminified; `styles.css` is 95 KB. Running `terser` + `clean-css` (or `esbuild`) as a post-copy step in `build-tauri-web.mjs` would cut ~40-50% off the shipped size with zero impact on the dev workflow.~~ **Done (2026-04-12).** Added `esbuild` as a devDependency. Build now minifies 28 JS/CSS files: 664 KB → 368 KB (44.6% smaller).
 
 ### 2. Remove the "Save as PDF" instruction text from export
 
@@ -70,13 +70,13 @@ function scheduleRender(...types) {
 
 ### 8. Add unit tests for geometry & contact analysis
 
-The most complex (and most breakable) logic lives in `geometry-utils.js`, `contact-analysis.js`, and `tile-pose.js`. A minimal test suite (~100 cases) covering:
+~~The most complex (and most breakable) logic lives in `geometry-utils.js`, `contact-analysis.js`, and `tile-pose.js`. A minimal test suite (~100 cases) covering:~~
 
-- `dist()`, `boundsOverlap()`, `pointInPolygonStrict()`
-- `findBestContact()` edge cases (flush, offset, rotated)
-- `isWorldPointOnOpaquePixel()` boundary conditions
+~~- `dist()`, `boundsOverlap()`, `pointInPolygonStrict()`~~
+~~- `findBestContact()` edge cases (flush, offset, rotated)~~
+~~- `isWorldPointOnOpaquePixel()` boundary conditions~~
 
-Use Vitest or plain Node `assert` — no framework dependency needed.
+~~Use Vitest or plain Node `assert` — no framework dependency needed.~~ **Done (2026-04-12).** 71 tests across `geometry-utils.js`, `contact-analysis.js`, `tile-pose.js`, and `board-math.js` using Node's built-in `node:test` + `node:assert` — zero new dependencies. Run with `npm test`.
 
 ### 9. Use event delegation for tile interactions
 
@@ -161,8 +161,8 @@ Playwright or Cypress tests for critical flows:
 1. ~~CSP hardening (#3) — 30 min, high safety value~~ **Done**
 2. ~~Wall editor extraction (#5) — biggest readability win~~ **Done**
 3. ~~Tile placement extraction (#6) — second biggest readability win~~ **Done**
-4. Geometry unit tests (#8) — safety net for refactoring
-5. Minification (#1) — easy shipping size reduction
+4. ~~Geometry unit tests (#8) — safety net for refactoring~~ **Done**
+5. ~~Minification (#1) — easy shipping size reduction~~ **Done**
 6. Render batching (#7) — cleaner code + fewer re-renders
 7. Tauri filesystem scoping (#10, #11) — security hardening
 8. Everything else as time allows
