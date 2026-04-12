@@ -82,6 +82,10 @@ body:not(.tauri-mode) .tauri-only {
   display: none !important;
 }
 
+body.tauri-mode .web-only {
+  display: none !important;
+}
+
 body.dev-mode .dev-only {
   --dev-accent: #2f9e44;
   --dev-accent-soft: rgba(47, 158, 68, 0.12);
@@ -1168,6 +1172,9 @@ button:hover {
 
 .drawer-right .drawer-content {
   padding-top: 40px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .drawer-toolbar {
@@ -1228,6 +1235,52 @@ button:hover {
   display: grid;
   gap: 10px;
   min-height: 0;
+}
+
+.drawer-download-entry {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--border-strong);
+  text-decoration: none;
+  align-self: flex-start;
+  padding: 0 2px 2px 2px;
+}
+
+.drawer-download-entry:hover,
+.drawer-download-entry:focus-visible {
+  outline: none;
+  color: var(--accent);
+}
+
+.drawer-download-entry-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: currentColor;
+  -webkit-mask-image: url("./icons/download.png");
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-image: url("./icons/download.png");
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+
+.drawer-download-entry-copy {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.drawer-download-entry-copy strong {
+  font-size: 0.82rem;
+  line-height: 1.2;
+  font-weight: 500;
 }
 
 body.left-drawer-collapsed .workspace {
@@ -4229,6 +4282,10 @@ body.compact-sidepanel-mode .drawer-right #placed-progress {
 body.compact-sidepanel-mode .drawer-right #right-drawer-content {
   display: grid !important;
   gap: 6px;
+}
+
+body.compact-sidepanel-mode .drawer-download-entry {
+  display: none;
 }
 
 body.compact-sidepanel-mode .drawer-right .selected-tiles-section,

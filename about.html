@@ -190,6 +190,36 @@
       text-transform: uppercase;
     }
 
+    .hero-meta-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .hero-version {
+      color: var(--about-muted);
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .hero-version-link {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .hero-version-link:hover,
+    .hero-version-link:focus-visible {
+      color: var(--about-accent-strong);
+      text-decoration: underline;
+      outline: none;
+    }
+
     h1, h2, h3 {
       margin: 0 0 12px;
       line-height: 1.15;
@@ -452,6 +482,14 @@
       .donate {
         padding: 16px;
       }
+
+      .hero-meta-row {
+        align-items: flex-start;
+      }
+
+      .hero-version {
+        text-align: left;
+      }
     }
   </style>
 </head>
@@ -482,7 +520,12 @@
         <img class="hero-image" src="./Graphics/about_banner.png" alt="Here to Slay: DUNGEONS Mapper hero graphic" />
       </div>
       <div class="hero-copy">
-        <div class="eyebrow">Guide</div>
+        <div class="hero-meta-row">
+          <div class="eyebrow">Guide</div>
+          <div class="hero-version">
+            <a class="hero-version-link" href="./changelog.html" target="_blank" rel="noopener">v__APP_VERSION__</a>
+          </div>
+        </div>
         <h1>Here to Slay: DUNGEONS Mapper</h1>
         <p class="lead">This app is a dungeon layout builder for <em>Here to Slay: DUNGEONS</em>. It lets you place tiles on a hex board, test valid layouts, auto-generate complete dungeons, and add bosses before needing to wrestle with the physical tiles.</p>
         <p class="muted">The current tile, reference-card, and boss-card images should be treated as provisional stand-ins, not final released graphics. Right now the focus is on getting the rules, metadata, and overall framework solid so the official art can be swapped in cleanly as it becomes available.</p>
@@ -611,7 +654,7 @@
           <p><strong>Auto Build: Default Mode</strong> is enabled by default and keeps the dungeon in the lower part of the board, below the entrance tile. Turn it off in Advanced Tools if you want the dungeon to expand freely in any direction.</p>
         </div>
         <div class="hero-image-wrap section-media-plain">
-          <img class="hero-image ratio-16x9" src="./Graphics/auto_build.gif" alt="Animated Auto Build preview" />
+          <img class="hero-image" src="./Graphics/auto_build.gif" alt="Animated Auto Build preview" />
         </div>
       </div>
       <div class="callout">
@@ -878,6 +921,7 @@
     const guideSearchInput = document.getElementById("guide-search-input");
     const guideSearchClearBtn = document.getElementById("guide-search-clear");
     const donateBtn = document.getElementById("donate-btn");
+    const heroVersionLink = document.querySelector(".hero-version-link");
     const guideThemeStorageKeys = new Set([
       APPEARANCE_MODE_STORAGE_KEY,
       LAST_DARK_UI_THEME_STORAGE_KEY,
@@ -923,6 +967,15 @@
       if (!guideSearchInput) return;
       guideSearchInput.focus();
       guideSearchInput.select();
+    }
+
+    function bindChangelogLink() {
+      if (!heroVersionLink) return;
+      heroVersionLink.addEventListener("click", (event) => {
+        if (typeof window.__TAURI__?.core?.invoke !== "function") return;
+        event.preventDefault();
+        window.location.href = heroVersionLink.href;
+      });
     }
 
     function openDonateLink() {
@@ -1007,6 +1060,8 @@
         focusGuideSearch();
       });
     }
+
+    bindChangelogLink();
 
     if (donateBtn) {
       donateBtn.addEventListener("click", async () => {

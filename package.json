@@ -1,9 +1,11 @@
 {
   "name": "here-to-slay-dungeon-mapper",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "private": true,
   "description": "A browser-first Here to Slay DUNGEONS mapper with an optional Tauri desktop shell.",
   "scripts": {
+    "sync:version": "node scripts/sync-version.mjs",
+    "prebuild:tauri-web": "npm run sync:version",
     "build:tauri-web": "node scripts/build-tauri-web.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

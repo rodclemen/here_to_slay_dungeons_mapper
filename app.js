@@ -105,10 +105,6 @@ import {
   saveStoredCustomTileSetBundle,
 } from "./modules/custom-tileset-storage.js";
 import {
-  readCustomTileSetFolderBundle,
-  saveCustomTileSetFolderBundle,
-} from "./modules/custom-tileset-folder.js";
-import {
   createZipArchive,
 } from "./modules/zip-reader.js";
 import {
@@ -128,7 +124,6 @@ import {
 } from "./modules/custom-tileset-package.js";
 import {
   chooseDataFolder,
-  chooseFolderPath,
   ensureDataFolderPath,
   getStoredDataFolderPath,
   hasAnyDataFolderContent,
@@ -361,7 +356,7 @@ const DEFAULT_GUIDE_POINT_TEMPLATES = {
     { x: 74.81929076646703, y: 64.5865629431882 },
     { x: 38.098728908822864, y: 65.70585679355261 },
     { x: 18.80232355037274, y: 97.9954982246699 },
-    { x: -18.802323550372726, y: 98.63859032993305 },
+    { x: -18.802323550372726, y: 97.30525699659972 },
     { x: -38.098728908822864, y: 65.06276468828945 },
     { x: -74.81929076646703, y: 65.22965504845136 },
     { x: -94.09087175967744, y: 32.531730806071785 },
@@ -376,20 +371,20 @@ const DEFAULT_GUIDE_POINT_TEMPLATES = {
     { x: 94.54072656025308, y: -32.612117319229725 },
   ],
   entrance: [
-    { x: 78.64467798277255, y: -4.966338796979687 },
-    { x: 98.06049607463241, y: 28.096171303214625 },
-    { x: 77.5508989096908, y: 62.41853720733497 },
-    { x: 39.76865519487847, y: 62.563994952528745 },
-    { x: 19.20312094852766, y: 95.4967284889092 },
-    { x: -18.890839588333314, y: 95.82747248881667 },
-    { x: -39.41174730014163, y: 61.92090284726559 },
-    { x: -77.5508989096908, y: 62.41853720733497 },
-    { x: -97.41740396936925, y: 28.096171303214625 },
-    { x: -78.0015858775094, y: -4.3232466917165295 },
-    { x: -96.96779081518923, y: -38.02036980811189 },
-    { x: -96.96779081518923, y: -94.82832771368953 },
-    { x: 96.96779081518923, y: -94.82832771368955 },
-    { x: 96.96779081518923, y: -38.02036980811189 },
+    { x: 77.97801131610588, y: -6.966338796979686 },
+    { x: 97.39382940796574, y: 25.42950463654796 },
+    { x: 77.63944057635747, y: 59.81437054066831 },
+    { x: 39.888446861545134, y: 60.04316161919541 },
+    { x: 19.869787615194326, y: 93.4967284889092 },
+    { x: -19.140839588333314, y: 93.66861832215 },
+    { x: -39.41174730014163, y: 59.92090284726559 },
+    { x: -78.21756557635747, y: 60.41853720733497 },
+    { x: -98.08407063603592, y: 26.096171303214625 },
+    { x: -77.33491921084273, y: -8.323246691716529 },
+    { x: -98.30112414852256, y: -42.68703647477855 },
+    { x: -97.6344574818559, y: -94.16166104702286 },
+    { x: 98.13445748185589, y: -94.00541104702287 },
+    { x: 98.30112414852256, y: -41.35370314144522 },
   ],
 };
 const DRAWER_STATE_STORAGE_KEY = "hts_drawer_state_v1";
@@ -991,19 +986,6 @@ async function importCustomTileSetPackage(file) {
   await importCustomTileSetBundle(rawBundle);
 }
 
-async function importCustomTileSetFolder(folderPath) {
-  if (!folderPath) return;
-  const folderName = String(folderPath).split(/[\\/]/).filter(Boolean).at(-1) || folderPath;
-  setStatus(`Importing custom tileset from ${folderName}...`);
-  const rawBundle = await readCustomTileSetFolderBundle(folderPath, {
-    tileIds: TILE_IDS,
-    entranceTileId: ENTRANCE_TILE_ID,
-    referenceCardId: REFERENCE_CARD_ID,
-    builtInTileSetIds: new Set(BUILT_IN_TILE_SET_REGISTRY.map((tileSet) => tileSet.id)),
-  });
-  await importCustomTileSetBundle(rawBundle);
-}
-
 async function importCustomTileSetBundle(rawBundle) {
   let importBundle = rawBundle;
   const importedLabel = rawBundle?.manifest?.label || rawBundle?.manifest?.id || "";
@@ -1058,26 +1040,6 @@ async function importCustomTileSetBundle(rawBundle) {
       ? `Imported custom tileset as a new copy: ${bundle.manifest.label}.`
       : `Imported custom tileset: ${bundle.manifest.label}.`,
   );
-}
-
-async function openTileSetFolderImportPicker() {
-  if (IS_TAURI_RUNTIME) {
-    const hasFolder = await ensureDataFolderPath({ promptIfMissing: false });
-    if (!hasFolder) {
-      const configured = await promptForDataFolderSelection({
-        title: "Choose a Data Folder",
-        message: "Importing custom tile sets needs a data folder first. Choose one now, or skip for now and the import will be canceled.",
-        resumeAction: "open-custom-tileset-folder-import",
-      });
-      if (!configured) return;
-    }
-  }
-  const folderPath = await chooseFolderPath(getStoredDataFolderPath(), { title: "Open Tile Set Folder" });
-  if (!folderPath) {
-    setStatus("Tile set folder import canceled.");
-    return;
-  }
-  await importCustomTileSetFolder(folderPath);
 }
 
 async function openCustomTileSetImportPicker() {
@@ -1352,36 +1314,6 @@ async function exportCustomTileSet(tileSetId) {
   downloadBlob(archive, filename);
   markCustomTileSetBackedUp(tileSetId);
   setStatus(`Exported custom tile set: ${tileSet.label}.`);
-}
-
-async function saveCustomTileSetAsFolder(tileSetId, folderPath = "") {
-  const tileSet = getTileSetConfig(tileSetId);
-  if (!tileSet || tileSet.source !== "custom") {
-    setStatus("Only custom tile sets can be saved as folders.", true);
-    return;
-  }
-  if (!folderPath) {
-    setStatus("Tile set folder save canceled.");
-    return;
-  }
-
-  const bundle = await getStoredCustomTileSetBundle(tileSetId);
-  if (!bundle?.manifest) {
-    throw new Error(`Could not find stored custom tileset: ${tileSetId}`);
-  }
-  if (!bundle.assets?.length) {
-    throw new Error("This custom tile set has no stored images to export yet.");
-  }
-
-  const { manifest } = buildExportedCustomTileSetManifest(bundle.manifest, bundle.assets);
-  const wallEditorData = buildExportedWallEditorData(tileSet);
-  await saveCustomTileSetFolderBundle(folderPath, {
-    manifest,
-    assetEntries: bundle.assets,
-    wallEditorData,
-  });
-  markCustomTileSetBackedUp(tileSetId);
-  setStatus(`Saved ${tileSet.label} to ${folderPath}.`);
 }
 
 function markCustomTileSetBackupNeeded(tileSetId) {
@@ -2654,10 +2586,6 @@ async function resumePendingDataFolderAction() {
   if (!pendingAction) return false;
   if (pendingAction === "open-custom-tileset-import") {
     await openCustomTileSetImportPicker();
-    return true;
-  }
-  if (pendingAction === "open-custom-tileset-folder-import") {
-    await openTileSetFolderImportPicker();
     return true;
   }
   return false;
