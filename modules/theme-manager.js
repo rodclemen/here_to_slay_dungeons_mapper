@@ -279,10 +279,12 @@ export function applyUiTheme(uiThemeId, ctx) {
 }
 
 function syncThemeColorMeta() {
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (!meta) return;
-  const bg = getComputedStyle(document.body).getPropertyValue("--bg").trim();
-  if (bg) meta.setAttribute("content", bg);
+  requestAnimationFrame(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    const bg = getComputedStyle(document.body).getPropertyValue("--bg").trim();
+    if (bg) meta.setAttribute("content", bg);
+  });
 }
 
 export function applyAppearanceMode(mode, ctx, { showStatus = true, save = true } = {}) {
