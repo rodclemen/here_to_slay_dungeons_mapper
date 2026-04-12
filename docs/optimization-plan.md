@@ -134,7 +134,7 @@ Playwright or Cypress tests for critical flows:
 
 ### 15. Tile image caching
 
-`applyTileSet()` reloads all tile images from disk on every tile set switch. Adding an `imageCache: Map<src, HTMLImageElement>` would eliminate redundant loads when switching back to a previously used set.
+~~`applyTileSet()` reloads all tile images from disk on every tile set switch. Adding an `imageCache: Map<src, HTMLImageElement>` would eliminate redundant loads when switching back to a previously used set.~~ **Done (2026-04-12).** `loadImage()` in `assets.js` already cached Image elements. Added `tileGeometryCache` Map in `app.js` to cache the expensive derived data (`getOpaqueBounds`, `getAlphaMask`, `getFaceGeometry`) keyed by image src. Switching back to a previously loaded tile set now skips all geometry recomputation. Cache self-invalidates when the underlying Image element changes (custom tile set asset replacement).
 
 ---
 

@@ -2723,6 +2723,9 @@ async function init() {
   await resumePendingDataFolderAction();
 }
 
+/** Caches derived tile geometry (shape, alphaMask, faceGeometry) keyed by image src. */
+const tileGeometryCache = new Map();
+
 async function loadTiles(tileSetId = state.selectedTileSetId) {
   const defs = buildTileDefs(tileSetId);
   state.tileDefs = defs;
@@ -2745,9 +2748,18 @@ async function loadTiles(tileSetId = state.selectedTileSetId) {
         def.imageLoadFailed = true;
       }
     }
-    const shape = getOpaqueBounds(img);
-    const alphaMask = getAlphaMask(img);
-    const faceGeometry = getFaceGeometry(img, SIDES);
+    const cacheKey = def.imageSrc;
+    let cached = tileGeometryCache.get(cacheKey);
+    if (!cached || cached.img !== img) {
+      cached = {
+        img,
+        shape: getOpaqueBounds(img),
+        alphaMask: getAlphaMask(img),
+        faceGeometry: getFaceGeometry(img, SIDES),
+      };
+      tileGeometryCache.set(cacheKey, cached);
+    }
+    const { shape, alphaMask, faceGeometry } = cached;
 
     return {
       ...def,
