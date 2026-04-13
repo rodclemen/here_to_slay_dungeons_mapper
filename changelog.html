@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <style>
       :root {
-        color-scheme: light;
+        color-scheme: light dark;
       }
 
       body.changelog-page {
@@ -184,6 +184,12 @@
     </style>
   </head>
   <body class="changelog-page">
+    <script>
+      try {
+        const themeId = localStorage.getItem("hts_ui_theme_v1");
+        if (themeId) document.body.classList.add("ui-theme-" + themeId.replace(/_/g, "-"));
+      } catch {}
+    </script>
     <main class="changelog-page-shell">
       <div class="changelog-topbar">
         <div class="changelog-title-wrap">
@@ -191,7 +197,6 @@
           <p>Detailed release notes for the mapper web app and MacOS App.</p>
         </div>
         <div class="changelog-actions">
-          <div class="changelog-version">v__APP_VERSION__</div>
           <a class="changelog-back-link" href="./about.html">Back to Guide</a>
         </div>
       </div>

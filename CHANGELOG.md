@@ -26,11 +26,6 @@
 
 ## v0.8.0
 ### Initial release
-- First public release of the Here to Slay: DUNGEONS Mapper for web and MacOS App.
-- Added the core dungeon-building workflow with legal tile placement checks, Auto Build generation, boss-card support, PDF export, and share-link export/import.
-- Added the full Tile Editor workflow for wall faces, end-tile flags, portal markers, guide-point editing, and custom tile set creation/import/export.
-- Added the MacOS App with persisted window state, local data-folder support, desktop save/export flows, and an in-app Guide page.
-- Added dedicated Guide, Download, and Changelog pages, plus version syncing so the web app and MacOS App stay aligned from `package.json`.
 
 ## 2026-04-11
 - Continued the stale-code cleanup in Tile Editor and persistence copy: renamed the old local-export action away from `backup` wording, switched leftover `endpoint` text to `dead-end` / `end-tile` wording, updated built-in local-data notices and dev-only docs to say `Export Debug Walls JSON` / `Import Debug Walls JSON`, and replaced a few leftover extraction comments with plain descriptions of which Tile Editor helpers now live in `modules/wall-editor-ui.js`.
