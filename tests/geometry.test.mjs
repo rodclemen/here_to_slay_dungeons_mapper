@@ -16,6 +16,7 @@ import {
   getContinuityFaceIndexMap,
   getBestOrderedMatchedPairs,
   getMatchAlignmentCorrection,
+  findBestContact,
 } from "../modules/contact-analysis.js";
 
 import { buildInsetPolygon } from "../modules/tile-pose.js";
@@ -373,6 +374,46 @@ describe("getMatchAlignmentCorrection", () => {
     const withGap = getMatchAlignmentCorrection(match, 2);
     assert.ok(withGap);
     assert.ok(Math.abs(withGap.dx - 8) < 0.01);
+  });
+});
+
+describe("findBestContact", () => {
+  it("counts connected faces across all touching neighbors for end-tile checks", () => {
+    const tile = { tileId: "tile_01", allowAsEndTile: false };
+    const otherTiles = [{ tileId: "a" }, { tileId: "b" }];
+    const matchById = {
+      a: {
+        count: 4,
+        matchedPairs: [{ i: 0, j: 0 }, { i: 1, j: 1 }],
+        touchingFaceIndices: [0, 1],
+      },
+      b: {
+        count: 4,
+        matchedPairs: [{ i: 2, j: 0 }, { i: 3, j: 1 }],
+        touchingFaceIndices: [2, 3],
+      },
+    };
+
+    const result = findBestContact(
+      tile,
+      otherTiles,
+      { enforceEndTileRule: true, enforcePortalSpacing: false },
+      {
+        enforceEndTileMaxConnectedFaces: 3,
+        minContactPoints: 4,
+        hasPortalFlag: () => false,
+        isTouchingMoltenEntranceBlockedPoints: () => false,
+        getContactMatchDetails: (subject, other) => {
+          assert.equal(subject, tile);
+          return matchById[other.tileId];
+        },
+      },
+    );
+
+    assert.equal(result.connectedFaceCount, 4);
+    assert.equal(result.isEndTileCandidate, false);
+    assert.equal(result.endTileDisallowed, false);
+    assert.equal(result.valid, true);
   });
 });
 
