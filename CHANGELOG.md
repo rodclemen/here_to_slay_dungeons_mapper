@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-13
+- Rewrote the hex grid lighting model from rotation-based directional falloff to a simpler axis-based system using upwardness/downwardness/sidewaysness. Light no longer depends on entrance tile rotation — it fades naturally upward (darker faster) and downward (lighter longer) from the entrance anchor, with horizontal spread softening. Replaced 3 old constants with 4 new tuning constants.
+- Removed Safari theme-color meta tags and the `syncThemeColorMeta()` function. After five commits of iteration, the conclusion was that `<meta name="theme-color">` doesn't work well enough on macOS Safari to justify the code. The `<meta name="color-scheme">` tag remains.
+- Moved the theme selector from the Advanced Tools menu into the light/dark/system appearance mode dropdown. When auto theme is off, clicking the sun/moon icon now shows mode options and theme options separated by a divider. The selected theme is highlighted bold with the accent color. The old theme menu in Advanced Tools is permanently hidden.
+- Swapped the Guide and Tile Editor button positions in the topbar.
+
 ## 2026-04-12
 - Fixed and refined boss pile cycle animation in all-bosses mode. The top card was jumping behind the stack before animating because an inline `z-index: 0` JS override was fighting the CSS. Removed the inline override, bumped cycling z-index values above 100 so the card stays on top regardless of pile size, and reworked the animation: extended from 320ms to 480ms with 6 keyframes (smooth lift with gradual rotation to 0deg at peak, brief hold, then descend to target). The z-index drop to behind the pile now fires at 33% to land precisely at the animation peak.
 - Replaced per-tile event listeners with delegated handlers on `board`, `tray`, and `reservePile`. Each tile creation previously attached 8 listeners (pointerdown, click, mouseenter, mouseleave, dragstart, rotate buttons); now `createTileElement` attaches only 1 (img error fallback). For 10 tiles, that's ~80 runtime listeners replaced by 11 static delegated ones. Reserve pile card listeners are also delegated. Uses `mouseover`/`mouseout` with `relatedTarget` containment checks for correct hover delegation. This is optimization plan item #9.
