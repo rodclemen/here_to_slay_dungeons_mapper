@@ -296,7 +296,7 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
 }
 
 .about-link-btn {
-  order: 110;
+  order: 120;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -319,7 +319,7 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
 }
 
 .topbar-editor-btn {
-  order: 120;
+  order: 110;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -424,6 +424,17 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   display: none !important;
 }
 
+.appearance-mode-divider {
+  height: 1px;
+  background: var(--menu-border);
+  margin: 3px 6px;
+}
+
+.appearance-mode-dropdown .ui-theme-option {
+  font-size: 0.78rem;
+  border-radius: 8px;
+}
+
 .quick-actions-dropdown {
   position: absolute;
   top: calc(100% + 6px);
@@ -503,7 +514,8 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
 }
 
 .ui-theme-option.is-selected {
-  font-weight: 300;
+  font-weight: bold;
+  color: var(--accent);
 }
 
 .actions button,

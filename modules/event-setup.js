@@ -451,12 +451,21 @@ export function bindGlobalControls(ctx) {
       setAppearanceModeMenuOpen(shouldOpen);
     });
     appearanceModeDropdown.addEventListener("click", (event) => {
-      const option = event.target.closest("[data-appearance-mode]");
-      if (!option) return;
-      const nextMode = option.dataset.appearanceMode || DEFAULT_APPEARANCE_MODE;
-      markDevQaCheck("appearance_mode_change", { detail: nextMode });
-      applyAppearanceMode(nextMode);
-      setAppearanceModeMenuOpen(false);
+      const modeOption = event.target.closest("[data-appearance-mode]");
+      if (modeOption) {
+        const nextMode = modeOption.dataset.appearanceMode || DEFAULT_APPEARANCE_MODE;
+        markDevQaCheck("appearance_mode_change", { detail: nextMode });
+        applyAppearanceMode(nextMode);
+        setAppearanceModeMenuOpen(false);
+        return;
+      }
+      const themeOption = event.target.closest("[data-ui-theme]");
+      if (themeOption) {
+        const nextUiThemeId = themeOption.dataset.uiTheme || DEFAULT_UI_THEME_ID;
+        uiThemeSelect.value = nextUiThemeId;
+        uiThemeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        setAppearanceModeMenuOpen(false);
+      }
     });
   }
   if (quickActionsTrigger && quickActionsDropdown) {

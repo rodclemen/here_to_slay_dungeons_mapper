@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Here to Slay: DUNGEONS Mapper</title>
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f3ece3" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1a1310" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" href="./icons/d20.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -107,7 +105,7 @@
               </details>
             </div>
           </details>
-          <button id="toggle-wall-edit-btn" class="topbar-editor-btn" type="button">Tile Editor</button>
+          <a class="about-link-btn" href="./about.html" aria-label="Open Guide">Guide</a>
           <div class="quick-actions-menu" id="quick-actions-menu">
             <button
               id="quick-actions-trigger"
@@ -131,7 +129,7 @@
               <button id="export-pdf-btn" class="quick-action-option" type="button" role="menuitem">Export PDF</button>
             </div>
           </div>
-          <a class="about-link-btn" href="./about.html" aria-label="Open Guide">Guide</a>
+          <button id="toggle-wall-edit-btn" class="topbar-editor-btn" type="button">Tile Editor</button>
           <input id="import-wall-data-input" type="file" accept="application/json" hidden />
           <input id="import-custom-tileset-input" type="file" accept=".zip,application/zip" hidden />
         </div>

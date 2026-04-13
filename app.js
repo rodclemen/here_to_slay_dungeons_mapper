@@ -2123,9 +2123,10 @@ const DRAG_EDGE_AUTO_PAN_MAX_SPEED = 4.5;
 const COMPACT_SIDE_PANEL_MAX_WIDTH = 980;
 const TRAY_SLOT_COUNT = 6;
 const REGULAR_TILE_SLOT_COUNT = TILE_IDS.length;
-const HEX_FRONT_LIGHT_BONUS_HEXES = 2.5;
-const HEX_BACK_LIGHT_REDUCTION_HEXES = 1.1;
-const HEX_BACK_DARKEN_BIAS = 0.14;
+const ENTRANCE_LIGHT_UPWARD_FALLOFF = 0.24;
+const ENTRANCE_LIGHT_DOWNWARD_REACH = 1.18;
+const ENTRANCE_LIGHT_UPWARD_DARK_BIAS = 0.26;
+const ENTRANCE_LIGHT_SIDE_SPREAD_SOFTEN = 0.18;
 const DEFAULT_BOARD_ZOOM = 1;
 const BOARD_ZOOM_STEP = 0.01;
 const BOARD_WHEEL_ZOOM_SENSITIVITY = 0.0006;
@@ -4910,10 +4911,6 @@ function renderBoardHexGrid() {
       && Number.isFinite(fadeAnchor.x)
       && Number.isFinite(fadeAnchor.y),
   );
-  const entranceTile = state.tiles.get(ENTRANCE_TILE_ID);
-  const entranceRotation = hasEntranceAnchor && entranceTile
-    ? normalizeAngle(entranceTile.rotation || 0)
-    : 0;
   const renderKey = [
     drawW,
     drawH,
@@ -4924,14 +4921,9 @@ function renderBoardHexGrid() {
     hasEntranceAnchor ? "1" : "0",
     hasEntranceAnchor ? fadeAnchor.x.toFixed(3) : "0",
     hasEntranceAnchor ? fadeAnchor.y.toFixed(3) : "0",
-    entranceRotation.toFixed(3),
   ].join("|");
   if (renderKey === boardHexLastRenderKey) return;
   boardHexLastRenderKey = renderKey;
-  const entranceRotationRad = (entranceRotation * Math.PI) / 180;
-  // Default opening direction points down the board; rotate it with entrance rotation.
-  const openingDirX = -Math.sin(entranceRotationRad);
-  const openingDirY = Math.cos(entranceRotationRad);
   const fadeAnchorScreenX = hasEntranceAnchor ? fadeAnchor.x * zoom : w / 2;
   const fadeAnchorScreenY = hasEntranceAnchor ? fadeAnchor.y * zoom : h / 2;
   const maxDistScreen = Math.max(
@@ -4968,25 +4960,28 @@ function renderBoardHexGrid() {
       if (screenY < -screenHexHeight || screenY > drawH + screenHexHeight) continue;
       const vx = screenX - fadeAnchorScreenX;
       const vy = screenY - fadeAnchorScreenY;
-      const distScreen = Math.hypot(vx, vy);
-      // Cave-opening light direction: default "front" points downward from entrance.
-      const dirDotOpening = distScreen > 1e-6
-        ? clamp((vx * openingDirX + vy * openingDirY) / distScreen, -1, 1)
-        : 1;
-      const frontness = Math.max(0, dirDotOpening);
-      const backness = Math.max(0, -dirDotOpening);
-      const directionalRangeAdjust =
-        layout.dx * zoom * (HEX_FRONT_LIGHT_BONUS_HEXES * frontness - HEX_BACK_LIGHT_REDUCTION_HEXES * backness);
+      const upwardness = hasEntranceAnchor ? clamp((-vy) / Math.max(layout.dy * zoom * 8, 1), 0, 1) : 0;
+      const downwardness = hasEntranceAnchor ? clamp(vy / Math.max(layout.dy * zoom * 10, 1), 0, 1) : 0;
+      const sidewaysness = hasEntranceAnchor
+        ? clamp(Math.abs(vx) / Math.max(layout.dx * zoom * 8, 1), 0, 1)
+        : 0;
+      const directionalDistScreen = Math.hypot(
+        vx * (1 + sidewaysness * ENTRANCE_LIGHT_SIDE_SPREAD_SOFTEN),
+        vy < 0
+          ? vy / ENTRANCE_LIGHT_UPWARD_FALLOFF
+          : vy / ENTRANCE_LIGHT_DOWNWARD_REACH,
+      );
       const localTargetDist = isDarkTheme
-        ? Math.max(1, darkestTargetDist * zoom + directionalRangeAdjust)
-        : Math.max(1, maxDistScreen + directionalRangeAdjust);
+        ? Math.max(1, darkestTargetDist * zoom)
+        : Math.max(1, maxDistScreen);
       const t = isDarkTheme
-        ? clamp(distScreen / localTargetDist, 0, 1)
-        : clamp(distScreen / localTargetDist, 0, 1);
+        ? clamp(directionalDistScreen / localTargetDist, 0, 1)
+        : clamp(directionalDistScreen / localTargetDist, 0, 1);
       // Keep full-hex "pixel" coloring while darkening cells toward edges.
       const mixExponent = isDarkTheme ? 0.8 : 1.25;
-      const directionalDarkBias = backness * HEX_BACK_DARKEN_BIAS;
-      const mix = clamp(Math.pow(t, mixExponent) + directionalDarkBias, 0, 1);
+      const upwardDarkBias = upwardness * ENTRANCE_LIGHT_UPWARD_DARK_BIAS;
+      const downwardLightRelief = downwardness * 0.08;
+      const mix = clamp(Math.pow(t, mixExponent) + upwardDarkBias - downwardLightRelief, 0, 1);
       const r = Math.round(lightRgb.r + (darkEndpoint.r - lightRgb.r) * mix);
       const g = Math.round(lightRgb.g + (darkEndpoint.g - lightRgb.g) * mix);
       const b = Math.round(lightRgb.b + (darkEndpoint.b - lightRgb.b) * mix);
