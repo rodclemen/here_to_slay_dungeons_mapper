@@ -1,5 +1,11 @@
+const IMAGE_CACHE_MAX = 150;
 const imageExistsCache = new Map();
 const imageLoadCache = new Map();
+
+function lruSet(map, key, value) {
+  if (map.size >= IMAGE_CACHE_MAX) map.delete(map.keys().next().value);
+  map.set(key, value);
+}
 
 function cleanAssetSrc(src) {
   return String(src || "").trim();
@@ -47,7 +53,7 @@ export function imageExists(src) {
     image.onerror = () => resolve(false);
     image.src = normalizedSrc;
   });
-  imageExistsCache.set(normalizedSrc, pending);
+  lruSet(imageExistsCache, normalizedSrc, pending);
   return pending;
 }
 
@@ -138,6 +144,6 @@ export function loadImage(src) {
     };
     image.src = normalizedSrc;
   });
-  imageLoadCache.set(normalizedSrc, pending);
+  lruSet(imageLoadCache, normalizedSrc, pending);
   return pending;
 }
