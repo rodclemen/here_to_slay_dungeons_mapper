@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-14
+- Reshaped the entrance light gradient into a cone: light is tight near the entrance and fans out as it extends downward, controlled by a new cone-open rate. Added a smooth cubic depth falloff at 1200px so the light fades to dark naturally instead of stretching to the board edges. Tuned constants for sharper upward cutoff, stronger side tightening, and further downward reach. The cone depth now scales with zoom so the gradient stays consistent at any zoom level.
+- Added a desktop app promo banner for first-time web visitors. A fixed card slides up from the bottom of the viewport showing the download icon (the cat mapper artwork) with a link to the download page. Dismissed by clicking the × button or the download link itself. Dismissal is persisted in localStorage so it only appears once per browser.
+
 ## 2026-04-13
 - Rewrote the hex grid lighting model from rotation-based directional falloff to a simpler axis-based system using upwardness/downwardness/sidewaysness. Light no longer depends on entrance tile rotation — it fades naturally upward (darker faster) and downward (lighter longer) from the entrance anchor, with horizontal spread softening. Replaced 3 old constants with 4 new tuning constants.
 - Removed Safari theme-color meta tags and the `syncThemeColorMeta()` function. After five commits of iteration, the conclusion was that `<meta name="theme-color">` doesn't work well enough on macOS Safari to justify the code. The `<meta name="color-scheme">` tag remains.
