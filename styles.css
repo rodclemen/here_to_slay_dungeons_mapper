@@ -1340,7 +1340,7 @@ body.right-drawer-collapsed .drawer-right .drawer-toolbar h2 {
 
 body.left-drawer-collapsed .drawer-left .drawer-toolbar {
   top: 10px;
-  left: 0;
+  left: 6px;
   z-index: 20;
   pointer-events: auto;
 }
@@ -1357,7 +1357,9 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left .drawer-toolbar h2 {
 body.right-drawer-collapsed .drawer-right .drawer-toolbar {
   position: absolute;
   top: 10px;
-  right: 0;
+  right: auto;
+  left: auto;
+  transform: translateX(-100%);
   z-index: 20;
   pointer-events: auto;
 }
