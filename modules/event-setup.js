@@ -119,11 +119,9 @@ export function bindGlobalControls(ctx) {
     closeHeaderMenus,
     isEventInsideHeaderMenu,
     board,
-    beginBoardPan,
     clamp,
     BOARD_WHEEL_ZOOM_SENSITIVITY,
     zoomBoardAtPoint,
-    bindDelegatedTileEvents,
     updateCompactSidePanelMode,
     recenterTrayAndReserveTiles,
     scheduleBoardHexGridRender,
@@ -689,7 +687,7 @@ export function bindGlobalControls(ctx) {
     if (state.wallEditMode) return;
     if (event.target.closest(".tile, .boss-token")) return;
     if (event.target.closest(".advanced-menu")) return;
-    beginBoardPan(event);
+    beginBoardPan(event, ctx);
   });
   board.addEventListener(
     "wheel",
@@ -705,7 +703,7 @@ export function bindGlobalControls(ctx) {
     { passive: false },
   );
 
-  bindDelegatedTileEvents();
+  setupDelegatedTileEvents(ctx);
 
   window.addEventListener(
     "resize",
@@ -726,4 +724,580 @@ export function bindGlobalControls(ctx) {
   });
 
   initAutoBuildTuningPanel();
+}
+
+// ─── Module-private: board pan ────────────────────────────────────────────────
+
+function beginBoardPan(event, ctx) {
+  const {
+    state, board,
+    forEachBoardTile, forEachBoardBossToken,
+    positionTile, updateTileTransform,
+    positionBossToken, updateBossTokenTransform,
+    updateReferenceMarkerTransform,
+    getBoardZoom, scheduleBoardHexGridRender,
+  } = ctx;
+
+  event.preventDefault();
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const boardTiles = [];
+  forEachBoardTile((tile) => {
+    boardTiles.push({ tile, x: tile.x, y: tile.y });
+  });
+  const reference = state.referenceMarker?.dom
+    ? { dom: state.referenceMarker.dom, x: state.referenceMarker.x, y: state.referenceMarker.y }
+    : null;
+  const boardBossTokens = [];
+  forEachBoardBossToken((token) => {
+    boardBossTokens.push({ token, x: token.x, y: token.y });
+  });
+
+  const startPanX = state.boardPanX;
+  const startPanY = state.boardPanY;
+  const anchorStart = state.entranceFadeAnchor
+    ? { x: state.entranceFadeAnchor.x, y: state.entranceFadeAnchor.y }
+    : null;
+  board.classList.add("panning");
+
+  const handleMove = (moveEvent) => {
+    if (moveEvent.pointerType === "mouse" && moveEvent.buttons === 0) {
+      cleanup();
+      return;
+    }
+    const zoom = getBoardZoom();
+    const dx = (moveEvent.clientX - startX) / zoom;
+    const dy = (moveEvent.clientY - startY) / zoom;
+    state.boardPanX = startPanX + dx;
+    state.boardPanY = startPanY + dy;
+    for (const entry of boardTiles) {
+      positionTile(entry.tile, entry.x + dx, entry.y + dy);
+      updateTileTransform(entry.tile);
+    }
+    if (reference?.dom) {
+      const rx = reference.x + dx;
+      const ry = reference.y + dy;
+      if (state.referenceMarker) {
+        state.referenceMarker.x = rx;
+        state.referenceMarker.y = ry;
+        updateReferenceMarkerTransform(state.referenceMarker);
+      }
+    }
+    for (const entry of boardBossTokens) {
+      positionBossToken(entry.token, entry.x + dx, entry.y + dy);
+      updateBossTokenTransform(entry.token);
+    }
+    if (anchorStart) {
+      state.entranceFadeAnchor = { x: anchorStart.x + dx, y: anchorStart.y + dy };
+    }
+    scheduleBoardHexGridRender();
+  };
+
+  const cleanup = () => {
+    board.classList.remove("panning");
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+    window.removeEventListener("pointercancel", handleUp);
+  };
+
+  const handleUp = () => { cleanup(); };
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+  window.addEventListener("pointercancel", handleUp);
+}
+
+// ─── Module-private: delegated tile events ────────────────────────────────────
+
+function getTileFromEvent(event, ctx) {
+  const tileEl = event.target.closest(".tile");
+  if (!tileEl) return null;
+  const tileId = tileEl.dataset.tileId;
+  return tileId ? ctx.state.tiles.get(tileId) || null : null;
+}
+
+function handleDelegatedTilePointerDown(event, ctx) {
+  const {
+    state, isTraySwapTarget, handleSwapClick, isEntranceTile,
+    persistTileWallFaces, refreshTileWallGuide, getTileDisplayLabel,
+    clearPendingReserveSwap, isReserveSwapSource, performReserveToTraySwap,
+    selectTile, rotateTile, ROTATION_STEP, setStatus,
+  } = ctx;
+
+  const tile = getTileFromEvent(event, ctx);
+  if (!tile || tile.previewOnly) return;
+  if (event.button !== 0) return;
+  if (state.reserveEditMode && isTraySwapTarget(tile)) {
+    event.preventDefault();
+    event.stopPropagation();
+    handleSwapClick("tray", tile.tileId);
+    return;
+  }
+  const faceHit = event.target.closest(".tile-guide-face-hit");
+  if (state.wallEditMode && faceHit) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isEntranceTile(tile)) {
+      setStatus("Entrance tile wall editing is disabled. Edit regular tiles only.", true);
+      return;
+    }
+    const faceIdx = Number.parseInt(faceHit.dataset.faceIndex || "", 10);
+    if (!Number.isInteger(faceIdx)) return;
+    if (tile.wallFaceSet.has(faceIdx)) {
+      tile.wallFaceSet.delete(faceIdx);
+    } else {
+      tile.wallFaceSet.add(faceIdx);
+    }
+    persistTileWallFaces(state.selectedTileSetId, tile.tileId, tile.wallFaceSet);
+    refreshTileWallGuide(tile);
+    setStatus(
+      `${getTileDisplayLabel(tile.tileId)} wall faces: ${Array.from(tile.wallFaceSet).sort((a, b) => a - b).join(", ") || "none"}.`,
+    );
+    return;
+  }
+  if (event.target.closest(".tile-controls")) return;
+  if (state.wallEditMode) return;
+  if (state.pendingSwapSource) {
+    if (!state.reserveEditMode) {
+      clearPendingReserveSwap();
+      return;
+    }
+    if (state.pendingSwapSource.zone === "tray") {
+      if (!isReserveSwapSource(tile)) {
+        setStatus("Choose a reserve tile to swap with the selected tray tile.", true);
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      performReserveToTraySwap(tile.tileId, state.pendingSwapSource.tileId);
+    } else if (isTraySwapTarget(tile)) {
+      event.preventDefault();
+      event.stopPropagation();
+      performReserveToTraySwap(state.pendingSwapSource.tileId, tile.tileId);
+    } else {
+      setStatus("Choose a tile currently in the tray to swap with the selected reserve tile.", true);
+    }
+    return;
+  }
+  event.preventDefault();
+  selectTile(tile.tileId);
+  beginDrag(tile, event, ctx);
+}
+
+function handleDelegatedTileClick(event, ctx) {
+  const { state, rotateTile, ROTATION_STEP, selectTile } = ctx;
+  const tile = getTileFromEvent(event, ctx);
+  if (!tile || tile.previewOnly) return;
+  if (event.target.closest(".rotate-ccw")) {
+    event.stopPropagation();
+    rotateTile(tile, -ROTATION_STEP);
+    return;
+  }
+  if (event.target.closest(".rotate-cw")) {
+    event.stopPropagation();
+    rotateTile(tile, ROTATION_STEP);
+    return;
+  }
+  if (state.pendingSwapSource) return;
+  selectTile(tile.tileId);
+}
+
+function handleDelegatedTileMouseOver(event, ctx) {
+  const { state, selectTile } = ctx;
+  const tileEl = event.target.closest(".tile");
+  if (!tileEl) return;
+  const tile = state.tiles.get(tileEl.dataset.tileId);
+  if (!tile || tile.previewOnly) return;
+  if (state.hoveredTileId === tile.tileId) return;
+  state.hoveredTileId = tile.tileId;
+  if (state.selectedTileId && state.selectedTileId !== tile.tileId) {
+    selectTile(null);
+  }
+}
+
+function handleDelegatedTileMouseOut(event, ctx) {
+  const { state, selectTile } = ctx;
+  const tileEl = event.target.closest(".tile");
+  if (!tileEl) return;
+  const tile = state.tiles.get(tileEl.dataset.tileId);
+  if (!tile || tile.previewOnly) return;
+  const related = event.relatedTarget;
+  if (related && tileEl.contains(related)) return;
+  if (state.hoveredTileId === tile.tileId) state.hoveredTileId = null;
+  if (state.selectedTileId && !state.hoveredTileId) selectTile(null);
+}
+
+function handleDelegatedReserveClick(event, ctx) {
+  const { state, handleSwapClick } = ctx;
+  const card = event.target.closest(".reserve-card");
+  if (!card) return;
+  const tileId = card.dataset.tileId;
+  if (!tileId) return;
+  if (state.wallEditMode) return;
+  if (!state.reserveEditMode) return;
+  handleSwapClick("reserve", tileId);
+}
+
+function setupDelegatedTileEvents(ctx) {
+  const { board, tray, reservePile } = ctx;
+  for (const container of [board, tray]) {
+    container.addEventListener("pointerdown", (e) => handleDelegatedTilePointerDown(e, ctx));
+    container.addEventListener("click", (e) => handleDelegatedTileClick(e, ctx));
+    container.addEventListener("mouseover", (e) => handleDelegatedTileMouseOver(e, ctx));
+    container.addEventListener("mouseout", (e) => handleDelegatedTileMouseOut(e, ctx));
+    container.addEventListener("dragstart", (e) => {
+      if (e.target.closest(".tile")) e.preventDefault();
+    });
+  }
+  reservePile.addEventListener("click", (e) => handleDelegatedReserveClick(e, ctx));
+}
+
+// ─── Module-private: tile drag ────────────────────────────────────────────────
+
+function finishDrop(tile, placedTiles, ctx) {
+  const {
+    snapTileCenterToHex, positionTile, updateTileTransform,
+    isEntranceTile, markDevQaCheck, syncRegularTileActivityFromSlotOrder,
+    setEntranceFadeAnchorFromTile, scheduleBoardHexGridRender,
+    setPlacementFeedback, setStatus, updatePlacedProgress,
+    ENTRANCE_TILE_ID, state, revertToTray, getPlacedTilesExcluding,
+    hasAnyOverlap, handleInvalidDrop, findBestContact, getInvalidContactReason,
+    getTileDisplayLabel, ensureReferenceCardVisibleAfterAutoBuild, selectTile,
+  } = ctx;
+
+  const snappedCenter = snapTileCenterToHex(tile, tile.x, tile.y);
+  positionTile(tile, snappedCenter.x, snappedCenter.y);
+  updateTileTransform(tile);
+
+  if (isEntranceTile(tile)) {
+    tile.placed = true;
+    markDevQaCheck("drag_tile_to_board", { detail: tile.tileId });
+    syncRegularTileActivityFromSlotOrder();
+    setEntranceFadeAnchorFromTile(tile);
+    scheduleBoardHexGridRender();
+    setPlacementFeedback(tile, null);
+    setStatus("Entrance tile placed. Now add the other 6 tiles.");
+    updatePlacedProgress();
+    return;
+  }
+
+  const otherPlacedTiles = placedTiles || getPlacedTilesExcluding(tile);
+
+  if (otherPlacedTiles.length === 0) {
+    revertToTray(tile, "Place the Entrance Tile first.");
+    return;
+  }
+
+  if (hasAnyOverlap(tile, otherPlacedTiles)) {
+    handleInvalidDrop(
+      tile,
+      otherPlacedTiles,
+      "Invalid placement: tiles cannot overlap. Returning to tray in 10s.",
+      true,
+    );
+    return;
+  }
+
+  let result = findBestContact(tile, otherPlacedTiles);
+  if (!result.valid) {
+    if (!state.ignoreContactRule) {
+      handleInvalidDrop(tile, otherPlacedTiles, `Invalid placement: ${getInvalidContactReason(result)} Returning to tray in 10s.`);
+      return;
+    }
+  }
+
+  tile.placed = true;
+  markDevQaCheck("drag_tile_to_board", { detail: tile.tileId });
+  syncRegularTileActivityFromSlotOrder();
+  const entrance = state.tiles.get(ENTRANCE_TILE_ID);
+  const placedRegularTiles = Array.from(state.tiles.values()).filter(
+    (entry) => entry.placed && !isEntranceTile(entry),
+  );
+  const movedReferenceSide = entrance
+    ? ensureReferenceCardVisibleAfterAutoBuild(placedRegularTiles, entrance)
+    : false;
+  if (result.valid) {
+    setStatus(
+      movedReferenceSide
+        ? `Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} point contacts. Reference card moved to side for visibility.`
+        : `Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} point contacts.`,
+    );
+  } else {
+    setStatus(
+      movedReferenceSide
+        ? `Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} contacts (2 face connection rule ignored). Reference card moved to side for visibility.`
+        : `Placed ${getTileDisplayLabel(tile.tileId)} with ${result.count} contacts (2 face connection rule ignored).`,
+      true,
+    );
+  }
+  selectTile(null);
+  updatePlacedProgress();
+}
+
+function beginDrag(tile, event, ctx) {
+  const {
+    state, board, workspace, dragLayer, tileDrawer,
+    isOnBoardLayer, getCompactTrayTileSize, getPlacedTilesExcluding,
+    normalizeAngle, updateTileParent, positionTile, updateTileTransform,
+    stopDragEdgeAutoPan, updateDragEdgeAutoPanState, getBoardZoom,
+    isPointOverBoardSurface, clamp, snapTileCenterToHex,
+    updatePlacementFeedback, setPlacementFeedback, placeTileInTray,
+    isPointInsideElement, clearInvalidReturnTimer, selectTile,
+    updatePlacedProgress, COMPACT_DRAG_START_SIZE_BOOST, COMPACT_DRAG_GROW_DISTANCE_PX,
+  } = ctx;
+
+  selectTile(null);
+  clearInvalidReturnTimer(tile);
+  const boardRect = board.getBoundingClientRect();
+  const workspaceRect = workspace.getBoundingClientRect();
+  const startedFromBoard = isOnBoardLayer(tile.dom.parentElement);
+  const tileRect = tile.dom.getBoundingClientRect();
+  const startedFromCompactTray = state.compactSidePanelMode && !startedFromBoard;
+  const compactDragGrowAnchorX = tileDrawer.getBoundingClientRect().right;
+  const compactTraySize = getCompactTrayTileSize(tile);
+  const pointerOffsetX = event.clientX - (tileRect.left + tileRect.width / 2);
+  const pointerOffsetY = event.clientY - (tileRect.top + tileRect.height / 2);
+  const placedTilesExcludingSelf = getPlacedTilesExcluding(tile);
+  const buildDragPlacementLayoutKey = (tiles) => tiles
+    .map((entry) => `${entry.tileId}@${normalizeAngle(entry.rotation || 0)}:${entry.x.toFixed(2)},${entry.y.toFixed(2)}`)
+    .sort()
+    .join("|");
+
+  tile.drag = {
+    offsetX: pointerOffsetX,
+    offsetY: pointerOffsetY,
+    previousX: tile.x,
+    previousY: tile.y,
+    previousPlaced: tile.placed,
+    pointerId: event.pointerId,
+    startedFromBoard,
+    moved: false,
+    lastTs: null,
+    rafId: null,
+    active: false,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    boardRect,
+    startedFromCompactTray,
+    compactDragGrowAnchorX,
+    compactDragProgress: startedFromBoard ? 1 : 0,
+    compactStartWidth: tileRect.width * COMPACT_DRAG_START_SIZE_BOOST,
+    compactStartHeight: tileRect.height * COMPACT_DRAG_START_SIZE_BOOST,
+    compactTrayWidth: compactTraySize.width,
+    compactTrayHeight: compactTraySize.height,
+    placedTilesExcludingSelf,
+    feedbackRafId: null,
+    feedbackCache: new Map(),
+    feedbackLayoutKey: buildDragPlacementLayoutKey(placedTilesExcludingSelf),
+    feedbackInsideBoard: false,
+    feedbackCandidateX: null,
+    feedbackCandidateY: null,
+  };
+
+  // Enter drag visual state immediately on press/hold, before pointer movement.
+  tile.dom.classList.add("dragging");
+  state.activeTileDragCount += 1;
+  document.body.classList.add("tile-drag-active");
+  const initialX = event.clientX - workspaceRect.left - pointerOffsetX;
+  const initialY = event.clientY - workspaceRect.top - pointerOffsetY;
+  updateTileParent(tile, dragLayer);
+  tile.dom.classList.add("floating");
+  positionTile(tile, initialX, initialY);
+  updateTileTransform(tile);
+
+  let cleanedUp = false;
+
+  const cleanupDrag = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    tile.dom.classList.remove("dragging");
+    state.activeTileDragCount = Math.max(0, state.activeTileDragCount - 1);
+    if (state.activeTileDragCount === 0) {
+      document.body.classList.remove("tile-drag-active");
+    }
+    stopDragEdgeAutoPan(tile.drag);
+    if (tile.drag?.feedbackRafId != null) {
+      cancelAnimationFrame(tile.drag.feedbackRafId);
+      tile.drag.feedbackRafId = null;
+    }
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+    window.removeEventListener("pointercancel", handleUp);
+  };
+
+  const scheduleFeedbackUpdate = () => {
+    if (!tile.drag || tile.drag.feedbackRafId != null) return;
+    tile.drag.feedbackRafId = requestAnimationFrame(() => {
+      if (!tile.drag) return;
+      tile.drag.feedbackRafId = null;
+      updatePlacementFeedback(tile);
+    });
+  };
+
+  const handleMove = (moveEvent) => {
+    if (!tile.drag || moveEvent.pointerId !== tile.drag.pointerId) return;
+    if (moveEvent.pointerType === "mouse" && moveEvent.buttons === 0) {
+      cleanupDrag();
+      tile.drag = null;
+      return;
+    }
+    tile.drag.moved = true;
+    updateDragEdgeAutoPanState(tile.drag, moveEvent.clientX, moveEvent.clientY, boardRect);
+    const zoom = getBoardZoom();
+    const boardOriginX = boardRect.left + board.clientLeft;
+    const boardOriginY = boardRect.top + board.clientTop;
+    const parentRect =
+      tile.dom.parentElement === dragLayer
+        ? workspaceRect
+        : tile.dom.parentElement.getBoundingClientRect();
+    const x = moveEvent.clientX - parentRect.left - tile.drag.offsetX;
+    const y = moveEvent.clientY - parentRect.top - tile.drag.offsetY;
+    const pointerInsideBoard = isPointOverBoardSurface(moveEvent.clientX, moveEvent.clientY, boardRect);
+    if (state.compactSidePanelMode && (tile.drag.startedFromCompactTray || tile.drag.startedFromBoard)) {
+      tile.drag.compactDragProgress = clamp(
+        (moveEvent.clientX - tile.drag.compactDragGrowAnchorX) / COMPACT_DRAG_GROW_DISTANCE_PX,
+        0,
+        1,
+      );
+    }
+    if (pointerInsideBoard) {
+      const boardX = (moveEvent.clientX - boardOriginX - tile.drag.offsetX) / zoom;
+      const boardY = (moveEvent.clientY - boardOriginY - tile.drag.offsetY) / zoom;
+      const clampedBoardX = clamp(boardX, 0, board.clientWidth);
+      const clampedBoardY = clamp(boardY, 0, board.clientHeight);
+      const snapped = snapTileCenterToHex(tile, clampedBoardX, clampedBoardY);
+      tile.drag.feedbackInsideBoard = true;
+      tile.drag.feedbackCandidateX = snapped.x;
+      tile.drag.feedbackCandidateY = snapped.y;
+      const boardOffsetX = boardOriginX - workspaceRect.left;
+      const boardOffsetY = boardOriginY - workspaceRect.top;
+      positionTile(tile, snapped.x * zoom + boardOffsetX, snapped.y * zoom + boardOffsetY);
+    } else {
+      tile.drag.feedbackInsideBoard = false;
+      tile.drag.feedbackCandidateX = null;
+      tile.drag.feedbackCandidateY = null;
+      positionTile(tile, x, y);
+    }
+    updateTileTransform(tile);
+    scheduleFeedbackUpdate();
+  };
+
+  const handleUp = (upEvent) => {
+    if (!tile.drag || upEvent.pointerId !== tile.drag.pointerId) return;
+    cleanupDrag();
+    tile.dom.classList.remove("floating");
+
+    if (!tile.drag.moved) {
+      setPlacementFeedback(tile, null);
+      if (!tile.drag.startedFromBoard) {
+        placeTileInTray(tile);
+      } else {
+        // Click-without-drag on a board tile should restore it to board space.
+        tile.placed = tile.drag.previousPlaced;
+        updateTileParent(tile, board);
+        positionTile(tile, tile.drag.previousX, tile.drag.previousY);
+        updateTileTransform(tile);
+      }
+      tile.drag = null;
+      return;
+    }
+
+    if (tile.dom.parentElement === dragLayer) {
+      const droppedInsideTileDrawer = isPointInsideElement(upEvent.clientX, upEvent.clientY, tileDrawer);
+      const isInsideBoard = isPointOverBoardSurface(upEvent.clientX, upEvent.clientY, boardRect);
+
+      if (!isInsideBoard && (droppedInsideTileDrawer || !tile.drag.startedFromBoard)) {
+        placeTileInTray(tile);
+        setPlacementFeedback(tile, null);
+        updatePlacedProgress();
+        tile.drag = null;
+        return;
+      }
+
+      if (!isInsideBoard) {
+        tile.placed = tile.drag.previousPlaced;
+        updateTileParent(tile, board);
+        positionTile(tile, tile.drag.previousX, tile.drag.previousY);
+        updateTileTransform(tile);
+        setPlacementFeedback(tile, null);
+        tile.drag = null;
+        return;
+      }
+
+      const boardOffsetX = (boardRect.left + board.clientLeft) - workspaceRect.left;
+      const boardOffsetY = (boardRect.top + board.clientTop) - workspaceRect.top;
+      const zoom = getBoardZoom();
+      const boardX = (tile.x - boardOffsetX) / zoom;
+      const boardY = (tile.y - boardOffsetY) / zoom;
+      updateTileParent(tile, board);
+      positionTile(tile, clamp(boardX, 0, board.clientWidth), clamp(boardY, 0, board.clientHeight));
+      updateTileTransform(tile);
+    }
+
+    setPlacementFeedback(tile, null);
+    finishDrop(tile, tile.drag?.placedTilesExcludingSelf, ctx);
+    tile.drag = null;
+  };
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+  window.addEventListener("pointercancel", handleUp);
+}
+
+// ─── Exported: guide point handle drag ────────────────────────────────────────
+
+export function beginGuidePointHandleDrag(tile, pointIndex, event, ctx) {
+  const {
+    state, TILE_SIZE,
+    isGuidePointTemplateEditableTile, getGuidePointTemplateType,
+    getGuidePointTemplateOverride, getGuideFacePoints, cloneGuidePoints,
+    persistGuidePointTemplate, showLocalDataNotice, getTileSetConfig, setStatus,
+  } = ctx;
+
+  if (!state.wallEditMode || !isGuidePointTemplateEditableTile(tile)) return;
+  const templateType = getGuidePointTemplateType(tile);
+  if (!templateType) return;
+
+  const startPoints = getGuidePointTemplateOverride(templateType, tile.tileSetId)
+    || cloneGuidePoints(getGuideFacePoints(tile));
+  if (!startPoints?.[pointIndex]) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const rect = tile.dom?.getBoundingClientRect();
+  if (!rect) return;
+  const pxToGuideUnits = TILE_SIZE / rect.width;
+  const startClientX = event.clientX;
+  const startClientY = event.clientY;
+  const startPoint = { ...startPoints[pointIndex] };
+
+  const handleMove = (moveEvent) => {
+    const dx = (moveEvent.clientX - startClientX) * pxToGuideUnits;
+    const dy = (moveEvent.clientY - startClientY) * pxToGuideUnits;
+    const nextPoints = cloneGuidePoints(startPoints);
+    nextPoints[pointIndex] = { x: startPoint.x + dx, y: startPoint.y + dy };
+    persistGuidePointTemplate(templateType, nextPoints, tile.tileSetId);
+  };
+
+  const cleanup = () => {
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+    window.removeEventListener("pointercancel", handleUp);
+  };
+
+  const handleUp = () => {
+    cleanup();
+    showLocalDataNotice(
+      getTileSetConfig(tile.tileSetId)?.source === "custom" ? "custom" : "built_in",
+      tile.tileSetId,
+    );
+    setStatus(
+      `${templateType === "entrance" ? "Entrance" : "Regular"} guide point ${pointIndex} updated.`,
+    );
+  };
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+  window.addEventListener("pointercancel", handleUp);
 }
