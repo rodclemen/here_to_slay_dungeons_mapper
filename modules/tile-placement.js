@@ -286,6 +286,8 @@ export function evaluatePlacementAt(tile, otherTiles, x, y, ctx, options = {}) {
     overlaps,
     faceIndices: contact.faceIndices || [],
     touchingFaceIndices: contact.touchingFaceIndices || [],
+    endTileDisallowed: Boolean(contact.endTileDisallowed),
+    touchesBlockedAB: Boolean(contact.touchesBlockedAB),
     portalConflict,
     portalConflictTileIds: connectedPortalNeighbors.map((other) => other.tileId),
   };
@@ -360,6 +362,8 @@ export function getPlacedTileRotationState(tile, otherTiles, ctx) {
     count: contact.count,
     faceIndices: contact.faceIndices || [],
     touchingFaceIndices: contact.touchingFaceIndices || [],
+    endTileDisallowed: Boolean(contact.endTileDisallowed),
+    touchesBlockedAB: Boolean(contact.touchesBlockedAB),
     contact,
   };
 }
@@ -715,7 +719,13 @@ export function updatePlacementFeedback(tile, ctx) {
   }
 
   const result = getCachedDragPlacementResult(tile, placedTiles, candidateX, candidateY, ctx);
-  if (!result.overlaps && result.touchingFaceIndices.length === 0) {
+  if (
+    !result.overlaps
+    && !result.portalConflict
+    && !result.touchesBlockedAB
+    && !result.endTileDisallowed
+    && result.touchingFaceIndices.length === 0
+  ) {
     setPlacementFeedback(tile, null);
     return;
   }
@@ -732,7 +742,16 @@ export function updatePlacementFeedback(tile, ctx) {
 }
 
 export function applyPlacementFeedbackFromResult(tile, result, ctx) {
-  if (!result || (!result.overlaps && (result.touchingFaceIndices?.length || 0) === 0)) {
+  if (
+    !result
+    || (
+      !result.overlaps
+      && !result.portalConflict
+      && !result.touchesBlockedAB
+      && !result.endTileDisallowed
+      && (result.touchingFaceIndices?.length || 0) === 0
+    )
+  ) {
     setPlacementFeedback(tile, null);
     return;
   }

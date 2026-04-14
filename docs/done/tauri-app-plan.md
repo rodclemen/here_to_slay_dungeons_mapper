@@ -84,42 +84,27 @@ Avoid autosave at first. Autosave is convenient, but it can immediately persist 
    - Add a Tauri adapter only when running inside the Tauri app.
    - Avoid spreading direct Tauri calls throughout the app code.
 
-4. Add folder import for custom tile sets.
-   - Use a Tauri command to let the user pick a folder.
-   - Read `manifest.json`, optional/current `wall_editor.json`, and all mapped assets.
-   - Validate using the same rules as zip import.
-   - Load the result through the existing runtime tile set registry path.
+~~4. Add folder import for custom tile sets.~~ Dropped — zip import/export covers the use case. The data folder model handles persistence.
 
-5. Add folder export/save.
-   - Use current custom tile set export builders as the source of truth.
-   - Write `manifest.json`, `wall_editor.json`, and `assets/` files into a chosen folder.
-   - Keep filenames aligned with the canonical portable shape.
-   - Mark the local-data notice as handled after a successful folder save.
+~~5. Add folder export/save.~~ Dropped — same reason as above.
 
-6. Keep zip compatibility.
-   - Folder save and zip export should use the same manifest/wall data/asset mapping.
-   - A folder saved by the Tauri app should be zip-able and importable in the web app.
-   - A web-exported custom tile set zip should be extractable and openable as a folder in the Tauri app.
+4. Keep zip compatibility.
+   - Zip export uses the same manifest/wall data/asset mapping as the data folder storage.
+   - A web-exported custom tile set zip can be imported in the Tauri app.
+   - Existing zip export/import/share bundle flows work in both web and desktop.
 
-7. Add desktop-only UI affordances.
-   - Add `Open Tile Set Folder` and `Save Tile Set As Folder` only when running in Tauri.
-   - Keep web-only language about browser-local backup in the web app.
-   - In Tauri, change the notice wording when a tile set is folder-backed.
+~~6. Add desktop-only UI affordances for folder open/save.~~ Dropped — tied to steps 4 & 5. Desktop-specific wording in notices and the data folder control are already in place.
 
-8. Build and packaging.
+5. Build and packaging.
    - Build a local macOS `.app`.
    - Add a `.dmg` target if needed.
    - Decide later whether to sign and notarize for public distribution.
 
-9. Verification.
-   - Web app still runs unchanged in a normal browser.
-   - Tauri app opens to the same main UI.
-   - Existing browser-local custom tile sets still work in web mode.
-   - Tauri can open a tile set folder and show all art/metadata.
-   - Tauri can save a tile set folder.
-   - Folder saved by Tauri can be zipped and imported into the web app.
-   - Web-exported zip can be extracted and opened by Tauri.
-   - Existing zip export/import/share bundle flows still work.
+6. Verification. **Done (2026-04-13).**
+   - Web app still runs unchanged in a normal browser. ✓
+   - Tauri app opens to the same main UI. ✓
+   - Existing browser-local custom tile sets still work in web mode. ✓
+   - Existing zip export/import/share bundle flows still work. ✓
 
 ## Deferred Decisions
 
@@ -139,21 +124,8 @@ Start with the smallest non-invasive desktop wrapper:
 3. Build a local macOS `.app`.
 4. Do not change storage yet.
 
-## 2026-04-10 Status
+## Status
 
-- Added the first Tauri v2 scaffold under `src-tauri/`.
-- Added `package.json` scripts:
-  - `npm run build:tauri-web`
-  - `npm run tauri:dev`
-  - `npm run tauri:build`
-- Added a static copy step that writes only the runtime browser app files to `dist/tauri/` so Tauri does not bundle docs, local working folders, or repo metadata.
-- Confirmed `npm run build:tauri-web` copies the runtime files successfully.
-- Confirmed the installed Tauri CLI reports `tauri-cli 2.10.1`.
-- Installed Rust through rustup after confirming the local machine did not have Cargo or rustc available.
-- Confirmed `npm run tauri -- build --debug` completes and produces:
-  - `src-tauri/target/debug/bundle/macos/Here to Slay Dungeon Mapper.app`
-  - `src-tauri/target/debug/bundle/dmg/Here to Slay Dungeon Mapper_0.1.0_aarch64.dmg`
+**2026-04-10** — Tauri v2 scaffold added. `npm run tauri -- build --debug` produces `.app` and `.dmg`. Webview QA passed.
 
-Next step: launch `npm run tauri:dev` for webview QA, then test module loading, image paths, IndexedDB/localStorage, drag/drop, board panning, custom tile editor, and share links inside the desktop shell.
-
-Once that works, add folder open/save as a second slice.
+**2026-04-13** — Plan complete. All implementation steps done. Folder open/save per tile set (original steps 4, 5, 7) dropped in favour of the data folder model, which already handles persistence via `custom-tileset-storage-folder.js`. Verification passed.

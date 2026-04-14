@@ -74,11 +74,7 @@
 
 ### 9. Use event delegation for tile interactions
 
-359 `addEventListener` calls — many attached to individual tile DOM elements that get created/destroyed. Replacing per-tile listeners with a single delegated listener on `.tray` and `.board` would:
-
-- Reduce listener count significantly
-- Eliminate attach/detach bookkeeping
-- Slightly improve memory profile
+~~359 `addEventListener` calls — many attached to individual tile DOM elements that get created/destroyed. Replacing per-tile listeners with a single delegated listener on `.tray` and `.board` would reduce listener count, eliminate attach/detach bookkeeping, and improve the memory profile.~~ **Done (2026-04-12).** Replaced 8 per-tile listeners (pointerdown, click, mouseenter, mouseleave, dragstart × 2, rotate-ccw click, rotate-cw click) and 1 per-reserve-card listener with 11 delegated listeners on `board`, `tray`, and `reservePile`. `createTileElement` now attaches only 1 listener (img error fallback, `{ once: true }`). Uses `mouseover`/`mouseout` with `relatedTarget` containment checks to emulate `mouseenter`/`mouseleave` delegation correctly.
 
 ---
 

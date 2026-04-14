@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Here to Slay: DUNGEONS Mapper</title>
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/png" href="./icons/d20.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -104,7 +105,7 @@
               </details>
             </div>
           </details>
-          <button id="toggle-wall-edit-btn" class="topbar-editor-btn" type="button">Tile Editor</button>
+          <a class="about-link-btn" href="./about.html" aria-label="Open Guide">Guide</a>
           <div class="quick-actions-menu" id="quick-actions-menu">
             <button
               id="quick-actions-trigger"
@@ -128,7 +129,7 @@
               <button id="export-pdf-btn" class="quick-action-option" type="button" role="menuitem">Export PDF</button>
             </div>
           </div>
-          <a class="about-link-btn" href="./about.html" aria-label="Open Guide">Guide</a>
+          <button id="toggle-wall-edit-btn" class="topbar-editor-btn" type="button">Tile Editor</button>
           <input id="import-wall-data-input" type="file" accept="application/json" hidden />
           <input id="import-custom-tileset-input" type="file" accept=".zip,application/zip" hidden />
         </div>
@@ -313,6 +314,17 @@
       </section>
 
       <section id="wall-editor-page" class="wall-editor-page" aria-label="Tile Editor"></section>
+
+      <div id="app-promo-banner" class="app-promo-banner web-only" hidden>
+        <a href="./download.html" class="app-promo-link">
+          <img class="app-promo-icon" src="./Graphics/download_icon.png" alt="" aria-hidden="true" />
+          <div class="app-promo-copy">
+            <strong>Get the Desktop App</strong>
+            <span>Download the mapper for offline use</span>
+          </div>
+        </a>
+        <button id="app-promo-dismiss" class="app-promo-dismiss" type="button" aria-label="Dismiss">&times;</button>
+      </div>
       <section id="debug-console" class="debug-console tauri-only" aria-label="Debug Log" hidden>
         <div class="debug-console-header">
           <div>

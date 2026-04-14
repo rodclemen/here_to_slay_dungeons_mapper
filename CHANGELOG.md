@@ -1,6 +1,20 @@
 # Changelog
 
+## 2026-04-14
+- Reshaped the entrance light gradient into a cone: light is tight near the entrance and fans out as it extends downward, controlled by a new cone-open rate. Added a smooth cubic depth falloff at 1200px so the light fades to dark naturally instead of stretching to the board edges. Tuned constants for sharper upward cutoff, stronger side tightening, and further downward reach. The cone depth now scales with zoom so the gradient stays consistent at any zoom level.
+- Added a desktop app promo banner for first-time web visitors. A fixed card slides up from the bottom of the viewport showing the download icon (the cat mapper artwork) with a link to the download page. Dismissed by clicking the × button or the download link itself. Dismissal is persisted in localStorage so it only appears once per browser.
+- Added GitHub Actions workflow to build the Tauri app for Windows (NSIS installer) on a `windows-latest` runner, triggered manually. Fixed the esbuild build script to resolve `.cmd` binaries on Windows.
+- Rebuilt the download page with macOS/Windows platform tabs. Auto-detects the visitor's OS and highlights the matching tab with a "Detected" badge. Both platforms show identical card layouts with file name, platform, version, file size, file date, download count, and changelog link. Downloads route through `download.php?platform=mac|windows` for per-platform counting, then redirect to Google Drive.
+
+## 2026-04-13
+- Rewrote the hex grid lighting model from rotation-based directional falloff to a simpler axis-based system using upwardness/downwardness/sidewaysness. Light no longer depends on entrance tile rotation — it fades naturally upward (darker faster) and downward (lighter longer) from the entrance anchor, with horizontal spread softening. Replaced 3 old constants with 4 new tuning constants.
+- Removed Safari theme-color meta tags and the `syncThemeColorMeta()` function. After five commits of iteration, the conclusion was that `<meta name="theme-color">` doesn't work well enough on macOS Safari to justify the code. The `<meta name="color-scheme">` tag remains.
+- Moved the theme selector from the Advanced Tools menu into the light/dark/system appearance mode dropdown. When auto theme is off, clicking the sun/moon icon now shows mode options and theme options separated by a divider. The selected theme is highlighted bold with the accent color. The old theme menu in Advanced Tools is permanently hidden.
+- Swapped the Guide and Tile Editor button positions in the topbar.
+
 ## 2026-04-12
+- Fixed and refined boss pile cycle animation in all-bosses mode. The top card was jumping behind the stack before animating because an inline `z-index: 0` JS override was fighting the CSS. Removed the inline override, bumped cycling z-index values above 100 so the card stays on top regardless of pile size, and reworked the animation: extended from 320ms to 480ms with 6 keyframes (smooth lift with gradual rotation to 0deg at peak, brief hold, then descend to target). The z-index drop to behind the pile now fires at 33% to land precisely at the animation peak.
+- Replaced per-tile event listeners with delegated handlers on `board`, `tray`, and `reservePile`. Each tile creation previously attached 8 listeners (pointerdown, click, mouseenter, mouseleave, dragstart, rotate buttons); now `createTileElement` attaches only 1 (img error fallback). For 10 tiles, that's ~80 runtime listeners replaced by 11 static delegated ones. Reserve pile card listeners are also delegated. Uses `mouseover`/`mouseout` with `relatedTarget` containment checks for correct hover delegation. This is optimization plan item #9.
 - Split `custom-tileset-storage.js` (456 lines) into three focused files: `custom-tileset-storage-idb.js` (IndexedDB backend), `custom-tileset-storage-folder.js` (Tauri data-folder backend), and a thin router that delegates to the correct backend based on runtime environment. Each backend is now self-contained with no platform branching. The public API is unchanged — no consumer modifications needed. This is optimization plan item #12.
 - Added tile geometry caching (`tileGeometryCache`) so switching back to a previously loaded tile set skips the expensive `getOpaqueBounds`, `getAlphaMask`, and `getFaceGeometry` recomputation. The `loadImage()` cache in `assets.js` already handled Image element reuse; this extends caching to the derived shape/mask/face data. Cache self-invalidates when the underlying Image element changes (e.g. custom tile set asset replacement). This is optimization plan item #15.
 - Added a visible colored hexagonal "Missing" placeholder for failed tile image loads, replacing the previous invisible 1px transparent PNG. Also added `onerror` handlers on tile `<img>` elements so runtime failures (e.g. revoked blob URLs) swap to the placeholder, and a status warning reports how many tiles failed to load. This is optimization plan item #4.
@@ -18,11 +32,6 @@
 
 ## v0.8.0
 ### Initial release
-- First public release of the Here to Slay: DUNGEONS Mapper for web and MacOS App.
-- Added the core dungeon-building workflow with legal tile placement checks, Auto Build generation, boss-card support, PDF export, and share-link export/import.
-- Added the full Tile Editor workflow for wall faces, end-tile flags, portal markers, guide-point editing, and custom tile set creation/import/export.
-- Added the MacOS App with persisted window state, local data-folder support, desktop save/export flows, and an in-app Guide page.
-- Added dedicated Guide, Download, and Changelog pages, plus version syncing so the web app and MacOS App stay aligned from `package.json`.
 
 ## 2026-04-11
 - Continued the stale-code cleanup in Tile Editor and persistence copy: renamed the old local-export action away from `backup` wording, switched leftover `endpoint` text to `dead-end` / `end-tile` wording, updated built-in local-data notices and dev-only docs to say `Export Debug Walls JSON` / `Import Debug Walls JSON`, and replaced a few leftover extraction comments with plain descriptions of which Tile Editor helpers now live in `modules/wall-editor-ui.js`.

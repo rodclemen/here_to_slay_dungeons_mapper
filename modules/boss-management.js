@@ -244,13 +244,10 @@ export function renderBossPile(ctx) {
         }
       }
       card.classList.add("boss-card-cycling-out");
-      const midSwapDelay = Math.round(ctx.BOSS_PILE_CYCLE_ANIMATION_MS * 0.36);
+      const midSwapDelay = Math.round(ctx.BOSS_PILE_CYCLE_ANIMATION_MS * 0.33);
       window.setTimeout(() => {
         if (!ctx.state.bossPileCycleInProgress) return;
         ctx.bossPile?.classList.add("is-cycle-mid");
-        if (ctx.state.useAllBosses) {
-          card.style.setProperty("z-index", "0", "important");
-        }
       }, midSwapDelay);
       window.setTimeout(() => {
         if (ctx.state.useAllBosses) {

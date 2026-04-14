@@ -141,8 +141,9 @@ await injectVersion(join(stagingDir, "changelog.html"));
 await injectVersion(join(stagingDir, "download.html"));
 
 async function findLocalEsbuild() {
+  const isWindows = process.platform === "win32";
   const candidates = [
-    join("node_modules", ".bin", "esbuild"),
+    join("node_modules", ".bin", isWindows ? "esbuild.cmd" : "esbuild"),
     join("node_modules", "esbuild", "bin", "esbuild"),
   ];
 
@@ -197,12 +198,13 @@ for (const filePath of allFiles) {
   totalBefore += before;
 
   if (esbuildPath) {
+    const useShell = process.platform === "win32" && esbuildPath.endsWith(".cmd");
     await execFileAsync(esbuildPath, [
       filePath,
       "--minify",
       `--outfile=${filePath}`,
       "--allow-overwrite",
-    ]);
+    ], useShell ? { shell: true } : {});
   }
 
   const after = (await stat(filePath)).size;

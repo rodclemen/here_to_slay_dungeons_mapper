@@ -171,6 +171,7 @@ export function findBestContact(tile, otherTiles, options, deps) {
   const enforcePortalSpacing = Boolean(options?.enforcePortalSpacing);
   let best = { count: 0, other: null, match: null };
   const touchingFaceIdx = new Set();
+  const connectedFaceIdx = new Set();
   const connectedPortalNeighbors = [];
   const tileHasPortal = enforcePortalSpacing && hasPortalFlag(tile);
 
@@ -186,6 +187,9 @@ export function findBestContact(tile, otherTiles, options, deps) {
     for (const faceIdx of match.touchingFaceIndices || []) {
       touchingFaceIdx.add(faceIdx);
     }
+    for (const pair of match.matchedPairs || []) {
+      if (Number.isInteger(pair?.i)) connectedFaceIdx.add(pair.i);
+    }
     if (tileHasPortal && hasPortalFlag(other) && match.count > 0) {
       connectedPortalNeighbors.push(other);
     }
@@ -193,7 +197,7 @@ export function findBestContact(tile, otherTiles, options, deps) {
 
   const touchesBlockedAB = isTouchingMoltenEntranceBlockedPoints(tile);
   const matchedTileFaceIdx = new Set((best.match?.matchedPairs || []).map((pair) => pair.i));
-  const connectedFaceCount = matchedTileFaceIdx.size;
+  const connectedFaceCount = connectedFaceIdx.size;
   const totalCount = best.count;
   const isEndTileCandidate = connectedFaceCount > 0 && connectedFaceCount <= enforceEndTileMaxConnectedFaces;
   const endTileDisallowed = enforceEndTileRule && isEndTileCandidate && !Boolean(tile.allowAsEndTile);

@@ -157,7 +157,7 @@ export function syncThemeControlVisibility(ctx) {
     setUiThemeMenuOpen(false, ctx);
   }
   if (ctx.appearanceModeMenu) ctx.appearanceModeMenu.hidden = autoMode;
-  if (ctx.uiThemeMenu) ctx.uiThemeMenu.hidden = autoMode;
+  if (ctx.uiThemeMenu) ctx.uiThemeMenu.hidden = true;
 }
 
 export function syncAutoThemeToggleButton(ctx) {
@@ -184,13 +184,31 @@ export function syncAppearanceModeMenu(mode, ctx) {
   ctx.appearanceModeTrigger.setAttribute("title", `${nextLabel} Mode`);
 
   const remainingModes = ["light", "system", "dark"].filter((modeId) => modeId !== nextMode);
-  ctx.appearanceModeDropdown.innerHTML = remainingModes
+  let html = remainingModes
     .map((modeId) => {
       const label = getAppearanceModeMenuItemLabel(modeId);
       const icon = ctx.APPEARANCE_MODE_ICON_SVG[modeId] || "";
       return `<button class="appearance-mode-option" type="button" data-appearance-mode="${modeId}" role="menuitem" aria-label="${label}">${icon}<span>${label}</span></button>`;
     })
     .join("");
+
+  if (!ctx.state.autoThemeByTileSet && ctx.uiThemeSelect) {
+    const stripModeSuffix = (label) => label.replace(/\s*-\s*(Light|Dark)\s*$/i, "").trim();
+    const options = Array.from(ctx.uiThemeSelect.options);
+    if (options.length) {
+      html += '<div class="appearance-mode-divider"></div>';
+      html += options
+        .map((option) => {
+          const value = option.value;
+          const label = stripModeSuffix(option.textContent || value);
+          const selectedClass = value === ctx.state.selectedUiThemeId ? " is-selected" : "";
+          return `<button class="ui-theme-option${selectedClass}" type="button" data-ui-theme="${value}" role="menuitemradio" aria-checked="${value === ctx.state.selectedUiThemeId ? "true" : "false"}">${label}</button>`;
+        })
+        .join("");
+    }
+  }
+
+  ctx.appearanceModeDropdown.innerHTML = html;
 }
 
 export function setAppearanceModeMenuOpen(open, ctx) {
