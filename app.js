@@ -2126,10 +2126,12 @@ const DRAG_EDGE_AUTO_PAN_MAX_SPEED = 4.5;
 const COMPACT_SIDE_PANEL_MAX_WIDTH = 980;
 const TRAY_SLOT_COUNT = 6;
 const REGULAR_TILE_SLOT_COUNT = TILE_IDS.length;
-const ENTRANCE_LIGHT_UPWARD_FALLOFF = 0.24;
-const ENTRANCE_LIGHT_DOWNWARD_REACH = 1.18;
-const ENTRANCE_LIGHT_UPWARD_DARK_BIAS = 0.26;
-const ENTRANCE_LIGHT_SIDE_SPREAD_SOFTEN = 1.2;
+const ENTRANCE_LIGHT_UPWARD_FALLOFF = 0.18;
+const ENTRANCE_LIGHT_DOWNWARD_REACH = 1.3;
+const ENTRANCE_LIGHT_UPWARD_DARK_BIAS = 0.32;
+const ENTRANCE_LIGHT_SIDE_SPREAD_SOFTEN = 2.0;
+const ENTRANCE_LIGHT_CONE_OPEN_RATE = 8;
+const ENTRANCE_LIGHT_CONE_DEPTH = 1200;
 const DEFAULT_BOARD_ZOOM = 1;
 const BOARD_ZOOM_STEP = 0.01;
 const BOARD_WHEEL_ZOOM_SENSITIVITY = 0.0006;
@@ -2750,6 +2752,24 @@ init().catch((error) => {
   setStatus("Failed to initialize app. Check image paths.", true);
 });
 
+const APP_PROMO_DISMISSED_KEY = "hts_app_promo_dismissed_v1";
+
+function showAppPromoBanner() {
+  if (IS_TAURI_RUNTIME) return;
+  if (localStorage.getItem(APP_PROMO_DISMISSED_KEY)) return;
+  const banner = document.getElementById("app-promo-banner");
+  if (!banner) return;
+  banner.hidden = false;
+  function dismissBanner() {
+    banner.hidden = true;
+    localStorage.setItem(APP_PROMO_DISMISSED_KEY, "1");
+  }
+  const dismiss = document.getElementById("app-promo-dismiss");
+  if (dismiss) dismiss.addEventListener("click", dismissBanner, { once: true });
+  const link = banner.querySelector(".app-promo-link");
+  if (link) link.addEventListener("click", dismissBanner, { once: true });
+}
+
 async function init() {
   window.addEventListener("beforeunload", () => {
     revokeCustomTileSetAssetUrls();
@@ -2836,6 +2856,7 @@ async function init() {
     console.error(error);
   });
   await resumePendingDataFolderAction();
+  showAppPromoBanner();
 }
 
 /** Caches derived tile geometry (shape, alphaMask, faceGeometry) keyed by image src. */
@@ -5016,8 +5037,12 @@ function renderBoardHexGrid() {
       const sidewaysness = hasEntranceAnchor
         ? clamp(Math.abs(vx) / Math.max(layout.dx * zoom * 2, 1), 0, 1)
         : 0;
+      const coneOpen = vy > 0
+        ? clamp(vy / Math.max(layout.dy * zoom * ENTRANCE_LIGHT_CONE_OPEN_RATE, 1), 0, 1)
+        : 0;
+      const conePenalty = 1 + sidewaysness * ENTRANCE_LIGHT_SIDE_SPREAD_SOFTEN * (1 - coneOpen * 0.7);
       const directionalDistScreen = Math.hypot(
-        vx * (1 + sidewaysness * ENTRANCE_LIGHT_SIDE_SPREAD_SOFTEN),
+        vx * conePenalty,
         vy < 0
           ? vy / ENTRANCE_LIGHT_UPWARD_FALLOFF
           : vy / ENTRANCE_LIGHT_DOWNWARD_REACH,
@@ -5031,8 +5056,10 @@ function renderBoardHexGrid() {
       // Keep full-hex "pixel" coloring while darkening cells toward edges.
       const mixExponent = isDarkTheme ? 0.8 : 1.25;
       const upwardDarkBias = upwardness * ENTRANCE_LIGHT_UPWARD_DARK_BIAS;
-      const downwardLightRelief = downwardness * 0.08;
-      const mix = clamp(Math.pow(t, mixExponent) + upwardDarkBias - downwardLightRelief, 0, 1);
+      const coneDepthScreen = ENTRANCE_LIGHT_CONE_DEPTH * zoom;
+      const depthT = vy > 0 ? clamp(vy / coneDepthScreen, 0, 1) : 0;
+      const depthFade = depthT * depthT * depthT;
+      const mix = clamp(Math.pow(t, mixExponent) + upwardDarkBias + depthFade, 0, 1);
       const r = Math.round(lightRgb.r + (darkEndpoint.r - lightRgb.r) * mix);
       const g = Math.round(lightRgb.g + (darkEndpoint.g - lightRgb.g) * mix);
       const b = Math.round(lightRgb.b + (darkEndpoint.b - lightRgb.b) * mix);
