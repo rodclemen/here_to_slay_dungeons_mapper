@@ -75,12 +75,30 @@
       .download-hero {
         display: grid;
         grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+        grid-template-rows: auto auto auto 1fr;
         gap: 18px;
         align-items: stretch;
       }
 
+      .download-hero-icon {
+        grid-column: 1;
+        width: 168px;
+        height: 168px;
+        margin-bottom: -40px;
+        object-fit: contain;
+      }
+
+      .download-heading {
+        grid-column: 1;
+        grid-row: 3;
+        margin: 0;
+        font-size: 1.3rem;
+      }
+
       .download-copy {
-        display: grid;
+        grid-row: 4;
+        display: flex;
+        flex-direction: column;
         gap: 8px;
       }
 
@@ -112,6 +130,8 @@
       }
 
       .download-artifact {
+        grid-row: 1 / -1;
+        grid-column: 2;
         display: grid;
         gap: 14px;
         align-content: start;
@@ -119,13 +139,6 @@
         border-radius: 18px;
         padding: 18px;
         background: color-mix(in srgb, var(--surface-elevated) 92%, white 8%);
-      }
-
-      .download-hero-icon {
-        width: 168px;
-        height: 168px;
-        margin-bottom: -40px;
-        object-fit: contain;
       }
 
       .download-icon-btn {
@@ -320,9 +333,9 @@
         </div>
 
         <section class="download-card download-hero download-platform-panel" data-platform="mac" role="tabpanel" aria-labelledby="tab-mac">
+          <img class="download-hero-icon" src="./Graphics/download_icon.png" alt="" aria-hidden="true" />
+          <h2 class="download-heading">Current public build</h2>
           <div class="download-copy">
-            <img class="download-hero-icon" src="./Graphics/download_icon.png" alt="" aria-hidden="true" />
-            <h2>Current public build</h2>
             <p>The current DMG is a macOS desktop build of the mapper.</p>
             <div class="download-callout">
               <strong>Platform note</strong>
@@ -374,9 +387,9 @@
         </section>
 
         <section class="download-card download-hero download-platform-panel" data-platform="windows" role="tabpanel" aria-labelledby="tab-windows">
+          <img class="download-hero-icon" src="./Graphics/download_icon.png" alt="" aria-hidden="true" />
+          <h2 class="download-heading">Current public build</h2>
           <div class="download-copy">
-            <img class="download-hero-icon" src="./Graphics/download_icon.png" alt="" aria-hidden="true" />
-            <h2>Current public build</h2>
             <p>The current installer is a Windows desktop build of the mapper.</p>
             <p>This build has not been tested as I don't have access to a Windows environment.</p>
             <div class="download-callout">
