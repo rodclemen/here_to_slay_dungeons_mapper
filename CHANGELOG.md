@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-04-15
+- Added Tauri auto-updater plugin so the desktop app checks for new versions on launch and offers in-app download and install. Configured the updater endpoint to pull `latest.json` from GitHub Releases with minisign signature verification.
+- Added a GitHub Actions release workflow (`release.yml`) that builds signed macOS (universal binary) and Windows (NSIS) installers on `v*` tag pushes and creates a draft GitHub Release with the updater manifest.
+- Added signing environment variables (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) to the existing Windows build workflow.
+- Added `npm run release` one-command release script (`scripts/release.mjs`) that bumps the version in `package.json`, syncs it to Tauri config and Cargo manifest, commits, tags, and pushes — triggering the release workflow automatically.
+- Updated README with release instructions and updated project structure.
+
 ## 2026-04-14
 - Reshaped the entrance light gradient into a cone: light is tight near the entrance and fans out as it extends downward, controlled by a new cone-open rate. Added a smooth cubic depth falloff at 1200px so the light fades to dark naturally instead of stretching to the board edges. Tuned constants for sharper upward cutoff, stronger side tightening, and further downward reach. The cone depth now scales with zoom so the gradient stays consistent at any zoom level.
 - Added a desktop app promo banner for first-time web visitors. A fixed card slides up from the bottom of the viewport showing the download icon (the cat mapper artwork) with a link to the download page. Dismissed by clicking the × button or the download link itself. Dismissal is persisted in localStorage so it only appears once per browser.
