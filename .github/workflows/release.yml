@@ -69,8 +69,8 @@ jobs:
           # Re-create the tar.gz from the .app
           tar -czf "${TAR_PATH}" -C "${BUNDLE_DIR}" "HtSDMapper.app"
 
-          # Sign it with the Tauri CLI signer
-          npx tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "${TAR_PATH}"
+          # Sign using env vars (TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD)
+          npx tauri signer sign "${TAR_PATH}"
 
           echo "Signed ${TAR_PATH}"
           ls -la "${TAR_PATH}" "${TAR_PATH}.sig"
