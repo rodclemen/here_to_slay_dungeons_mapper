@@ -15,8 +15,10 @@ jobs:
         include:
           - platform: macos-latest
             args: --target universal-apple-darwin
+            bundle_dir: target/universal-apple-darwin/release/bundle
           - platform: windows-latest
             args: --bundles nsis
+            bundle_dir: target/release/bundle
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -39,34 +41,32 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Build and release
-        uses: tauri-apps/tauri-action@v0.5
+      - name: Build Tauri app
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: v__VERSION__
-          releaseName: "HtSD Mapper v__VERSION__"
-          releaseBody: "See the changelog for details."
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
+        run: npx tauri build ${{ matrix.args }}
+
+      - name: List bundle output
+        run: find src-tauri/${{ matrix.bundle_dir }} -type f -name "*.sig" -o -name "*.tar.gz" -o -name "*.nsis.zip" -o -name "*.dmg" -o -name "*.exe" 2>/dev/null || dir /s /b src-tauri\${{ matrix.bundle_dir }} 2>NUL
+        shell: bash
 
       - name: Collect updater files (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
           mkdir -p updater-files
-          cp src-tauri/target/universal-apple-darwin/release/bundle/macos/HtSDMapper.app.tar.gz.sig updater-files/
-        shell: bash
+          cp src-tauri/${{ matrix.bundle_dir }}/macos/HtSDMapper.app.tar.gz updater-files/
+          cp src-tauri/${{ matrix.bundle_dir }}/macos/HtSDMapper.app.tar.gz.sig updater-files/
+          cp src-tauri/${{ matrix.bundle_dir }}/dmg/*.dmg updater-files/ || true
 
       - name: Collect updater files (Windows)
         if: matrix.platform == 'windows-latest'
+        shell: bash
         run: |
           mkdir -p updater-files
-          cp src-tauri/target/release/bundle/nsis/*-setup.nsis.zip updater-files/
-          cp src-tauri/target/release/bundle/nsis/*-setup.nsis.zip.sig updater-files/
-        shell: bash
+          cp src-tauri/${{ matrix.bundle_dir }}/nsis/*-setup.exe updater-files/
+          cp src-tauri/${{ matrix.bundle_dir }}/nsis/*-setup.nsis.zip updater-files/
+          cp src-tauri/${{ matrix.bundle_dir }}/nsis/*-setup.nsis.zip.sig updater-files/
 
       - name: Upload updater files
         uses: actions/upload-artifact@v4
@@ -74,33 +74,31 @@ jobs:
           name: updater-${{ matrix.platform == 'macos-latest' && 'macos' || 'windows' }}
           path: updater-files/
 
-  updater-json:
+  release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download signatures
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: sigs
+          path: artifacts
+
+      - name: List downloaded files
+        run: find artifacts/ -type f
 
       - name: Get version
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - name: List downloaded files
-        run: find sigs/ -type f
-
       - name: Generate latest.json
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          MAC_SIG=$(cat sigs/updater-macos/*.sig)
-          WIN_SIG=$(cat sigs/updater-windows/*.nsis.zip.sig)
+          MAC_SIG=$(cat artifacts/updater-macos/*.tar.gz.sig)
+          WIN_SIG=$(cat artifacts/updater-windows/*.nsis.zip.sig)
 
-          cat > latest.json << EOF
+          cat > latest.json <<EOF
           {
             "version": "${VERSION}",
             "notes": "See the changelog for details.",
@@ -126,12 +124,33 @@ jobs:
           }
           EOF
 
+          echo "Generated latest.json:"
           cat latest.json
 
-      - name: Upload latest.json and Windows updater bundle to release
+      - name: Create draft release and upload assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          gh release upload "v${VERSION}" latest.json --repo rodclemen/here_to_slay_dungeons_mapper --clobber
-          gh release upload "v${VERSION}" sigs/updater-windows/*.nsis.zip --repo rodclemen/here_to_slay_dungeons_mapper --clobber
+          TAG="v${VERSION}"
+          REPO="rodclemen/here_to_slay_dungeons_mapper"
+
+          # Create draft release
+          gh release create "${TAG}" \
+            --repo "${REPO}" \
+            --title "HtSD Mapper ${TAG}" \
+            --notes "See the changelog for details." \
+            --draft
+
+          # Upload all release assets
+          gh release upload "${TAG}" --repo "${REPO}" \
+            latest.json \
+            artifacts/updater-macos/HtSDMapper.app.tar.gz#HtSDMapper_universal.app.tar.gz \
+            artifacts/updater-windows/*-setup.exe \
+            artifacts/updater-windows/*-setup.nsis.zip
+
+          # Upload DMG if present
+          gh release upload "${TAG}" --repo "${REPO}" \
+            artifacts/updater-macos/*.dmg || true
+
+          echo "Draft release created: https://github.com/${REPO}/releases/tag/${TAG}"
