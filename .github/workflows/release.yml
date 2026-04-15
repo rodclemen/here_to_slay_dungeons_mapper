@@ -16,7 +16,7 @@ jobs:
           - platform: macos-latest
             args: --target universal-apple-darwin
           - platform: windows-latest
-            args: ""
+            args: --bundles nsis
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -51,4 +51,6 @@ jobs:
           releaseBody: "See the changelog for details."
           releaseDraft: true
           prerelease: false
+          includeUpdaterJson: true
+          updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
