@@ -21,7 +21,15 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' blob: ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' blob: ipc: http://ipc.localhost https://github.com https://objects.githubusercontent.com"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNDRkE4RTEzQUE0OUFBMDcKUldRSHFrbXFFNDc2UEdaU2FiTFlGY2xySjBIaVR2ZStxZVZHTkVWOTZGLzNrZFpBN1l0elk5amMK"
     }
   },
   "bundle": {

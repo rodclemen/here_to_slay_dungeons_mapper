@@ -407,6 +407,7 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 ├── src-tauri/              # Optional Tauri desktop shell
 ├── scripts/
 │   ├── build-tauri-web.mjs # Copies browser app into dist/tauri/, minifies JS/CSS
+│   ├── release.mjs         # Bumps version, commits, tags, and pushes to trigger a release
 │   └── sync-version.mjs    # Syncs version from package.json to Tauri config and Cargo.toml
 ├── tiles/
 │   ├── molten/             # Molten tile set assets
@@ -533,7 +534,20 @@ The Tauri desktop app bundles the mapper as a native macOS application (`.app` a
 
 The web version includes a download page (`download.html`) where users can grab the latest macOS build. A "Download HtSD Mapper" link in the Tile Drawer points to this page (web only — hidden in compact mode and in the desktop app itself). Server-side scripts track download counts and file metadata.
 
-The desktop app includes a native Help menu with Dev Mode access, window state persistence via the `@tauri-apps/plugin-window-state` plugin, and a file dialog (`@tauri-apps/plugin-dialog`) for choosing the custom tile-set data folder.
+The desktop app includes a native Help menu with Dev Mode access, window state persistence via the `@tauri-apps/plugin-window-state` plugin, a file dialog (`@tauri-apps/plugin-dialog`) for choosing the custom tile-set data folder, and an auto-updater (`@tauri-apps/plugin-updater`) that checks for new versions on launch.
+
+### Releasing an Update
+
+A single command handles the entire release flow:
+
+```bash
+npm run release -- patch    # 0.8.0 → 0.8.1
+npm run release -- minor    # 0.8.0 → 0.9.0
+npm run release -- major    # 0.8.0 → 1.0.0
+npm run release -- 1.2.3    # exact version
+```
+
+This bumps the version in `package.json`, syncs it to `tauri.conf.json` and `Cargo.toml`, commits, tags, and pushes. The GitHub Actions release workflow then builds signed installers for macOS and Windows and creates a draft GitHub Release with the updater manifest (`latest.json`). Review and publish the draft on GitHub to make it live — existing app installations will detect the update on next launch.
 
 ---
 

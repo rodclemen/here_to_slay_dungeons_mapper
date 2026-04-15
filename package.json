@@ -10,7 +10,8 @@
     "build:tauri-web": "node scripts/build-tauri-web.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.7.0",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "@tauri-apps/plugin-window-state": "^2.4.1"
   }
 }

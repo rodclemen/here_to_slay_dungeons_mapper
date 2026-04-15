@@ -2857,6 +2857,24 @@ async function init() {
   });
   await resumePendingDataFolderAction();
   showAppPromoBanner();
+  void checkForAppUpdate();
+}
+
+async function checkForAppUpdate() {
+  if (!IS_TAURI_RUNTIME) return;
+  const invoke = window.__TAURI__?.core?.invoke;
+  if (typeof invoke !== "function") return;
+  try {
+    const metadata = await invoke("plugin:updater|check");
+    if (!metadata) return;
+    const userConfirmed = confirm(
+      `A new version (${metadata.version}) is available.\n\nWould you like to download and install it now? The app will restart when the update is ready.`
+    );
+    if (!userConfirmed) return;
+    await invoke("plugin:updater|download_and_install", { rid: metadata.rid, onEvent: null });
+  } catch (error) {
+    console.warn("Update check failed:", error);
+  }
 }
 
 /** Caches derived tile geometry (shape, alphaMask, faceGeometry) keyed by image src. */
