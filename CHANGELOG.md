@@ -5,6 +5,7 @@
 - Added a GitHub Actions release workflow (`release.yml`) that builds signed macOS (universal binary) and Windows (NSIS) installers on `v*` tag pushes and creates a draft GitHub Release with the updater manifest.
 - Added signing environment variables (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) to the existing Windows build workflow.
 - Added `npm run release` one-command release script (`scripts/release.mjs`) that bumps the version in `package.json`, syncs it to Tauri config and Cargo manifest, commits, tags, and pushes — triggering the release workflow automatically.
+- Added `npm run build:web` script that builds a deploy-ready web app in `dist/web/` with version and changelog placeholders replaced. Integrated into the release flow so `npm run release` now produces both the desktop release (via CI) and the web deploy folder in one command.
 - Updated README with release instructions and updated project structure.
 
 ## 2026-04-14
