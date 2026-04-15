@@ -1,6 +1,6 @@
 [package]
 name = "here-to-slay-dungeon-mapper"
-version = "0.8.0"
+version = "0.8.1"
 description = "A desktop shell for the Here to Slay DUNGEONS mapper."
 authors = ["Rod Clemen"]
 edition = "2021"
