@@ -69,13 +69,12 @@ jobs:
           # Re-create the tar.gz from the .app
           tar -czf "${TAR_PATH}" -C "${BUNDLE_DIR}" "HtSDMapper.app"
 
-          # Sign using the tauri CLI — set TAURI_SIGNING_PRIVATE_KEY_PATH to avoid
-          # GitHub Actions secret masking issues with the env var value
+          # Sign via a clean env to avoid CLI arg conflicts with env vars
           KEY_FILE=$(mktemp)
           printf '%s' "${TAURI_SIGNING_PRIVATE_KEY}" > "${KEY_FILE}"
-          TAURI_SIGNING_PRIVATE_KEY_PATH="${KEY_FILE}" \
-          TAURI_SIGNING_PRIVATE_KEY="" \
-          npx tauri signer sign "${TAR_PATH}"
+          env -u TAURI_SIGNING_PRIVATE_KEY \
+            TAURI_SIGNING_PRIVATE_KEY_PATH="${KEY_FILE}" \
+            npx tauri signer sign "${TAR_PATH}"
           rm -f "${KEY_FILE}"
 
           echo "Signed ${TAR_PATH}"
