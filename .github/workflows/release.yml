@@ -6,7 +6,7 @@ on:
       - "v*"
 
 jobs:
-  release:
+  build:
     permissions:
       contents: write
     strategy:
@@ -51,6 +51,79 @@ jobs:
           releaseBody: "See the changelog for details."
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: true
-          updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
+
+      - name: Upload signature (macOS)
+        if: matrix.platform == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sig-macos
+          path: src-tauri/target/universal-apple-darwin/release/bundle/macos/*.tar.gz.sig
+
+      - name: Upload signature and updater bundle (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sig-windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.nsis.zip
+            src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+
+  updater-json:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download signatures
+        uses: actions/download-artifact@v4
+        with:
+          path: sigs
+
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate latest.json
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          MAC_SIG=$(cat sigs/sig-macos/*.sig)
+          WIN_SIG=$(cat sigs/sig-windows/*.sig)
+
+          cat > latest.json << EOF
+          {
+            "version": "${VERSION}",
+            "notes": "See the changelog for details.",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-universal": {
+                "signature": "${MAC_SIG}",
+                "url": "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_universal.app.tar.gz"
+              },
+              "darwin-aarch64": {
+                "signature": "${MAC_SIG}",
+                "url": "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_universal.app.tar.gz"
+              },
+              "darwin-x86_64": {
+                "signature": "${MAC_SIG}",
+                "url": "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_universal.app.tar.gz"
+              },
+              "windows-x86_64": {
+                "signature": "${WIN_SIG}",
+                "url": "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_${VERSION}_x64-setup.nsis.zip"
+              }
+            }
+          }
+          EOF
+
+          cat latest.json
+
+      - name: Upload latest.json and Windows updater bundle to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          gh release upload "v${VERSION}" latest.json --repo rodclemen/here_to_slay_dungeons_mapper --clobber
+          gh release upload "v${VERSION}" sigs/sig-windows/*.nsis.zip --repo rodclemen/here_to_slay_dungeons_mapper --clobber
