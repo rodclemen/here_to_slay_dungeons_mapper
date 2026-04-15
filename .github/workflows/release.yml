@@ -15,10 +15,8 @@ jobs:
         include:
           - platform: macos-latest
             args: --target universal-apple-darwin
-            bundle_dir: target/universal-apple-darwin/release/bundle
           - platform: windows-latest
             args: --bundles nsis
-            bundle_dir: target/release/bundle
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -41,40 +39,67 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Build Tauri app
+      - name: Build and upload to draft release
+        uses: tauri-apps/tauri-action@v0.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "HtSD Mapper v__VERSION__"
+          releaseBody: "See the changelog for details."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      # tauri-action re-packages the .app into .tar.gz for upload, which
+      # overwrites the signed .tar.gz and invalidates its .sig file.
+      # We re-create the tar.gz from the .app and sign it ourselves.
+      - name: Re-sign macOS updater bundle
+        if: matrix.platform == 'macos-latest'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build ${{ matrix.args }}
+        run: |
+          BUNDLE_DIR="src-tauri/target/universal-apple-darwin/release/bundle/macos"
+          APP_PATH="${BUNDLE_DIR}/HtSDMapper.app"
+          TAR_PATH="${BUNDLE_DIR}/HtSDMapper.app.tar.gz"
 
-      - name: List bundle output
-        run: find src-tauri/${{ matrix.bundle_dir }} -type f -name "*.sig" -o -name "*.tar.gz" -o -name "*.nsis.zip" -o -name "*.dmg" -o -name "*.exe" 2>/dev/null || dir /s /b src-tauri\${{ matrix.bundle_dir }} 2>NUL
-        shell: bash
+          # Re-create the tar.gz from the .app
+          tar -czf "${TAR_PATH}" -C "${BUNDLE_DIR}" "HtSDMapper.app"
+
+          # Sign it with the Tauri CLI signer
+          npx tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "${TAR_PATH}"
+
+          echo "Signed ${TAR_PATH}"
+          ls -la "${TAR_PATH}" "${TAR_PATH}.sig"
 
       - name: Collect updater files (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
           mkdir -p updater-files
-          cp src-tauri/${{ matrix.bundle_dir }}/macos/HtSDMapper.app.tar.gz updater-files/
-          cp src-tauri/${{ matrix.bundle_dir }}/macos/HtSDMapper.app.tar.gz.sig updater-files/
-          cp src-tauri/${{ matrix.bundle_dir }}/dmg/*.dmg updater-files/ || true
+          cp src-tauri/target/universal-apple-darwin/release/bundle/macos/HtSDMapper.app.tar.gz.sig updater-files/
 
       - name: Collect updater files (Windows)
         if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
           mkdir -p updater-files
-          cp src-tauri/${{ matrix.bundle_dir }}/nsis/*-setup.exe updater-files/
-          cp src-tauri/${{ matrix.bundle_dir }}/nsis/*-setup.nsis.zip updater-files/
-          cp src-tauri/${{ matrix.bundle_dir }}/nsis/*-setup.nsis.zip.sig updater-files/
+          NSIS_DIR="src-tauri/target/release/bundle/nsis"
+          cp "${NSIS_DIR}/"*-setup.nsis.zip updater-files/ || true
+          cp "${NSIS_DIR}/"*-setup.nsis.zip.sig updater-files/ || true
+          # List what we found
+          ls -la updater-files/
 
       - name: Upload updater files
         uses: actions/upload-artifact@v4
         with:
           name: updater-${{ matrix.platform == 'macos-latest' && 'macos' || 'windows' }}
           path: updater-files/
+          if-no-files-found: warn
 
-  release:
+  updater-json:
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -86,71 +111,68 @@ jobs:
           path: artifacts
 
       - name: List downloaded files
-        run: find artifacts/ -type f
+        run: find artifacts/ -type f || echo "No artifacts found"
 
       - name: Get version
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Generate latest.json
+      - name: Generate and upload latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          MAC_SIG=$(cat artifacts/updater-macos/*.tar.gz.sig)
-          WIN_SIG=$(cat artifacts/updater-windows/*.nsis.zip.sig)
+
+          MAC_SIG=""
+          WIN_SIG=""
+
+          if [ -d artifacts/updater-macos ]; then
+            MAC_SIG=$(cat artifacts/updater-macos/*.sig 2>/dev/null || echo "")
+          fi
+          if [ -d artifacts/updater-windows ]; then
+            WIN_SIG=$(cat artifacts/updater-windows/*.nsis.zip.sig 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$MAC_SIG" ] && [ -z "$WIN_SIG" ]; then
+            echo "No signatures found. Cannot generate latest.json."
+            exit 1
+          fi
+
+          # Build platforms object
+          PLATFORMS="{"
+          if [ -n "$MAC_SIG" ]; then
+            MAC_URL="https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_universal.app.tar.gz"
+            PLATFORMS="$PLATFORMS\"darwin-universal\":{\"signature\":\"${MAC_SIG}\",\"url\":\"${MAC_URL}\"},"
+            PLATFORMS="$PLATFORMS\"darwin-aarch64\":{\"signature\":\"${MAC_SIG}\",\"url\":\"${MAC_URL}\"},"
+            PLATFORMS="$PLATFORMS\"darwin-x86_64\":{\"signature\":\"${MAC_SIG}\",\"url\":\"${MAC_URL}\"},"
+          fi
+          if [ -n "$WIN_SIG" ]; then
+            WIN_URL="https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_${VERSION}_x64-setup.nsis.zip"
+            PLATFORMS="$PLATFORMS\"windows-x86_64\":{\"signature\":\"${WIN_SIG}\",\"url\":\"${WIN_URL}\"},"
+          fi
+          # Remove trailing comma and close
+          PLATFORMS="${PLATFORMS%,}}"
 
           cat > latest.json <<EOF
           {
             "version": "${VERSION}",
             "notes": "See the changelog for details.",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "darwin-universal": {
-                "signature": "${MAC_SIG}",
-                "url": "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_universal.app.tar.gz"
-              },
-              "darwin-aarch64": {
-                "signature": "${MAC_SIG}",
-                "url": "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_universal.app.tar.gz"
-              },
-              "darwin-x86_64": {
-                "signature": "${MAC_SIG}",
-                "url": "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_universal.app.tar.gz"
-              },
-              "windows-x86_64": {
-                "signature": "${WIN_SIG}",
-                "url": "https://github.com/rodclemen/here_to_slay_dungeons_mapper/releases/download/v${VERSION}/HtSDMapper_${VERSION}_x64-setup.nsis.zip"
-              }
-            }
+            "platforms": ${PLATFORMS}
           }
           EOF
 
           echo "Generated latest.json:"
           cat latest.json
 
-      - name: Create draft release and upload assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="v${VERSION}"
-          REPO="rodclemen/here_to_slay_dungeons_mapper"
+          # Upload latest.json to the release
+          gh release upload "v${VERSION}" latest.json --repo rodclemen/here_to_slay_dungeons_mapper --clobber
 
-          # Create draft release
-          gh release create "${TAG}" \
-            --repo "${REPO}" \
-            --title "HtSD Mapper ${TAG}" \
-            --notes "See the changelog for details." \
-            --draft
+          # Upload Windows nsis.zip if available
+          if [ -d artifacts/updater-windows ]; then
+            for f in artifacts/updater-windows/*.nsis.zip; do
+              [ -f "$f" ] && gh release upload "v${VERSION}" "$f" --repo rodclemen/here_to_slay_dungeons_mapper --clobber
+            done
+          fi
 
-          # Upload all release assets
-          gh release upload "${TAG}" --repo "${REPO}" \
-            latest.json \
-            artifacts/updater-macos/HtSDMapper.app.tar.gz#HtSDMapper_universal.app.tar.gz \
-            artifacts/updater-windows/*-setup.exe \
-            artifacts/updater-windows/*-setup.nsis.zip
-
-          # Upload DMG if present
-          gh release upload "${TAG}" --repo "${REPO}" \
-            artifacts/updater-macos/*.dmg || true
-
-          echo "Draft release created: https://github.com/${REPO}/releases/tag/${TAG}"
+          echo "Done! latest.json and updater bundles uploaded."
