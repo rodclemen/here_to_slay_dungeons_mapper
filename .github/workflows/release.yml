@@ -72,6 +72,7 @@ jobs:
           # Write key to file to avoid GitHub Actions percent-encoding issues
           KEY_FILE=$(mktemp)
           printenv TAURI_SIGNING_PRIVATE_KEY > "$KEY_FILE"
+          unset TAURI_SIGNING_PRIVATE_KEY
           npx tauri signer sign -f "$KEY_FILE" -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "${TAR_PATH}"
           rm -f "$KEY_FILE"
 
