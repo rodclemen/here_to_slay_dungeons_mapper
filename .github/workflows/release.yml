@@ -53,21 +53,26 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-      - name: Upload signature (macOS)
+      - name: Collect updater files (macOS)
         if: matrix.platform == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: sig-macos
-          path: src-tauri/target/universal-apple-darwin/release/bundle/macos/*.tar.gz.sig
+        run: |
+          mkdir -p updater-files
+          cp src-tauri/target/universal-apple-darwin/release/bundle/macos/HtSDMapper.app.tar.gz.sig updater-files/
+        shell: bash
 
-      - name: Upload signature and updater bundle (Windows)
+      - name: Collect updater files (Windows)
         if: matrix.platform == 'windows-latest'
+        run: |
+          mkdir -p updater-files
+          cp src-tauri/target/release/bundle/nsis/*-setup.nsis.zip updater-files/
+          cp src-tauri/target/release/bundle/nsis/*-setup.nsis.zip.sig updater-files/
+        shell: bash
+
+      - name: Upload updater files
         uses: actions/upload-artifact@v4
         with:
-          name: sig-windows
-          path: |
-            src-tauri/target/release/bundle/nsis/*.nsis.zip
-            src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+          name: updater-${{ matrix.platform == 'macos-latest' && 'macos' || 'windows' }}
+          path: updater-files/
 
   updater-json:
     needs: build
@@ -86,11 +91,14 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      - name: List downloaded files
+        run: find sigs/ -type f
+
       - name: Generate latest.json
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          MAC_SIG=$(cat sigs/sig-macos/*.sig)
-          WIN_SIG=$(cat sigs/sig-windows/*.sig)
+          MAC_SIG=$(cat sigs/updater-macos/*.sig)
+          WIN_SIG=$(cat sigs/updater-windows/*.nsis.zip.sig)
 
           cat > latest.json << EOF
           {
@@ -126,4 +134,4 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           gh release upload "v${VERSION}" latest.json --repo rodclemen/here_to_slay_dungeons_mapper --clobber
-          gh release upload "v${VERSION}" sigs/sig-windows/*.nsis.zip --repo rodclemen/here_to_slay_dungeons_mapper --clobber
+          gh release upload "v${VERSION}" sigs/updater-windows/*.nsis.zip --repo rodclemen/here_to_slay_dungeons_mapper --clobber
