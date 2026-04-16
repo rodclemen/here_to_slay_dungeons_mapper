@@ -3,6 +3,8 @@
 ## v0.8.3 (2026-04-16)
 - Auto-populate changelog on release and switch downloads to GitHub Releases
 - Replaced the default Tauri DMG with a custom DMG Canvas build featuring a styled background, volume icon, drag-to-install arrow, and license agreement. Tauri now only builds the `.app` and updater artifacts. Added `scripts/build-release.sh` to automate the full local build (Tauri + DMG Canvas) with optional `--upload` to push the DMG to a GitHub draft release.
+- Integrated DMG Canvas build + upload into `npm run release`, so a single command now handles the full release: version bump, web build, git tag/push, and local DMG creation + upload to the draft release.
+- Added `npm run release -- web` to build the web app without bumping versions or releasing — useful for testing before committing to a release.
 
 
 ## 2026-04-16
