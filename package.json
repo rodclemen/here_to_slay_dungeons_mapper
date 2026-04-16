@@ -1,6 +1,6 @@
 {
   "name": "here-to-slay-dungeon-mapper",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": true,
   "description": "A browser-first Here to Slay DUNGEONS mapper with an optional Tauri desktop shell.",
   "scripts": {
