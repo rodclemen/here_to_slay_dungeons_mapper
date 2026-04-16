@@ -1,12 +1,12 @@
 # Changelog
 
 ## v0.8.2 (2026-04-16)
-- Update changelog for DMG Canvas and release script improvements
-- Fix release script: use npx tauri, handle re-runs gracefully
-- Update changelog for release flow and web-only build
-- Integrate DMG Canvas build into release flow, add web-only build
-- Update changelog for custom DMG Canvas build
-- Replace Tauri DMG with custom DMG Canvas build
+- Swept the dungeon corridors, reorganized the supply crates, and tightened a few loose bolts behind the scenes. Nothing flashy — just making sure the foundations are solid before the next adventure.
+- The app now opens maximized on first launch so you get the full dungeon-planning experience right away. Resize it however you like and it'll remember your preference.
+- Small screens (1200px height or less) automatically zoom to 80% so everything fits without scrolling.
+- The macOS installer is now properly signed and notarized — no more "damaged file" warnings or Gatekeeper hassle.
+- Added a data folder dialog with options to change your storage location or reset to the default system folder.
+- Donate dialog now shows a proper message instead of a bare confirmation prompt.
 
 
 ## 2026-04-16 (unreleased)

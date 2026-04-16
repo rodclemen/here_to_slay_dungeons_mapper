@@ -560,11 +560,11 @@ This:
 2. Builds the deploy-ready web app in `dist/web/`
 3. Commits, tags, and pushes — triggering GitHub Actions
 4. GitHub Actions builds signed updater artifacts (macOS + Windows) and creates a draft release
-5. Builds a custom DMG locally via DMG Canvas and uploads it to the draft release
+5. Builds a signed and notarized DMG locally via DMG Canvas and uploads it to the draft release
 
 After it finishes, upload `dist/web/` to your web server and publish the draft release on GitHub. Existing desktop installations will detect the update on next launch.
 
-**Prerequisites for local DMG build:** [DMG Canvas](https://www.araelium.com/dmgcanvas) must be installed with the `dmgcanvas` CLI tool linked. The DMG template is at `gfx/template.dmgcanvas`.
+**Prerequisites for local DMG build:** [DMG Canvas](https://www.araelium.com/dmgcanvas) must be installed with the `dmgcanvas` CLI tool linked. The DMG template is at `gfx/template.dmgcanvas`. A Developer ID Application certificate and notarization credentials must be configured (signing key password stored in macOS keychain, notarization profile stored via `xcrun notarytool store-credentials`).
 
 ---
 

@@ -744,6 +744,66 @@ function requestDataFolderDialog(currentPath) {
   });
 }
 
+function requestDonateDialog() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "text-input-modal-backdrop";
+    overlay.setAttribute("role", "presentation");
+
+    const modal = document.createElement("div");
+    modal.className = "text-input-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "donate-modal-title");
+    modal.style.cssText = "max-width: 480px;";
+
+    const heading = document.createElement("h2");
+    heading.id = "donate-modal-title";
+    heading.textContent = "\uD83C\uDF7A Buy Me a Little Dungeon Fuel";
+
+    const intro = document.createElement("p");
+    intro.style.cssText = "font-size: 0.9em; line-height: 1.6; opacity: 0.85; margin: 0.5em 0;";
+    intro.textContent = "This mapper will stay free to use. No paywall, no \u201Cpremium dungeon tiles,\u201D no nonsense.";
+
+    const body = document.createElement("p");
+    body.style.cssText = "font-size: 0.9em; line-height: 1.6; opacity: 0.85; margin: 0.5em 0;";
+    body.textContent = "If it helps you plan cool layouts, build random dungeons faster, or avoid a bit of setup fiddling, and you feel like tossing a few coins into the tavern jar, that is very welcome, but never expected. This will open PayPal in your browser.";
+
+    const actions = document.createElement("div");
+    actions.className = "text-input-modal-actions";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.textContent = "Maybe Later";
+
+    const donateBtn = document.createElement("button");
+    donateBtn.type = "button";
+    donateBtn.textContent = "Donate with PayPal";
+
+    actions.append(cancelBtn, donateBtn);
+    modal.append(heading, intro, body, actions);
+    overlay.appendChild(modal);
+
+    const close = (value) => {
+      document.removeEventListener("keydown", handleKeyDown);
+      overlay.remove();
+      resolve(value);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close(false);
+      }
+    };
+
+    cancelBtn.addEventListener("click", () => close(false));
+    donateBtn.addEventListener("click", () => close(true));
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.appendChild(overlay);
+    donateBtn.focus();
+  });
+}
+
 async function promptForUniqueCustomTileSetName({
   promptMessage,
   defaultValue = "",
@@ -1170,12 +1230,7 @@ async function bindNativeMenuActions() {
         return;
       }
       if (action === "open-donate") {
-        const confirmed = await requestChoiceDialog({
-          title: "Open PayPal?",
-          message: "You are about to open a PayPal link in your browser.",
-          confirmLabel: "Open",
-          cancelLabel: "Cancel",
-        });
+        const confirmed = await requestDonateDialog();
         if (!confirmed) return;
         const tauriInvoke = window.__TAURI__?.core?.invoke;
         if (typeof tauriInvoke !== "function") {
