@@ -1,22 +1,43 @@
 #!/bin/bash
 set -euo pipefail
 
-# Build release: Tauri app + updater artifacts + custom DMG via DMG Canvas
+# Build release: Tauri app + updater artifacts + signed/notarized DMG via DMG Canvas
 #
 # Prerequisites:
-#   - TAURI_SIGNING_PRIVATE_KEY or TAURI_SIGNING_PRIVATE_KEY_PATH must be set
-#   - DMG Canvas must be installed with CLI tool linked at /usr/local/bin/dmgcanvas
+#   - TAURI_SIGNING_PRIVATE_KEY or key file at ~/.tauri/signing-key.key
+#   - Developer ID Application certificate installed in keychain
+#   - Notarization credentials stored: xcrun notarytool store-credentials "HtSDMapper-notarize"
+#   - DMG Canvas installed with CLI tool linked at /usr/local/bin/dmgcanvas
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATE="$PROJECT_DIR/gfx/template.dmgcanvas"
 APP_BUNDLE="$PROJECT_DIR/src-tauri/target/release/bundle/macos/HtSDMapper.app"
 DMG_OUTPUT="$PROJECT_DIR/src-tauri/target/release/bundle/dmg/HtSDMapper.dmg"
+SIGNING_IDENTITY="Developer ID Application: Rod Clemen (2S5TWMXL9G)"
+NOTARIZE_PROFILE="HtSDMapper-notarize"
 
-# Default to key file if env var not set
-if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ] && [ -z "${TAURI_SIGNING_PRIVATE_KEY_PATH:-}" ]; then
-    export TAURI_SIGNING_PRIVATE_KEY_PATH="$HOME/.tauri/signing-key.key"
-    echo "Using signing key from $TAURI_SIGNING_PRIVATE_KEY_PATH"
+# Load signing key from file if env var not set
+if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+    KEY_FILE="${TAURI_SIGNING_PRIVATE_KEY_PATH:-$HOME/.tauri/signing-key.key}"
+    if [ -f "$KEY_FILE" ]; then
+        export TAURI_SIGNING_PRIVATE_KEY="$(cat "$KEY_FILE")"
+        echo "Using signing key from $KEY_FILE"
+    else
+        echo "Error: No signing key found. Set TAURI_SIGNING_PRIVATE_KEY or place key at $KEY_FILE"
+        exit 1
+    fi
+fi
+
+# Load signing key password from keychain if env var not set
+if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]; then
+    KEYCHAIN_PW="$(security find-generic-password -a "tauri-signing" -s "tauri-signing-key-password" -w 2>/dev/null || true)"
+    if [ -n "$KEYCHAIN_PW" ]; then
+        export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$KEYCHAIN_PW"
+        echo "Using signing key password from keychain"
+    else
+        echo "Warning: No signing key password found. Set TAURI_SIGNING_PRIVATE_KEY_PASSWORD or store in keychain."
+    fi
 fi
 
 # Filter out --upload from args passed to tauri build
@@ -34,13 +55,44 @@ if [ ! -d "$APP_BUNDLE" ]; then
     exit 1
 fi
 
-echo "==> Building DMG with DMG Canvas..."
+# --- Code-sign the .app ---
+echo ""
+echo "==> Code-signing $APP_BUNDLE..."
+codesign --deep --force --options runtime \
+    --sign "$SIGNING_IDENTITY" \
+    "$APP_BUNDLE"
+codesign --verify --deep --strict "$APP_BUNDLE"
+echo "Code-signing verified."
+
+# --- Notarize the .app (zip it, submit, wait, staple) ---
+echo ""
+echo "==> Notarizing app with Apple..."
+APP_ZIP="$PROJECT_DIR/src-tauri/target/release/bundle/macos/HtSDMapper.zip"
+ditto -c -k --keepParent "$APP_BUNDLE" "$APP_ZIP"
+
+xcrun notarytool submit "$APP_ZIP" \
+    --keychain-profile "$NOTARIZE_PROFILE" \
+    --wait
+
+echo "==> Stapling notarization ticket..."
+xcrun stapler staple "$APP_BUNDLE"
+rm -f "$APP_ZIP"
+echo "Notarization complete."
+
+# --- Build, sign, and notarize DMG with DMG Canvas ---
+# DMG Canvas handles code-signing, notarization, and stapling of the DMG.
+# Notarization credentials are configured in the DMG Canvas app preferences.
+echo ""
+echo "==> Building DMG with DMG Canvas (signing + notarizing)..."
 mkdir -p "$(dirname "$DMG_OUTPUT")"
 dmgcanvas "$TEMPLATE" "$DMG_OUTPUT" \
-    -setFilePath "HtSDMapper.app" "$APP_BUNDLE"
+    -setFilePath "HtSDMapper.app" "$APP_BUNDLE" \
+    -identity "$SIGNING_IDENTITY" \
+    -notarizationAppleID "rodclemen@gmail.com" \
+    -notarizationPrimaryBundleID "com.rodclemen.heretoslay.mapper"
 
 echo ""
-echo "Build complete!"
+echo "Build complete! (signed + notarized)"
 echo "  App:     $APP_BUNDLE"
 echo "  DMG:     $DMG_OUTPUT"
 echo "  Updater: $PROJECT_DIR/src-tauri/target/release/bundle/macos/HtSDMapper.app.tar.gz"

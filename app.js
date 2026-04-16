@@ -128,9 +128,11 @@ import {
 } from "./modules/custom-tileset-package.js";
 import {
   chooseDataFolder,
+  clearStoredDataFolderPath,
   ensureDataFolderPath,
   getStoredDataFolderPath,
   hasAnyDataFolderContent,
+  isTauriRuntime,
   joinDataFolderPath,
   loadDataSettingsMap,
   saveDataSetting,
@@ -669,6 +671,76 @@ function requestChoiceDialog({
     document.addEventListener("keydown", handleKeyDown);
     document.body.appendChild(overlay);
     confirmBtn.focus();
+  });
+}
+
+/**
+ * Opens a modal showing the current data folder path with options to change it,
+ * revert to the default folder, or cancel.
+ * Returns: { action: "change" | "default" | "cancel" }
+ */
+function requestDataFolderDialog(currentPath) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "text-input-modal-backdrop";
+    overlay.setAttribute("role", "presentation");
+
+    const modal = document.createElement("div");
+    modal.className = "text-input-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "data-folder-modal-title");
+
+    const heading = document.createElement("h2");
+    heading.id = "data-folder-modal-title";
+    heading.textContent = "Data Folder";
+
+    const pathLabel = document.createElement("p");
+    pathLabel.style.cssText = "font-size: 0.85em; opacity: 0.7; margin: 0.25em 0 0.5em;";
+    pathLabel.textContent = currentPath ? `Current: ${currentPath}` : "Using default system folder";
+
+    const body = document.createElement("p");
+    body.style.cssText = "font-size: 0.85em; line-height: 1.5; opacity: 0.8;";
+    body.textContent = "You can choose a custom folder for settings and tile data, or use the default system folder.";
+
+    const actions = document.createElement("div");
+    actions.className = "text-input-modal-actions";
+    actions.style.cssText = "flex-wrap: wrap; gap: 0.5em;";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.textContent = "Cancel";
+
+    const defaultBtn = document.createElement("button");
+    defaultBtn.type = "button";
+    defaultBtn.textContent = "Use Default Folder";
+
+    const changeBtn = document.createElement("button");
+    changeBtn.type = "button";
+    changeBtn.textContent = "Change Folder\u2026";
+
+    actions.append(cancelBtn, defaultBtn, changeBtn);
+    modal.append(heading, pathLabel, body, actions);
+    overlay.appendChild(modal);
+
+    const close = (action) => {
+      document.removeEventListener("keydown", handleKeyDown);
+      overlay.remove();
+      resolve({ action });
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close("cancel");
+      }
+    };
+
+    cancelBtn.addEventListener("click", () => close("cancel"));
+    defaultBtn.addEventListener("click", () => close("default"));
+    changeBtn.addEventListener("click", () => close("change"));
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.appendChild(overlay);
+    changeBtn.focus();
   });
 }
 
@@ -2744,6 +2816,23 @@ async function finalizeDataFolderSelection(selectedPath) {
   return true;
 }
 
+async function resetToDefaultDataFolder() {
+  try {
+    const invoke = globalThis.__TAURI__?.core?.invoke;
+    if (typeof invoke !== "function") return;
+    const defaultPath = await invoke("get_default_data_dir");
+    if (!defaultPath) {
+      setStatus("Could not determine default data folder.", true);
+      return;
+    }
+    clearStoredDataFolderPath();
+    await finalizeDataFolderSelection(defaultPath);
+  } catch (error) {
+    console.error(error);
+    setStatus(error?.message || "Could not reset to default folder.", true);
+  }
+}
+
 installDebugConsoleCapture();
 
 init().catch((error) => {
@@ -2771,6 +2860,9 @@ function showAppPromoBanner() {
 }
 
 async function init() {
+  if (IS_TAURI_RUNTIME && window.screen.height <= 1200) {
+    document.body.style.zoom = "80%";
+  }
   window.addEventListener("beforeunload", () => {
     revokeCustomTileSetAssetUrls();
   }, { once: true });
@@ -3398,6 +3490,8 @@ function getEventSetupCtx() {
     chooseDataFolder,
     syncChooseDataFolderAction,
     finalizeDataFolderSelection,
+    requestDataFolderDialog,
+    resetToDefaultDataFolder,
     openDebugLogBtn,
     toggleDebugConsole,
     debugConsoleCopyBtn,
