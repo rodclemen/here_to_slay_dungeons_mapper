@@ -37,7 +37,7 @@
     "createUpdaterArtifacts": true,
     "publisher": "Rod Clemen",
     "copyright": "Copyright © 2026 Rod Clemen",
-    "targets": "all",
+    "targets": ["updater"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
