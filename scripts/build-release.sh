@@ -19,9 +19,15 @@ if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ] && [ -z "${TAURI_SIGNING_PRIVATE_KEY_
     echo "Using signing key from $TAURI_SIGNING_PRIVATE_KEY_PATH"
 fi
 
+# Filter out --upload from args passed to tauri build
+TAURI_ARGS=()
+for arg in "$@"; do
+    [[ "$arg" != "--upload" ]] && TAURI_ARGS+=("$arg")
+done
+
 echo "==> Building Tauri app + updater artifacts..."
 cd "$PROJECT_DIR"
-cargo tauri build "$@"
+npx tauri build "${TAURI_ARGS[@]}"
 
 if [ ! -d "$APP_BUNDLE" ]; then
     echo "Error: App bundle not found at $APP_BUNDLE"

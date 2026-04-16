@@ -28,9 +28,15 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function run(cmd) {
+function run(cmd, { ignoreError = false } = {}) {
   console.log(`  $ ${cmd}`);
-  execSync(cmd, { stdio: "inherit" });
+  try {
+    execSync(cmd, { stdio: "inherit" });
+  } catch (err) {
+    if (ignoreError) return false;
+    throw err;
+  }
+  return true;
 }
 
 function bumpVersion(current, bump) {
@@ -93,35 +99,45 @@ const pkg = JSON.parse(await readFile("package.json", "utf8"));
 const currentVersion = pkg.version;
 const nextVersion = bumpVersion(currentVersion, bump);
 
-console.log(`\nBumping version: ${currentVersion} → ${nextVersion}\n`);
+const alreadyAtVersion = currentVersion === nextVersion;
 
-// 1. Collect changelog from commits since last tag
-const commits = getCommitsSinceLastTag();
-console.log("Changelog entries:");
-console.log(commits || "  (no commits)");
-console.log();
+if (alreadyAtVersion) {
+  console.log(`\nAlready at v${nextVersion} — resuming release...\n`);
+} else {
+  console.log(`\nBumping version: ${currentVersion} → ${nextVersion}\n`);
 
-// 2. Update package.json
-pkg.version = nextVersion;
-await writeFile("package.json", `${JSON.stringify(pkg, null, 2)}\n`);
+  // 1. Collect changelog from commits since last tag
+  const commits = getCommitsSinceLastTag();
+  console.log("Changelog entries:");
+  console.log(commits || "  (no commits)");
+  console.log();
 
-// 3. Prepend changelog section
-const updatedChangelog = prependChangelog(nextVersion, commits);
-await writeFile("CHANGELOG.md", updatedChangelog);
-console.log("Updated CHANGELOG.md\n");
+  // 2. Update package.json
+  pkg.version = nextVersion;
+  await writeFile("package.json", `${JSON.stringify(pkg, null, 2)}\n`);
 
-// 4. Sync to tauri.conf.json and Cargo.toml
-run("npm run sync:version");
+  // 3. Prepend changelog section
+  const updatedChangelog = prependChangelog(nextVersion, commits);
+  await writeFile("CHANGELOG.md", updatedChangelog);
+  console.log("Updated CHANGELOG.md\n");
+
+  // 4. Sync to tauri.conf.json and Cargo.toml
+  run("npm run sync:version");
+}
 
 // 5. Build deploy-ready web app in dist/web/
 run("npm run build:web");
 
-// 6. Commit the version bump + changelog
+// 6. Commit the version bump + changelog (skip if nothing to commit)
 run("git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md");
-run(`git commit -m "Release v${nextVersion}"`);
+if (!run(`git diff --cached --quiet`, { ignoreError: true })) {
+  run(`git commit -m "Release v${nextVersion}"`);
+} else {
+  console.log("  (nothing to commit — already up to date)");
+}
 
 // 7. Tag and push — triggers GitHub Actions release workflow
-run(`git tag v${nextVersion}`);
+run(`git tag v${nextVersion}`, { ignoreError: true }); // skip if tag exists
 run("git push && git push --tags");
 
 console.log(`\nv${nextVersion} pushed. GitHub Actions is building updater artifacts...`);
