@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-16
+- Fixed the auto-updater by adding `"createUpdaterArtifacts": true` to `tauri.conf.json` bundle config. This was the root cause of `latest.json` never being generated — without it, the build never produced `.sig` signature files, so `tauri-action` had nothing to work with. Removed 124 lines of manual re-signing workarounds from the release workflow since `tauri-action` handles everything automatically when this config is set.
+- Fixed the frontend updater to pass a proper `Channel` object to `downloadAndInstall` instead of `null`, matching the plugin's actual API requirements.
+
 ## 2026-04-15
 - Added Tauri auto-updater plugin so the desktop app checks for new versions on launch and offers in-app download and install. Configured the updater endpoint to pull `latest.json` from GitHub Releases with minisign signature verification.
 - Added a GitHub Actions release workflow (`release.yml`) that builds signed macOS (universal binary) and Windows (NSIS) installers on `v*` tag pushes and creates a draft GitHub Release with the updater manifest.
