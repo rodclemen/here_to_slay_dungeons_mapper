@@ -203,6 +203,28 @@ fn open_external_url(url: String) -> Result<(), String> {
     open_external_url_impl(&url)
 }
 
+#[tauri::command]
+fn get_default_data_dir() -> Result<String, String> {
+    #[cfg(target_os = "macos")]
+    let base = {
+        let home = std::env::var_os("HOME").ok_or("Could not locate the home directory.")?;
+        PathBuf::from(home).join("Library").join("Application Support")
+    };
+    #[cfg(target_os = "windows")]
+    let base = {
+        let appdata = std::env::var_os("APPDATA").ok_or("Could not locate the AppData directory.")?;
+        PathBuf::from(appdata)
+    };
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let base = {
+        let home = std::env::var_os("HOME").ok_or("Could not locate the home directory.")?;
+        PathBuf::from(home).join(".local").join("share")
+    };
+    let path = base.join("HtSDMapper");
+    fs::create_dir_all(&path).map_err(|e| format!("Could not create data directory: {e}"))?;
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -315,6 +337,7 @@ pub fn run() {
             read_file_bytes,
             list_dir_entries,
             open_external_url,
+            get_default_data_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");

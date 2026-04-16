@@ -2848,13 +2848,9 @@ async function init() {
     scheduleBoardHexGridRender();
   }
   showPersistedCustomTileSetBackupNotice();
-  void promptForDataFolderSelection({
-    title: "Choose a Data Folder",
-    message: "This desktop app stores settings and custom tile sets in a folder you choose. If you skip this, the app will use built-in defaults and nothing can be saved.",
-    rememberDismissal: true,
-  }).catch((error) => {
-    console.error(error);
-  });
+  // Auto-initialize the data folder (~/Library/Application Support/HtSDMapper/).
+  // No prompt needed — ensureDataFolderPath handles the default automatically.
+  await ensureDataFolderPath();
   await resumePendingDataFolderAction();
   showAppPromoBanner();
   void checkForAppUpdate();

@@ -147,6 +147,19 @@ export async function ensureDataFolderPath({ promptIfMissing = false } = {}) {
     return storedPath;
   }
 
+  // No stored path — auto-initialize to the default app data directory.
+  if (!storedPath) {
+    try {
+      const defaultPath = await invokeTauri("get_default_data_dir");
+      if (defaultPath) {
+        setStoredDataFolderPath(defaultPath);
+        return defaultPath;
+      }
+    } catch (error) {
+      console.warn("Could not resolve default data directory.", error);
+    }
+  }
+
   if (storedPath) {
     clearStoredDataFolderPath();
   }
