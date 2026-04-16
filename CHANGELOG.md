@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.3 (2026-04-16)
+- Auto-populate changelog on release and switch downloads to GitHub Releases
+
+
 ## 2026-04-16
 - Fixed the auto-updater by adding `"createUpdaterArtifacts": true` to `tauri.conf.json` bundle config. This was the root cause of `latest.json` never being generated — without it, the build never produced `.sig` signature files, so `tauri-action` had nothing to work with. Removed 124 lines of manual re-signing workarounds from the release workflow since `tauri-action` handles everything automatically when this config is set.
 - Fixed the frontend updater to pass a proper `Channel` object to `downloadAndInstall` instead of `null`, matching the plugin's actual API requirements.
