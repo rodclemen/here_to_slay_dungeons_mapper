@@ -2864,13 +2864,18 @@ async function checkForAppUpdate() {
   if (!IS_TAURI_RUNTIME) return;
   const core = window.__TAURI__?.core;
   if (!core?.invoke) return;
+  const dismissed = localStorage.getItem("update-dismissed-until");
+  if (dismissed && Date.now() < Number(dismissed)) return;
   try {
     const metadata = await core.invoke("plugin:updater|check");
     if (!metadata) return;
     const userConfirmed = confirm(
       `A new version (${metadata.version}) is available.\n\nWould you like to download and install it now? The app will restart when the update is ready.`
     );
-    if (!userConfirmed) return;
+    if (!userConfirmed) {
+      localStorage.setItem("update-dismissed-until", String(Date.now() + 86_400_000));
+      return;
+    }
     const channel = new core.Channel();
     await core.invoke("plugin:updater|download_and_install", {
       onEvent: channel,
