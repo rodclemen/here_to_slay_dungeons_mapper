@@ -2862,16 +2862,20 @@ async function init() {
 
 async function checkForAppUpdate() {
   if (!IS_TAURI_RUNTIME) return;
-  const invoke = window.__TAURI__?.core?.invoke;
-  if (typeof invoke !== "function") return;
+  const core = window.__TAURI__?.core;
+  if (!core?.invoke) return;
   try {
-    const metadata = await invoke("plugin:updater|check");
+    const metadata = await core.invoke("plugin:updater|check");
     if (!metadata) return;
     const userConfirmed = confirm(
       `A new version (${metadata.version}) is available.\n\nWould you like to download and install it now? The app will restart when the update is ready.`
     );
     if (!userConfirmed) return;
-    await invoke("plugin:updater|download_and_install", { rid: metadata.rid, onEvent: null });
+    const channel = new core.Channel();
+    await core.invoke("plugin:updater|download_and_install", {
+      onEvent: channel,
+      rid: metadata.rid,
+    });
   } catch (error) {
     console.warn("Update check failed:", error);
   }
