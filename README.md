@@ -536,6 +536,14 @@ The web version includes a download page (`download.html`) where users can grab 
 
 The desktop app includes a native Help menu with Dev Mode access, window state persistence via the `@tauri-apps/plugin-window-state` plugin, a file dialog (`@tauri-apps/plugin-dialog`) for choosing the custom tile-set data folder, and an auto-updater (`@tauri-apps/plugin-updater`) that checks for new versions on launch.
 
+### Building the Web App
+
+To build the web app without releasing (for testing):
+
+```bash
+npm run release -- web      # build web app to dist/web/ — no version bump, no release
+```
+
 ### Releasing an Update
 
 A single command handles the entire release flow:
@@ -547,7 +555,16 @@ npm run release -- major    # 0.8.0 → 1.0.0
 npm run release -- 1.2.3    # exact version
 ```
 
-This bumps the version in `package.json`, syncs it to `tauri.conf.json` and `Cargo.toml`, commits, tags, and pushes. The GitHub Actions release workflow then builds signed installers for macOS and Windows and creates a draft GitHub Release with the updater manifest (`latest.json`). Review and publish the draft on GitHub to make it live — existing app installations will detect the update on next launch.
+This:
+1. Bumps the version in `package.json`, syncs it to `tauri.conf.json` and `Cargo.toml`
+2. Builds the deploy-ready web app in `dist/web/`
+3. Commits, tags, and pushes — triggering GitHub Actions
+4. GitHub Actions builds signed updater artifacts (macOS + Windows) and creates a draft release
+5. Builds a custom DMG locally via DMG Canvas and uploads it to the draft release
+
+After it finishes, upload `dist/web/` to your web server and publish the draft release on GitHub. Existing desktop installations will detect the update on next launch.
+
+**Prerequisites for local DMG build:** [DMG Canvas](https://www.araelium.com/dmgcanvas) must be installed with the `dmgcanvas` CLI tool linked. The DMG template is at `gfx/template.dmgcanvas`.
 
 ---
 
