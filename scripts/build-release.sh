@@ -27,7 +27,7 @@ done
 
 echo "==> Building Tauri app + updater artifacts..."
 cd "$PROJECT_DIR"
-npx tauri build "${TAURI_ARGS[@]}"
+npx tauri build ${TAURI_ARGS[@]+"${TAURI_ARGS[@]}"}
 
 if [ ! -d "$APP_BUNDLE" ]; then
     echo "Error: App bundle not found at $APP_BUNDLE"
