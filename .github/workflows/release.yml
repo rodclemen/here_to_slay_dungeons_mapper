@@ -41,9 +41,15 @@ jobs:
 
       - name: Extract changelog for this version
         id: changelog
+        shell: bash
         run: |
           # Extract the first ## section from CHANGELOG.md (latest release)
-          body=$(sed -n '/^## /{p; :a; n; /^## /q; p; ba}' CHANGELOG.md)
+          body=$(node -e "
+            const fs = require('fs');
+            const md = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const m = md.match(/^## .+(?:\n(?!## ).*)*$/m);
+            process.stdout.write(m ? m[0] : '');
+          ")
           # Set as multiline output
           {
             echo "body<<CHANGELOG_EOF"
