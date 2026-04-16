@@ -2866,6 +2866,8 @@ async function checkForAppUpdate() {
   if (!core?.invoke) return;
   try {
     const metadata = await core.invoke("plugin:updater|check");
+    // DEBUG — remove after verifying updater works
+    alert(metadata ? `Update found: v${metadata.version}` : "No update available (you are on the latest version).");
     if (!metadata) return;
     const userConfirmed = confirm(
       `A new version (${metadata.version}) is available.\n\nWould you like to download and install it now? The app will restart when the update is ready.`
@@ -2877,6 +2879,8 @@ async function checkForAppUpdate() {
       rid: metadata.rid,
     });
   } catch (error) {
+    // DEBUG — remove after verifying updater works
+    alert(`Update check error: ${error}`);
     console.warn("Update check failed:", error);
   }
 }
