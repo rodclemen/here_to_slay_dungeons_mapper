@@ -39,6 +39,18 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          # Extract the first ## section from CHANGELOG.md (latest release)
+          body=$(sed -n '/^## /{p; :a; n; /^## /q; p; ba}' CHANGELOG.md)
+          # Set as multiline output
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "$body"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and upload to draft release
         uses: tauri-apps/tauri-action@v0.5
         env:
@@ -48,7 +60,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "HtSD Mapper v__VERSION__"
-          releaseBody: "See the changelog for details."
+          releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

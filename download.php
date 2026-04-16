@@ -4,10 +4,70 @@ declare(strict_types=1);
 
 const HTSD_STATS_FILE = __DIR__ . '/Download/.htsd_mapper_download_stats.json';
 
-const HTSD_DOWNLOAD_URLS = [
-    'mac' => 'https://drive.google.com/uc?id=1bkfwmAxLjzTs7wA_HEhVzNs-_92mqMkd&export=download',
-    'windows' => 'https://drive.google.com/uc?id=1phr0PLfydEu3Gva4on2pzeWgWwvoXtYl&export=download',
+const HTSD_REPO = 'rodclemen/here_to_slay_dungeons_mapper';
+const HTSD_ASSET_PATTERNS = [
+    'mac' => '/\.dmg$/',
+    'windows' => '/x64-setup\.exe$/',
 ];
+const HTSD_RELEASE_CACHE = __DIR__ . '/Download/.htsd_release_cache.json';
+const HTSD_CACHE_TTL = 300; // 5 minutes
+
+function htsd_get_download_url(string $platform): string
+{
+    // Try cached release data first
+    $cached = null;
+    if (is_file(HTSD_RELEASE_CACHE)) {
+        $raw = file_get_contents(HTSD_RELEASE_CACHE);
+        $cached = $raw ? json_decode($raw, true) : null;
+        if ($cached && ($cached['time'] ?? 0) > time() - HTSD_CACHE_TTL) {
+            if (!empty($cached['urls'][$platform])) {
+                return $cached['urls'][$platform];
+            }
+        }
+    }
+
+    // Fetch latest release from GitHub API
+    $ctx = stream_context_create(['http' => [
+        'header' => "User-Agent: HtSDMapper-Download\r\n",
+        'timeout' => 5,
+    ]]);
+    $json = @file_get_contents(
+        'https://api.github.com/repos/' . HTSD_REPO . '/releases/latest',
+        false,
+        $ctx
+    );
+
+    if ($json === false) {
+        // API failed — fall back to cached data if available
+        if ($cached && !empty($cached['urls'][$platform])) {
+            return $cached['urls'][$platform];
+        }
+        throw new RuntimeException('Could not fetch release info.');
+    }
+
+    $release = json_decode($json, true);
+    $urls = [];
+    foreach (HTSD_ASSET_PATTERNS as $plat => $pattern) {
+        foreach ($release['assets'] ?? [] as $asset) {
+            if (preg_match($pattern, $asset['name'])) {
+                $urls[$plat] = $asset['browser_download_url'];
+                break;
+            }
+        }
+    }
+
+    // Cache the result
+    $dir = dirname(HTSD_RELEASE_CACHE);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0775, true);
+    }
+    file_put_contents(HTSD_RELEASE_CACHE, json_encode(['time' => time(), 'urls' => $urls]));
+
+    if (empty($urls[$platform])) {
+        throw new RuntimeException("No $platform asset found in latest release.");
+    }
+    return $urls[$platform];
+}
 
 function htsd_load_stats(): array
 {
@@ -51,11 +111,11 @@ function htsd_save_stats(array $stats): void
     }
 }
 
-$platform = isset($_GET['platform']) && array_key_exists($_GET['platform'], HTSD_DOWNLOAD_URLS)
+$platform = isset($_GET['platform']) && array_key_exists($_GET['platform'], HTSD_ASSET_PATTERNS)
     ? $_GET['platform']
     : 'mac';
 
-$url = HTSD_DOWNLOAD_URLS[$platform];
+$url = htsd_get_download_url($platform);
 
 try {
     $stats = htsd_load_stats();
