@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-17 (unreleased)
+- Replaced the browser-native `confirm()` in the auto-updater prompt with a styled Tauri `dialog|ask` dialog ("Update" / "Later" buttons) so the update offer matches the rest of the desktop UI. Added the required `dialog:allow-ask` capability.
+- `scripts/build-release.sh --upload` now waits up to 15 minutes for the GitHub release tag to exist before uploading the DMG, polling every 15s. Previously the local DMG upload would race CI and fail when the draft release wasn't created yet.
+- Resynced `Cargo.lock` to version `0.8.3` to match `Cargo.toml`.
+
 ## v0.8.3 (2026-04-17)
 - Update changelog for tooltip overlay, Boss Selection, window sizing, local build
 - Overlay tooltips, Boss Selection cycle, window sizing, local build mode

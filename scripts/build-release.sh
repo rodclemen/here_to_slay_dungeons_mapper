@@ -118,6 +118,19 @@ if [[ " $* " == *" --upload "* ]]; then
     VERSION=$(grep '"version"' "$PROJECT_DIR/src-tauri/tauri.conf.json" | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
     TAG="v$VERSION"
     echo ""
+    echo "==> Waiting for GitHub release $TAG to exist (CI may still be building)..."
+    MAX_WAIT_SECONDS=900
+    WAITED=0
+    until gh release view "$TAG" >/dev/null 2>&1; do
+        if [ "$WAITED" -ge "$MAX_WAIT_SECONDS" ]; then
+            echo "Timed out after ${MAX_WAIT_SECONDS}s waiting for release $TAG. Upload the DMG manually:"
+            echo "  gh release upload $TAG \"$DMG_OUTPUT\" --clobber"
+            exit 1
+        fi
+        sleep 15
+        WAITED=$((WAITED + 15))
+        echo "  ...still waiting (${WAITED}s)"
+    done
     echo "==> Uploading DMG to GitHub release $TAG..."
     gh release upload "$TAG" "$DMG_OUTPUT" --clobber
     echo "Done! DMG uploaded to release $TAG."

@@ -3038,9 +3038,13 @@ async function checkForAppUpdate() {
   try {
     const metadata = await core.invoke("plugin:updater|check");
     if (!metadata) return;
-    const userConfirmed = confirm(
-      `A new version (${metadata.version}) is available.\n\nWould you like to download and install it now? The app will restart when the update is ready.`
-    );
+    const userConfirmed = await core.invoke("plugin:dialog|ask", {
+      title: "Update Available",
+      message: `A new version (${metadata.version}) is available.\n\nWould you like to download and install it now? The app will restart when the update is ready.`,
+      okLabel: "Update",
+      cancelLabel: "Later",
+      kind: "info",
+    });
     if (!userConfirmed) {
       localStorage.setItem("update-dismissed-until", String(Date.now() + 86_400_000));
       return;
