@@ -7,6 +7,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { isPointInsideRect } from "./board-interaction.js";
+import { attachHint } from "./hint-overlay.js";
 
 // ── Layer / point checks (minimal or no ctx) ──────────────────────
 
@@ -121,6 +122,7 @@ export function updateBoardZoomIndicator(ctx) {
     badge.addEventListener("click", () => {
       resetBoardView(ctx);
     });
+    attachHint(badge, "Click to reset zoom to 100%.");
     ctx.workspace.appendChild(badge);
   }
   const percent = Math.round(getBoardZoom(ctx) * 100);

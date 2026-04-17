@@ -40,10 +40,15 @@ if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]; then
     fi
 fi
 
-# Filter out --upload from args passed to tauri build
+# Filter out script flags from args passed to tauri build
 TAURI_ARGS=()
+APP_ONLY=false
 for arg in "$@"; do
-    [[ "$arg" != "--upload" ]] && TAURI_ARGS+=("$arg")
+    case "$arg" in
+        --upload) ;;
+        --app-only) APP_ONLY=true ;;
+        *) TAURI_ARGS+=("$arg") ;;
+    esac
 done
 
 echo "==> Building Tauri app + updater artifacts..."
@@ -53,6 +58,16 @@ npx tauri build ${TAURI_ARGS[@]+"${TAURI_ARGS[@]}"}
 if [ ! -d "$APP_BUNDLE" ]; then
     echo "Error: App bundle not found at $APP_BUNDLE"
     exit 1
+fi
+
+# --app-only: stop here, skip code-signing/notarization/DMG/upload
+if [ "$APP_ONLY" = "true" ]; then
+    echo ""
+    echo "Build complete (app only, unsigned)."
+    echo "  App:     $APP_BUNDLE"
+    echo "  Updater: $PROJECT_DIR/src-tauri/target/release/bundle/macos/HtSDMapper.app.tar.gz"
+    echo "  Sig:     $PROJECT_DIR/src-tauri/target/release/bundle/macos/HtSDMapper.app.tar.gz.sig"
+    exit 0
 fi
 
 # --- Code-sign the .app ---

@@ -83,7 +83,13 @@ export function pushBossBackToPile(bossKey, ctx, tileSetId = ctx.state.selectedT
 }
 
 export function ensureAllBossesPileOrder(ctx) {
-  const allCanonical = ctx.buildAllBossTileSources(ctx.getReadyTileSets(), (tsId) => getBossTileSources(ctx, tsId))
+  const mode = ctx.state.bossSelectionMode
+    || (ctx.state.useAllBosses ? "all_custom" : "tileset");
+  const readySets = ctx.getReadyTileSets();
+  const filteredSets = mode === "all"
+    ? readySets.filter((ts) => ts?.source !== "custom")
+    : readySets;
+  const allCanonical = ctx.buildAllBossTileSources(filteredSets, (tsId) => getBossTileSources(ctx, tsId))
     .filter((bossKey) => resolveBossAssetSrc(bossKey, ctx));
   const existing = Array.isArray(ctx.state.allBossesPileOrder) ? ctx.state.allBossesPileOrder : [];
   const isFirstBuild = !existing.length;

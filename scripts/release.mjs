@@ -7,6 +7,7 @@
  *   npm run release -- major    # 0.8.0 → 1.0.0
  *   npm run release -- 1.2.3    # set an exact version
  *   npm run release -- web      # build web app only (no version bump, no release)
+ *   npm run release -- local    # build .app only (no codesign, no notarize, no DMG, no upload)
  *
  * What it does (full release):
  *   1. Bumps the version in package.json
@@ -79,7 +80,8 @@ function prependChangelog(version, commits) {
 
 const args = process.argv.slice(2);
 const webOnly = args.includes("web") || args.includes("--web");
-const bump = args.find(a => !a.startsWith("--") && a !== "web");
+const localOnly = args.includes("local") || args.includes("--local");
+const bump = args.find(a => !a.startsWith("--") && a !== "web" && a !== "local");
 
 // --web: just build the web app with current version, no release
 if (webOnly) {
@@ -89,9 +91,19 @@ if (webOnly) {
   process.exit(0);
 }
 
+// --local: build .app only — no codesign, no notarize, no DMG, no upload
+if (localOnly) {
+  console.log("\nBuilding .app locally (no codesign, no notarize, no DMG)...\n");
+  const buildScript = resolve(__dirname, "build-release.sh");
+  run(`"${buildScript}" --app-only`);
+  console.log("\nDone! .app built to src-tauri/target/release/bundle/macos/\n");
+  process.exit(0);
+}
+
 if (!bump) {
   console.error("Usage: npm run release -- <patch|minor|major|x.y.z>");
   console.error("       npm run release -- web     (build web only)");
+  console.error("       npm run release -- local   (build .app only, no codesign/notarize/DMG)");
   process.exit(1);
 }
 

@@ -668,8 +668,49 @@ body.left-drawer-collapsed.right-drawer-collapsed .corner-logo {
   gap: 8px;
   font-size: 0.86rem;
   color: var(--ink);
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms ease;
 }
 
+.advanced-menu-panel label:hover,
+.advanced-menu-panel > button:not(:disabled):hover,
+.advanced-menu-panel .advanced-debug-group > button:not(:disabled):hover,
+.advanced-menu-panel > .ui-theme-inline-btn:hover {
+  background: var(--menu-option-hover) !important;
+}
+
+.advanced-menu-panel .advanced-menu-cycle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--ink);
+  padding: 4px 6px !important;
+  height: auto !important;
+  border-radius: 6px;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  justify-content: flex-start;
+  line-height: 1.2 !important;
+  font-weight: inherit;
+}
+
+.advanced-menu-panel .advanced-menu-cycle-value {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.advanced-menu-panel .advanced-menu-cycle-arrow {
+  margin-left: auto;
+  opacity: 0.6;
+  font-size: 0.7rem;
+}
 
 .advanced-menu-panel .data-folder-row {
   cursor: pointer;
@@ -1033,6 +1074,10 @@ body.wall-edit-mode .actions .wall-edit-only {
 
 body.wall-edit-mode #ui-theme-select {
   display: none;
+}
+
+body.wall-edit-mode .advanced-menu-panel > *:not(#reset-tile-points-btn) {
+  display: none !important;
 }
 
 button {
@@ -1438,7 +1483,8 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   margin-left: auto;
 }
 
-.wall-editor-toolbar-hint {
+.wall-editor-toolbar-hint,
+.app-menu-hint {
   position: fixed;
   left: 18px;
   bottom: 18px;
@@ -1456,7 +1502,8 @@ body.left-drawer-collapsed.left-drawer-closing .drawer-left {
   z-index: 120;
 }
 
-.wall-editor-toolbar-hint.is-visible {
+.wall-editor-toolbar-hint.is-visible,
+.app-menu-hint.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
@@ -3950,7 +3997,8 @@ body.show-portal-flags .tile-portal-flag {
     flex-wrap: wrap;
   }
 
-  .wall-editor-toolbar-hint {
+  .wall-editor-toolbar-hint,
+  .app-menu-hint {
     left: 12px;
     bottom: 12px;
     max-width: calc(100vw - 24px);

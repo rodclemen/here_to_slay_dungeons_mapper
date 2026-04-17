@@ -840,10 +840,11 @@ export async function autoBuildSelectedTiles(options = {}, ctx) {
   };
 
   const hasPortalTiles = activeRegularTiles.some((tile) => ctx.hasPortalFlag(tile));
+  const shouldEnforcePortalSpacing = hasPortalTiles && !ctx.state.ignorePortalPosition;
   let portalSpacingRelaxed = false;
-  let completedLayouts = collectCompletedLayouts({ enforcePortalSpacing: hasPortalTiles });
+  let completedLayouts = collectCompletedLayouts({ enforcePortalSpacing: shouldEnforcePortalSpacing });
   let chosenLayout = chooseAutoBuildCompletedLayout(completedLayouts, tuning);
-  if (!chosenLayout && hasPortalTiles) {
+  if (!chosenLayout && shouldEnforcePortalSpacing) {
     completedLayouts = collectCompletedLayouts({ enforcePortalSpacing: false });
     chosenLayout = chooseAutoBuildCompletedLayout(completedLayouts, tuning);
     portalSpacingRelaxed = Boolean(chosenLayout);

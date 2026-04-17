@@ -35,7 +35,7 @@
               </svg>
             </summary>
             <div class="advanced-menu-panel">
-              <div class="ui-theme-inline-btn ui-theme-menu" id="ui-theme-menu">
+              <div class="ui-theme-inline-btn ui-theme-menu" id="ui-theme-menu" data-hint="Pick a UI color theme. Overrides the tile set's default theme.">
                 <span>Theme</span>
                 <button
                   id="ui-theme-trigger"
@@ -48,43 +48,48 @@
                 <div id="ui-theme-dropdown" class="ui-theme-dropdown" role="menu" hidden></div>
                 <select id="ui-theme-select" aria-label="UI Theme" hidden></select>
               </div>
-              <button id="open-debug-log-btn" class="tauri-only dev-only" type="button">Open Debug Log</button>
-              <label>
-                <input id="toggle-all-bosses-checkbox" type="checkbox" />
-                <span>Random Boss: All Sets</span>
-              </label>
-              <button id="clear-tile-walls-btn" class="wall-edit-only dev-only" type="button">Clear Tile Walls</button>
-              <button id="reset-tile-points-btn" class="wall-edit-only" type="button">Reset Tile Points</button>
-              <button id="export-wall-data-btn" class="wall-edit-only dev-only" type="button">Export Debug Walls</button>
-              <button id="import-wall-data-btn" class="wall-edit-only dev-only" type="button">Import Debug Walls</button>
-              <button id="copy-guide-template-btn" class="wall-edit-only dev-only" type="button">Copy Guide Template JSON</button>
+              <button id="open-debug-log-btn" class="tauri-only dev-only" type="button" data-hint="Open the in-app debug log console.">Open Debug Log</button>
+              <button id="boss-selection-mode-btn" class="advanced-menu-cycle" type="button" data-hint="Cycle through which bosses show up: only the current tile set, all built-in sets, or all sets plus custom tile sets.">
+                <span>Boss Selection:</span>
+                <span id="boss-selection-mode-label" class="advanced-menu-cycle-value">Tile Set Bosses</span>
+                <span class="advanced-menu-cycle-arrow" aria-hidden="true">&#9656;</span>
+              </button>
+              <button id="clear-tile-walls-btn" class="wall-edit-only dev-only" type="button" data-hint="Remove all wall edges from the currently edited tile.">Clear Tile Walls</button>
+              <button id="reset-tile-points-btn" class="wall-edit-only" type="button" data-hint="Reset this tile's snap points to the default generated positions.">Reset Tile Points</button>
+              <button id="export-wall-data-btn" class="wall-edit-only dev-only" type="button" data-hint="Save the current wall overrides to a JSON file.">Export Debug Walls</button>
+              <button id="import-wall-data-btn" class="wall-edit-only dev-only" type="button" data-hint="Load wall overrides from a previously exported JSON file.">Import Debug Walls</button>
+              <button id="copy-guide-template-btn" class="wall-edit-only dev-only" type="button" data-hint="Copy the current tile's guide-point template JSON to the clipboard.">Copy Guide Template JSON</button>
               <div class="advanced-debug-group" aria-label="Debug controls">
                 <p class="dev-only">Debug Controls</p>
-              <label class="dev-only">
+              <label class="dev-only" data-hint="Overlay tile IDs and face index numbers on every tile.">
                 <input id="toggle-labels-checkbox" type="checkbox" />
                 <span>Show Numbers</span>
               </label>
-              <label>
+              <label data-hint="Draw the wall edges along each placed tile's faces.">
                 <input id="toggle-walls-checkbox" type="checkbox" />
                 <span>Show Walls</span>
               </label>
-              <label>
+              <label data-hint="Show the portal marker on tiles that have the portal flag set.">
                 <input id="toggle-portal-flags-checkbox" type="checkbox" />
                 <span>Show Portals</span>
               </label>
-              <label>
+              <label data-hint="Allow tiles to be placed without the usual minimum of two matching face contacts.">
                 <input id="toggle-ignore-contact-checkbox" type="checkbox" />
                 <span>Ignore 2 face connection rule</span>
               </label>
-              <label>
+              <label data-hint="Stop auto-build from trying to keep portal tiles at least one tile apart.">
+                <input id="toggle-ignore-portal-position-checkbox" type="checkbox" />
+                <span>Ignore Portal position</span>
+              </label>
+              <label data-hint="When previewing a placement, highlight which faces matched instead of only valid/invalid.">
                 <input id="toggle-face-feedback-checkbox" type="checkbox" />
                 <span>Placement feedback: Faces</span>
               </label>
-              <label>
+              <label data-hint="On: auto-build keeps the dungeon in the lower half of the board. Off: it can expand in any direction.">
                 <input id="toggle-half-board-checkbox" type="checkbox" />
                 <span>Auto Build: Default Mode</span>
               </label>
-              <label class="tauri-only data-folder-row">
+              <label class="tauri-only data-folder-row" data-hint="Choose where saved tile sets and settings are stored on disk.">
                 <input id="choose-data-folder-indicator" type="checkbox" tabindex="-1" aria-hidden="true" />
                 <span id="choose-data-folder-btn">Choose Data Folder</span>
               </label>
@@ -124,9 +129,9 @@
               </svg>
             </button>
             <div id="quick-actions-dropdown" class="quick-actions-dropdown" role="menu" hidden>
-              <button id="auto-theme-toggle-btn" class="quick-action-option" type="button" role="menuitem" aria-pressed="false">Auto Theme: Off</button>
-              <button id="copy-share-link-btn" class="quick-action-option" type="button" role="menuitem">Copy Share Link</button>
-              <button id="export-pdf-btn" class="quick-action-option" type="button" role="menuitem">Export PDF</button>
+              <button id="auto-theme-toggle-btn" class="quick-action-option" type="button" role="menuitem" aria-pressed="false" data-hint="Automatically switch between light and dark theme based on your system setting.">Auto Theme: Off</button>
+              <button id="copy-share-link-btn" class="quick-action-option" type="button" role="menuitem" data-hint="Copy a shareable URL of the current layout to the clipboard.">Copy Share Link</button>
+              <button id="export-pdf-btn" class="quick-action-option" type="button" role="menuitem" data-hint="Export the current dungeon layout as a printable PDF.">Export PDF</button>
             </div>
           </div>
           <button id="toggle-wall-edit-btn" class="topbar-editor-btn" type="button">Tile Editor</button>
@@ -147,7 +152,7 @@
               aria-controls="left-drawer-content"
               aria-expanded="true"
               aria-label="Toggle info drawer"
-              title="Toggle info drawer"
+              data-hint="Collapse or expand the left info drawer."
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -173,7 +178,7 @@
                 <span class="section-title-label">
                   Boss Selection <span id="boss-tileset-name" class="selected-tileset-name"></span>
                 </span>
-                <button id="boss-random-btn" class="icon-image-btn icon-dice-btn" type="button" aria-label="Random Boss" title="Random Boss">
+                <button id="boss-random-btn" class="icon-image-btn icon-dice-btn" type="button" aria-label="Random Boss" data-hint="Roll a random boss card from the active tile set.">
                   <img src="./icons/dice.png" alt="" aria-hidden="true" />
                 </button>
               </h3>
@@ -229,7 +234,7 @@
                 aria-controls="right-drawer-content"
                 aria-expanded="true"
                 aria-label="Toggle tile drawer"
-                title="Toggle tile drawer"
+                data-hint="Collapse or expand the right tile drawer."
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -282,7 +287,7 @@
                   </span>
                 </h2>
                 <div class="tray-head-actions">
-                  <button id="reroll-btn" class="icon-image-btn" type="button" aria-label="Reroll Tiles" title="Reroll Tiles">
+                  <button id="reroll-btn" class="icon-image-btn" type="button" aria-label="Reroll Tiles" data-hint="Replace the tiles currently in the tray with a fresh random draw.">
                     <img src="./icons/reroll.png" alt="" aria-hidden="true" />
                   </button>
                 </div>
@@ -339,6 +344,7 @@
         </div>
         <pre id="debug-console-output" class="debug-console-output"></pre>
       </section>
+      <div id="app-menu-hint" class="app-menu-hint" aria-hidden="true"></div>
     </main>
 
     <script src="./app.js" type="module"></script>

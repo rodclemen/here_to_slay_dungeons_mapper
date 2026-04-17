@@ -1,3 +1,5 @@
+import { attachHint } from "./hint-overlay.js";
+
 export function bindGlobalControls(ctx) {
   const {
     state,
@@ -49,15 +51,21 @@ export function bindGlobalControls(ctx) {
     clearInvalidReturnTimer,
     setPlacementFeedback,
     IGNORE_CONTACT_RULE_STORAGE_KEY,
+    toggleIgnorePortalPositionCheckbox,
+    IGNORE_PORTAL_POSITION_STORAGE_KEY,
     toggleHalfBoardCheckbox,
     HALF_BOARD_BUILD_STORAGE_KEY,
     toggleFaceFeedbackCheckbox,
     applyFeedbackMode,
     USE_FACE_FEEDBACK_STORAGE_KEY,
-    toggleAllBossesCheckbox,
+    bossSelectionModeBtn,
+    bossSelectionModeLabel,
+    BOSS_SELECTION_MODES,
+    BOSS_SELECTION_MODE_LABELS,
+    sanitizeBossSelectionMode,
     scheduleRender,
     syncBossTileSetHeading,
-    USE_ALL_BOSSES_STORAGE_KEY,
+    BOSS_SELECTION_MODE_STORAGE_KEY,
     resetTilePointsBtn,
     resetGuidePointTemplatesForActiveEditorTileSet,
     closeAdvancedMenuForElement,
@@ -293,6 +301,18 @@ export function bindGlobalControls(ctx) {
       void saveDataSetting(IGNORE_CONTACT_RULE_STORAGE_KEY, state.ignoreContactRule);
     });
   }
+  if (toggleIgnorePortalPositionCheckbox) {
+    toggleIgnorePortalPositionCheckbox.checked = state.ignorePortalPosition;
+    toggleIgnorePortalPositionCheckbox.addEventListener("change", () => {
+      state.ignorePortalPosition = toggleIgnorePortalPositionCheckbox.checked;
+      setStatus(
+        state.ignorePortalPosition
+          ? "Ignore Portal position: ON (portal tiles may be placed adjacent)."
+          : "Ignore Portal position: OFF.",
+      );
+      void saveDataSetting(IGNORE_PORTAL_POSITION_STORAGE_KEY, state.ignorePortalPosition);
+    });
+  }
   if (toggleHalfBoardCheckbox) {
     toggleHalfBoardCheckbox.checked = state.halfBoardBuild;
     toggleHalfBoardCheckbox.addEventListener("change", () => {
@@ -319,19 +339,26 @@ export function bindGlobalControls(ctx) {
       void saveDataSetting(USE_FACE_FEEDBACK_STORAGE_KEY, state.useFaceFeedback);
     });
   }
-  if (toggleAllBossesCheckbox) {
-    toggleAllBossesCheckbox.checked = state.useAllBosses;
-    toggleAllBossesCheckbox.addEventListener("change", () => {
-      markDevQaCheck("all_bosses_toggle");
-      state.useAllBosses = toggleAllBossesCheckbox.checked;
+  if (bossSelectionModeBtn) {
+    const syncBossSelectionLabel = () => {
+      const mode = sanitizeBossSelectionMode(state.bossSelectionMode);
+      state.bossSelectionMode = mode;
+      state.useAllBosses = mode !== "tileset";
+      if (bossSelectionModeLabel) {
+        bossSelectionModeLabel.textContent = BOSS_SELECTION_MODE_LABELS[mode];
+      }
+    };
+    syncBossSelectionLabel();
+    bossSelectionModeBtn.addEventListener("click", () => {
+      markDevQaCheck("boss_selection_mode_cycle");
+      const idx = BOSS_SELECTION_MODES.indexOf(sanitizeBossSelectionMode(state.bossSelectionMode));
+      const next = BOSS_SELECTION_MODES[(idx + 1) % BOSS_SELECTION_MODES.length];
+      state.bossSelectionMode = next;
+      syncBossSelectionLabel();
       scheduleRender("bossPile");
       syncBossTileSetHeading();
-      setStatus(
-        state.useAllBosses
-          ? "Random Boss: All Sets ON."
-          : "Random Boss: All Sets OFF (current tile set only).",
-      );
-      void saveDataSetting(USE_ALL_BOSSES_STORAGE_KEY, state.useAllBosses);
+      setStatus(`Boss Selection: ${BOSS_SELECTION_MODE_LABELS[next]}.`);
+      void saveDataSetting(BOSS_SELECTION_MODE_STORAGE_KEY, next);
     });
   }
   if (resetTilePointsBtn) {
@@ -732,6 +759,26 @@ export function bindGlobalControls(ctx) {
   });
 
   initAutoBuildTuningPanel();
+
+  setupMenuHints();
+}
+
+function setupMenuHints() {
+  if (!document.getElementById("app-menu-hint")) return;
+  const scopes = [
+    document.querySelector(".advanced-menu-panel"),
+    document.getElementById("quick-actions-dropdown"),
+  ].filter(Boolean);
+  const standaloneIds = [
+    "boss-random-btn",
+    "reroll-btn",
+    "toggle-left-drawer-btn",
+    "toggle-right-drawer-btn",
+  ];
+  scopes.forEach((scope) => {
+    scope.querySelectorAll("[data-hint]").forEach((el) => attachHint(el));
+  });
+  standaloneIds.forEach((id) => attachHint(document.getElementById(id)));
 }
 
 // ─── Module-private: board pan ────────────────────────────────────────────────

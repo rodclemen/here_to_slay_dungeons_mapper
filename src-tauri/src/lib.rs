@@ -2,7 +2,7 @@ use std::{fs, io::Read, path::PathBuf, process::Command};
 
 use flate2::read::DeflateDecoder;
 use serde::Serialize;
-use tauri::{image::Image, menu::{AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu}, Emitter};
+use tauri::{image::Image, menu::{AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu}, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
 const APP_ICON: Image<'static> = tauri::include_image!("./icons/icon.png");
 const APP_MENU_TITLE: &str = "Here to Slay: DUNGEONS Mapper";
@@ -320,6 +320,56 @@ pub fn run() {
                 ],
             )?;
             app.set_menu(menu)?;
+
+            // Main-window sizing: fill the primary monitor on first launch (no
+            // saved state) OR once per install as a migration from the pre-fix
+            // version where the window-state plugin restored an undersized window.
+            // The marker file makes this migration fire only once; after that the
+            // plugin's restored state (including any manual resize) is respected.
+            let config_dir = handle.path().app_config_dir().ok();
+            let state_path = config_dir.as_ref().map(|d| d.join(".window-state.json"));
+            let migration_marker = config_dir.as_ref().map(|d| d.join(".htsd-window-init-v1"));
+
+            let has_saved_main_state = state_path
+                .as_ref()
+                .filter(|p| p.exists())
+                .and_then(|p| fs::read_to_string(p).ok())
+                .map(|c| c.contains("\"main\""))
+                .unwrap_or(false);
+            let migration_done = migration_marker
+                .as_ref()
+                .map(|p| p.exists())
+                .unwrap_or(false);
+
+            if !has_saved_main_state || !migration_done {
+                if let Some(main_window) = app.get_webview_window("main") {
+                    if let Ok(Some(monitor)) = main_window.primary_monitor() {
+                        let monitor_size = monitor.size();
+                        let monitor_pos = monitor.position();
+                        #[cfg(target_os = "macos")]
+                        let menu_bar_px = (24.0 * monitor.scale_factor()).round() as u32;
+                        #[cfg(not(target_os = "macos"))]
+                        let menu_bar_px = 0u32;
+
+                        let _ = main_window.set_position(PhysicalPosition::new(
+                            monitor_pos.x,
+                            monitor_pos.y + menu_bar_px as i32,
+                        ));
+                        let _ = main_window.set_size(PhysicalSize::new(
+                            monitor_size.width,
+                            monitor_size.height.saturating_sub(menu_bar_px),
+                        ));
+                    }
+                }
+
+                if let Some(marker_path) = migration_marker.as_ref() {
+                    if let Some(parent) = marker_path.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    let _ = fs::write(marker_path, "1");
+                }
+            }
+
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())

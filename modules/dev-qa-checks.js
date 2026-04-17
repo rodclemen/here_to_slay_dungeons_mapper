@@ -17,7 +17,7 @@ export const DEV_QA_CHECK_DEFINITIONS = [
   { id: "show_portal_flags_toggle", label: "Toggle Show Portals", category: "Settings" },
   { id: "ignore_contact_toggle", label: "Toggle Ignore 4-Point Rule", category: "Settings" },
   { id: "face_feedback_toggle", label: "Toggle Placement Feedback", category: "Settings" },
-  { id: "all_bosses_toggle", label: "Toggle Random Boss: All Sets", category: "Settings" },
+  { id: "boss_selection_mode_cycle", label: "Cycle Boss Selection", category: "Settings" },
   { id: "ui_theme_change", label: "Change UI Theme", category: "Settings" },
   { id: "appearance_mode_change", label: "Change Appearance Mode", category: "Settings" },
   { id: "auto_theme_toggle", label: "Toggle Auto Theme", category: "Settings" },

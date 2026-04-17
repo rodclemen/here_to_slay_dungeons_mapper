@@ -420,9 +420,20 @@ const SHOW_GUIDE_LABELS_STORAGE_KEY = "hts_show_guide_labels_v1";
 const SHOW_WALL_FACES_STORAGE_KEY = "hts_show_wall_faces_v1";
 const SHOW_PORTAL_FLAGS_STORAGE_KEY = "hts_show_portal_flags_v1";
 const IGNORE_CONTACT_RULE_STORAGE_KEY = "hts_ignore_contact_rule_v1";
+const IGNORE_PORTAL_POSITION_STORAGE_KEY = "hts_ignore_portal_position_v1";
 const HALF_BOARD_BUILD_STORAGE_KEY = "hts_half_board_build_v1";
 const USE_FACE_FEEDBACK_STORAGE_KEY = "hts_use_face_feedback_v1";
 const USE_ALL_BOSSES_STORAGE_KEY = "hts_use_all_bosses_v1";
+const BOSS_SELECTION_MODE_STORAGE_KEY = "hts_boss_selection_mode_v1";
+const BOSS_SELECTION_MODES = ["tileset", "all", "all_custom"];
+const BOSS_SELECTION_MODE_LABELS = {
+  tileset: "Tile Set Bosses",
+  all: "All Bosses",
+  all_custom: "All + Custom",
+};
+function sanitizeBossSelectionMode(value) {
+  return BOSS_SELECTION_MODES.includes(value) ? value : "tileset";
+}
 const DATA_FOLDER_STARTUP_PROMPT_DISMISSED_SESSION_KEY = "hts_data_folder_startup_prompt_dismissed_session_v1";
 const PENDING_DATA_FOLDER_ACTION_SESSION_KEY = "hts_pending_data_folder_action_v1";
 const LOCAL_DATA_NOTICE_SUPPRESSED_SESSION_KEY = "hts_local_data_notice_suppressed_until_custom_change_v1";
@@ -2357,9 +2368,11 @@ const copyGuideTemplateBtn = document.getElementById("copy-guide-template-btn");
 const toggleWallsCheckbox = document.getElementById("toggle-walls-checkbox");
 const togglePortalFlagsCheckbox = document.getElementById("toggle-portal-flags-checkbox");
 const toggleIgnoreContactCheckbox = document.getElementById("toggle-ignore-contact-checkbox");
+const toggleIgnorePortalPositionCheckbox = document.getElementById("toggle-ignore-portal-position-checkbox");
 const toggleHalfBoardCheckbox = document.getElementById("toggle-half-board-checkbox");
 const toggleFaceFeedbackCheckbox = document.getElementById("toggle-face-feedback-checkbox");
-const toggleAllBossesCheckbox = document.getElementById("toggle-all-bosses-checkbox");
+const bossSelectionModeBtn = document.getElementById("boss-selection-mode-btn");
+const bossSelectionModeLabel = document.getElementById("boss-selection-mode-label");
 const chooseDataFolderBtn = document.getElementById("choose-data-folder-btn");
 const chooseDataFolderIndicator = document.getElementById("choose-data-folder-indicator");
 const chooseDataFolderRow = chooseDataFolderBtn?.closest(".data-folder-row");
@@ -2602,9 +2615,11 @@ const state = {
   regularTileOrder: [],
   renderedTraySlots: [],
   ignoreContactRule: IS_TAURI_RUNTIME ? false : loadIgnoreContactRule(),
+  ignorePortalPosition: IS_TAURI_RUNTIME ? false : loadIgnorePortalPosition(),
   halfBoardBuild: IS_TAURI_RUNTIME ? true : loadHalfBoardBuild(),
   useFaceFeedback: IS_TAURI_RUNTIME ? false : loadUseFaceFeedback(),
-  useAllBosses: IS_TAURI_RUNTIME ? false : loadUseAllBosses(),
+  bossSelectionMode: IS_TAURI_RUNTIME ? "tileset" : loadBossSelectionMode(),
+  useAllBosses: IS_TAURI_RUNTIME ? false : (loadBossSelectionMode() !== "tileset"),
   bossEditMode: true,
   bossPileOrderByTileSet: {},
   allBossesPileOrder: [],
@@ -2652,8 +2667,10 @@ function buildDefaultPersistentSettingsSnapshot() {
     [SHOW_WALL_FACES_STORAGE_KEY]: false,
     [SHOW_PORTAL_FLAGS_STORAGE_KEY]: false,
     [IGNORE_CONTACT_RULE_STORAGE_KEY]: false,
+    [IGNORE_PORTAL_POSITION_STORAGE_KEY]: false,
     [USE_FACE_FEEDBACK_STORAGE_KEY]: false,
     [USE_ALL_BOSSES_STORAGE_KEY]: false,
+    [BOSS_SELECTION_MODE_STORAGE_KEY]: "tileset",
     [DRAWER_STATE_STORAGE_KEY]: { left: false, right: false },
     [AUTO_BUILD_DEV_TUNING_STORAGE_KEY]: { ...AUTO_BUILD_DEV_TUNING_DEFAULTS },
     [WALL_OVERRIDES_STORAGE_KEY]: {},
@@ -2676,9 +2693,11 @@ function buildCurrentPersistentSettingsSnapshot() {
     [SHOW_WALL_FACES_STORAGE_KEY]: Boolean(state.showWallFaces),
     [SHOW_PORTAL_FLAGS_STORAGE_KEY]: Boolean(state.showPortalFlags),
     [IGNORE_CONTACT_RULE_STORAGE_KEY]: Boolean(state.ignoreContactRule),
+    [IGNORE_PORTAL_POSITION_STORAGE_KEY]: Boolean(state.ignorePortalPosition),
     [HALF_BOARD_BUILD_STORAGE_KEY]: Boolean(state.halfBoardBuild),
     [USE_FACE_FEEDBACK_STORAGE_KEY]: Boolean(state.useFaceFeedback),
     [USE_ALL_BOSSES_STORAGE_KEY]: Boolean(state.useAllBosses),
+    [BOSS_SELECTION_MODE_STORAGE_KEY]: sanitizeBossSelectionMode(state.bossSelectionMode),
     [DRAWER_STATE_STORAGE_KEY]: {
       left: Boolean(state.leftDrawerCollapsed),
       right: Boolean(state.rightDrawerCollapsed),
@@ -2714,9 +2733,16 @@ function applyPersistentSettingsSnapshot(snapshot, { useDefaults = false } = {})
   state.showWallFaces = Boolean(source[SHOW_WALL_FACES_STORAGE_KEY]);
   state.showPortalFlags = Boolean(source[SHOW_PORTAL_FLAGS_STORAGE_KEY]);
   state.ignoreContactRule = Boolean(source[IGNORE_CONTACT_RULE_STORAGE_KEY]);
+  state.ignorePortalPosition = Boolean(source[IGNORE_PORTAL_POSITION_STORAGE_KEY]);
   state.halfBoardBuild = Boolean(source[HALF_BOARD_BUILD_STORAGE_KEY]);
   state.useFaceFeedback = Boolean(source[USE_FACE_FEEDBACK_STORAGE_KEY]);
-  state.useAllBosses = Boolean(source[USE_ALL_BOSSES_STORAGE_KEY]);
+  const rawBossMode = source[BOSS_SELECTION_MODE_STORAGE_KEY];
+  if (rawBossMode !== undefined && rawBossMode !== null) {
+    state.bossSelectionMode = sanitizeBossSelectionMode(rawBossMode);
+  } else {
+    state.bossSelectionMode = source[USE_ALL_BOSSES_STORAGE_KEY] ? "all_custom" : "tileset";
+  }
+  state.useAllBosses = state.bossSelectionMode !== "tileset";
   state.leftDrawerCollapsed = Boolean(source[DRAWER_STATE_STORAGE_KEY]?.left);
   state.rightDrawerCollapsed = Boolean(source[DRAWER_STATE_STORAGE_KEY]?.right);
   autoBuildDevTuning = sanitizeAutoBuildDevTuning(source[AUTO_BUILD_DEV_TUNING_STORAGE_KEY] || {});
@@ -3568,15 +3594,21 @@ function getEventSetupCtx() {
     clearInvalidReturnTimer,
     setPlacementFeedback,
     IGNORE_CONTACT_RULE_STORAGE_KEY,
+    toggleIgnorePortalPositionCheckbox,
+    IGNORE_PORTAL_POSITION_STORAGE_KEY,
     toggleHalfBoardCheckbox,
     HALF_BOARD_BUILD_STORAGE_KEY,
     toggleFaceFeedbackCheckbox,
     applyFeedbackMode,
     USE_FACE_FEEDBACK_STORAGE_KEY,
-    toggleAllBossesCheckbox,
+    bossSelectionModeBtn,
+    bossSelectionModeLabel,
+    BOSS_SELECTION_MODES,
+    BOSS_SELECTION_MODE_LABELS,
+    sanitizeBossSelectionMode,
     scheduleRender,
     syncBossTileSetHeading,
-    USE_ALL_BOSSES_STORAGE_KEY,
+    BOSS_SELECTION_MODE_STORAGE_KEY,
     resetTilePointsBtn,
     resetGuidePointTemplatesForActiveEditorTileSet,
     closeAdvancedMenuForElement,
@@ -4112,6 +4144,10 @@ function loadIgnoreContactRule() {
   return loadBoolStorage(IGNORE_CONTACT_RULE_STORAGE_KEY, false);
 }
 
+function loadIgnorePortalPosition() {
+  return loadBoolStorage(IGNORE_PORTAL_POSITION_STORAGE_KEY, false);
+}
+
 function loadHalfBoardBuild() {
   return loadBoolStorage(HALF_BOARD_BUILD_STORAGE_KEY, true);
 }
@@ -4120,8 +4156,19 @@ function loadUseFaceFeedback() {
   return loadBoolStorage(USE_FACE_FEEDBACK_STORAGE_KEY, false);
 }
 
-function loadUseAllBosses() {
-  return loadBoolStorage(USE_ALL_BOSSES_STORAGE_KEY, false);
+function loadBossSelectionMode() {
+  if (IS_TAURI_RUNTIME && !isDataFolderPersistenceActive()) return "tileset";
+  try {
+    const saved = localStorage.getItem(BOSS_SELECTION_MODE_STORAGE_KEY);
+    if (saved == null) {
+      const legacy = localStorage.getItem(USE_ALL_BOSSES_STORAGE_KEY);
+      return legacy === "true" ? "all_custom" : "tileset";
+    }
+    return sanitizeBossSelectionMode(saved);
+  } catch (error) {
+    console.warn(`Could not load ${BOSS_SELECTION_MODE_STORAGE_KEY}.`, error);
+    return "tileset";
+  }
 }
 
 function saveAutoThemeByTileSet(enabled) {
