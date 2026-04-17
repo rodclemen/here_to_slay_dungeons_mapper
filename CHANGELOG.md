@@ -11,6 +11,14 @@
 
 ## 2026-04-17 (unreleased)
 - Wired the Choose Data Folder button through the new `requestDataFolderDialog` flow so a single prompt offers cancel, pick a folder, or reset to the default system folder. Previously the button always opened the OS folder picker, with no way to revert to the default without manually navigating to it. Resynced `Cargo.lock` to match `Cargo.toml` version `0.8.2`.
+- Fixed macOS first-launch window sizing. The app now fits to the primary monitor on a fresh install (or after the settings folder is deleted), gated by a per-install migration marker so a user's manual resize still persists on later launches. Dropped the unreliable `"maximized": true` window config on macOS.
+- Added `npm run release -- local` for fast iteration: short-circuits after `npx tauri build --app-only` to produce an unsigned `.app` with no version bump, no DMG, no upload.
+- Replaced the "Random Boss: All Sets" checkbox with a cyclable "Boss Selection" row that rotates through `Tile Set Bosses` → `All Bosses` → `All + Custom`. The new `All Bosses` option excludes custom tile sets from the boss pool, while `All + Custom` preserves the previous all-sets behavior. Migrates the old boolean storage key automatically.
+- Added an "Ignore Portal position" toggle to Advanced Tools (under the 2-face rule toggle). When enabled, auto-build stops penalizing layouts where portal tiles are placed next to each other; it also still falls back to this relaxed mode when the strict spacing rule leaves no valid completed layout.
+- Introduced an overlay tooltip system (shared `modules/hint-overlay.js` + `#app-menu-hint` element) and wired it up across the top bar: Advanced Tools items, the 3-dot Quick Actions, the left/right drawer toggles, the Random Boss and Reroll Tiles icons, and the zoom badge (whose hint now says "Click to reset zoom to 100%"). Replaces native browser `title` tooltips in those places for a consistent look matching the Tile Editor hints.
+- Advanced Tools menu items now show the same hover highlight as the 3-dot menu (labels, buttons, and the Theme row), so it's obvious what you're about to click.
+- In Tile Editor mode, the Advanced Tools menu collapses to show only the "Reset Tile Points" button — every other direct child is hidden via CSS to remove noise that's irrelevant while editing walls/points.
+- Spent an honest portion of the day teaching a menu how to politely highlight itself on hover. Tiny UI polish, disproportionate amount of squinting at pixel values.
 
 ## 2026-04-16 (unreleased)
 - Replaced the default Tauri DMG with a custom DMG Canvas build featuring a styled background, volume icon, drag-to-install arrow, and license agreement. Tauri now only builds the `.app` and updater artifacts.
