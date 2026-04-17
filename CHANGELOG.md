@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.3 (2026-04-17)
+- Update changelog for tooltip overlay, Boss Selection, window sizing, local build
+- Overlay tooltips, Boss Selection cycle, window sizing, local build mode
+
+
 ## v0.8.2 (2026-04-16)
 - Swept the dungeon corridors, reorganized the supply crates, and tightened a few loose bolts behind the scenes. Nothing flashy — just making sure the foundations are solid before the next adventure.
 - The app now opens maximized on first launch so you get the full dungeon-planning experience right away. Resize it however you like and it'll remember your preference.
