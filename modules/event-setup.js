@@ -26,6 +26,8 @@ export function bindGlobalControls(ctx) {
     chooseDataFolder,
     syncChooseDataFolderAction,
     finalizeDataFolderSelection,
+    requestDataFolderDialog,
+    resetToDefaultDataFolder,
     openDebugLogBtn,
     toggleDebugConsole,
     debugConsoleCopyBtn,
@@ -199,8 +201,14 @@ export function bindGlobalControls(ctx) {
       const isEnabled = typeof window.__TAURI__?.core?.invoke === "function";
       if (!isEnabled) return;
       try {
-        const previousPath = getStoredDataFolderPath();
-        const selectedPath = await chooseDataFolder(previousPath, { persist: false });
+        const currentPath = getStoredDataFolderPath();
+        const { action } = await requestDataFolderDialog(currentPath);
+        if (action === "cancel") return;
+        if (action === "default") {
+          await resetToDefaultDataFolder();
+          return;
+        }
+        const selectedPath = await chooseDataFolder(currentPath, { persist: false });
         if (!selectedPath) {
           setStatus("Choose Data Folder canceled.");
           return;
