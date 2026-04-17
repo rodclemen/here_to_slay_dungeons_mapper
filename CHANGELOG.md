@@ -9,6 +9,9 @@
 - Donate dialog now shows a proper message instead of a bare confirmation prompt.
 
 
+## 2026-04-17 (unreleased)
+- Wired the Choose Data Folder button through the new `requestDataFolderDialog` flow so a single prompt offers cancel, pick a folder, or reset to the default system folder. Previously the button always opened the OS folder picker, with no way to revert to the default without manually navigating to it. Resynced `Cargo.lock` to match `Cargo.toml` version `0.8.2`.
+
 ## 2026-04-16 (unreleased)
 - Replaced the default Tauri DMG with a custom DMG Canvas build featuring a styled background, volume icon, drag-to-install arrow, and license agreement. Tauri now only builds the `.app` and updater artifacts.
 - Added `scripts/build-release.sh` to automate the full local build (Tauri + DMG Canvas) with optional `--upload` to push the DMG to a GitHub draft release.
