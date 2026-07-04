@@ -406,9 +406,12 @@ Auto-theme mode links tile set switching to theme switching. Turn it off to pick
 ├── modules/                # Extracted runtime modules (26 modules — theme, board, share, tile placement, etc.)
 ├── src-tauri/              # Optional Tauri desktop shell
 ├── scripts/
-│   ├── build-tauri-web.mjs # Copies browser app into dist/tauri/, minifies JS/CSS
-│   ├── release.mjs         # Bumps version, commits, tags, and pushes to trigger a release
-│   └── sync-version.mjs    # Syncs version from package.json to Tauri config and Cargo.toml
+│   ├── build-tauri-web.mjs  # Copies browser app into dist/tauri/, minifies JS/CSS
+│   ├── build-web.mjs        # Builds deploy-ready website into dist/web/ (injects version + changelog)
+│   ├── build-release.sh     # Builds + signs + notarizes the DMG (DMG Canvas), uploads to the GitHub release
+│   ├── make-macos-appicon.sh # Regenerates the macOS icon asset catalog — re-run when app artwork changes
+│   ├── release.mjs          # Bumps version, commits, tags, pushes, then runs build-release.sh
+│   └── sync-version.mjs     # Syncs version from package.json to Tauri config and Cargo.toml
 ├── tiles/
 │   ├── molten/             # Molten tile set assets
 │   ├── overgrown/          # Overgrown tile set assets
@@ -564,7 +567,28 @@ This:
 
 After it finishes, upload `dist/web/` to your web server and publish the draft release on GitHub. Existing desktop installations will detect the update on next launch.
 
-**Prerequisites for local DMG build:** [DMG Canvas](https://www.araelium.com/dmgcanvas) must be installed with the `dmgcanvas` CLI tool linked. The DMG template is at `gfx/template.dmgcanvas`. A Developer ID Application certificate and notarization credentials must be configured (signing key password stored in macOS keychain, notarization profile stored via `xcrun notarytool store-credentials`).
+**Prerequisites for building a macOS release.** Everything below is required to run `npm run release` (which calls `scripts/build-release.sh`) end-to-end on a Mac. If you are taking over the project, expect to substitute your own Apple credentials — the signing identity, notarization profile name, and bundle ID are currently hardcoded in `scripts/build-release.sh`.
+
+- **Xcode** (full install, not just the Command Line Tools) — provides `actool`, used to compile the app-icon asset catalog. `swift` and `sips` (from the Command Line Tools) are used too.
+- **Tauri updater signing key** — set the `TAURI_SIGNING_PRIVATE_KEY` env var or place the key at `~/.tauri/signing-key.key`. Its password is read from `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` or the macOS keychain (account `tauri-signing`, service `tauri-signing-key-password`). This signs the auto-updater artifacts; the matching public key lives in `tauri.conf.json` under `plugins.updater.pubkey`.
+- **Developer ID Application certificate** — installed in your keychain, used to code-sign the `.app`. The identity string is set as `SIGNING_IDENTITY` in `build-release.sh`.
+- **Notarization profile** — stored via `xcrun notarytool store-credentials` under the name referenced by `NOTARIZE_PROFILE` in `build-release.sh` (currently `HtSDMapper-notarize`).
+- **[DMG Canvas](https://www.araelium.com/dmgcanvas)** — installed with its `dmgcanvas` CLI linked at `/usr/local/bin/dmgcanvas`; it signs and notarizes the DMG. The template is at `gfx/template.dmgcanvas`.
+
+Windows installers are built in CI (GitHub Actions) — no local Windows toolchain is needed.
+
+### macOS App Icon
+
+The macOS Finder/Dock icon ships as a **compiled asset catalog** (`src-tauri/icons/Assets.car` + `AppIcon.icns`), pointed to by `CFBundleIconName` in `src-tauri/Info.plist` and copied into the bundle via `bundle.resources` in `tauri.conf.json`. This is what makes Finder render the full-size icon — a loose `.icns` (`CFBundleIconFile`) alone leaves Finder drawing a stale, inset ("too small") icon while the Dock still looks correct. These files are committed; do not delete them.
+
+**When the app artwork changes, regenerate the catalog and commit the outputs:**
+
+```bash
+./scripts/make-macos-appicon.sh                  # uses src-tauri/icons/icon.png as the source
+./scripts/make-macos-appicon.sh path/to/art.png  # or pass an explicit 1024×1024 source
+```
+
+The script reshapes the art to Apple's ~82.9% squircle template, generates the icon sizes, and compiles the catalog with `actool` (hence the Xcode requirement above). Commit the regenerated `src-tauri/icons/Assets.car`, `AppIcon.icns`, and `AppIcon.appiconset/`. Every build (local, CI, and the auto-updater payload) then picks up the corrected icon automatically.
 
 ---
 

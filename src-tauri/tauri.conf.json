@@ -47,6 +47,10 @@
       "icons/icon.icns",
       "icons/icon.ico",
       "icons/icon.png"
-    ]
+    ],
+    "resources": {
+      "icons/Assets.car": "Assets.car",
+      "icons/AppIcon.icns": "AppIcon.icns"
+    }
   }
 }

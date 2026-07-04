@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-07-04 (unreleased)
+- Fixed the macOS app icon rendering small/inset in Finder. The bundle previously shipped only a legacy loose `.icns` (`CFBundleIconFile`); Finder/IconServices prefer the modern asset-catalog path and fell back to a stale, undersized icon while the Dock looked correct. It now ships a compiled `Assets.car` + `AppIcon.icns` (copied in via `bundle.resources`) and sets `CFBundleIconName` through a merged `src-tauri/Info.plist`, so every build — local, CI, and the auto-updater payload — uses the correct full-size icon. The artwork is also normalized to Apple's ~82.9% squircle template (was ~80%).
+- Added `scripts/make-macos-appicon.sh` to regenerate the icon asset catalog from the source art (reshape to the template → generate size variants → compile with `actool`). Re-run it whenever the app artwork changes and commit the regenerated `Assets.car`, `AppIcon.icns`, and `AppIcon.appiconset/`.
+- Documented the desktop build in the README: completed the `scripts/` file tree (was missing `build-release.sh`, `build-web.mjs`, and the new `make-macos-appicon.sh`), listed the full macOS release prerequisites (Xcode/`actool`, Tauri updater signing key, Developer ID certificate, notarization profile, DMG Canvas), and added a "macOS App Icon" section explaining the asset-catalog setup and regeneration step so a new maintainer can take over.
+
 ## 2026-04-17 (unreleased)
 - Replaced the browser-native `confirm()` in the auto-updater prompt with a styled Tauri `dialog|ask` dialog ("Update" / "Later" buttons) so the update offer matches the rest of the desktop UI. Added the required `dialog:allow-ask` capability.
 - `scripts/build-release.sh --upload` now waits up to 15 minutes for the GitHub release tag to exist before uploading the DMG, polling every 15s. Previously the local DMG upload would race CI and fail when the draft release wasn't created yet.
