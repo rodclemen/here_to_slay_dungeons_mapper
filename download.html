@@ -363,11 +363,11 @@
               </div>
               <div class="download-meta-row">
                 <dt>Version</dt>
-                <dd>v__APP_VERSION__</dd>
+                <dd class="download-file-version">v__APP_VERSION__</dd>
               </div>
               <div class="download-meta-row">
                 <dt>File size</dt>
-                <dd>19 MB</dd>
+                <dd class="download-file-size">19 MB</dd>
               </div>
               <div class="download-meta-row">
                 <dt>File date</dt>
@@ -419,11 +419,11 @@
               </div>
               <div class="download-meta-row">
                 <dt>Version</dt>
-                <dd>v__APP_VERSION__</dd>
+                <dd class="download-file-version">v__APP_VERSION__</dd>
               </div>
               <div class="download-meta-row">
                 <dt>File size</dt>
-                <dd>13 MB</dd>
+                <dd class="download-file-size">13 MB</dd>
               </div>
               <div class="download-meta-row">
                 <dt>File date</dt>
@@ -492,17 +492,61 @@
         });
       }
 
-      function populateFileDates() {
-        const date = new Date(document.lastModified);
-        if (Number.isNaN(date.getTime())) return;
-        const formatted = date.toLocaleDateString(undefined, {
+      function formatReleaseDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return null;
+        return date.toLocaleDateString(undefined, {
           year: "numeric",
           month: "long",
           day: "numeric",
         });
-        document.querySelectorAll(".download-file-date").forEach((el) => {
-          el.textContent = formatted;
-        });
+      }
+
+      function formatFileSize(bytes) {
+        if (!Number.isFinite(bytes) || bytes <= 0) return null;
+        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+      }
+
+      // Pull the real version / size / date from the current GitHub release via
+      // download.php?meta=1. download.php caches the API response for 1 hour server-side
+      // and the response is browser-cacheable, so page loads don't keep hitting GitHub.
+      // If it fails, fall back to the page's own date so the row is never blank.
+      async function loadReleaseMeta() {
+        try {
+          const response = await fetch("./download.php?meta=1");
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+
+          if (data.version) {
+            const version = data.version.startsWith("v") ? data.version : "v" + data.version;
+            document.querySelectorAll(".download-file-version").forEach((el) => {
+              el.textContent = version;
+            });
+          }
+
+          document.querySelectorAll(".download-platform-panel").forEach((panel) => {
+            const info = data.platforms?.[panel.dataset.platform];
+            if (!info) return;
+            const size = formatFileSize(info.size);
+            if (size) {
+              const el = panel.querySelector(".download-file-size");
+              if (el) el.textContent = size;
+            }
+            const date = formatReleaseDate(info.date);
+            if (date) {
+              const el = panel.querySelector(".download-file-date");
+              if (el) el.textContent = date;
+            }
+          });
+        } catch (error) {
+          console.warn("Could not load release metadata; using page date as fallback.", error);
+        } finally {
+          // Ensure the File date row is never left blank.
+          const fallback = formatReleaseDate(document.lastModified);
+          document.querySelectorAll(".download-file-date").forEach((el) => {
+            if (!el.textContent && fallback) el.textContent = fallback;
+          });
+        }
       }
 
       async function loadDownloadCounts() {
@@ -523,7 +567,7 @@
 
       initPlatformTabs();
       bindChangelogLinks();
-      populateFileDates();
+      void loadReleaseMeta();
       void loadDownloadCounts();
     </script>
   </body>
