@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-02 (unreleased)
+- Documented the Developer ID certificate renewal in the README release prerequisites and in the `build-release.sh` header. Apple is retiring the original Developer ID Sub-CA on February 1, 2027; the current signing certificate was issued by it and stops working that day, which blocks any new macOS release until it is replaced. The note covers choosing the **G2 Sub-CA** intermediary for the replacement, renewing every late March (G2 certificates expire annually), and deleting the old same-named certificate so `codesign` doesn't hit an ambiguous identity. Already-shipped releases are notarized and timestamped, so they are unaffected.
+
 ## 2026-07-04 (unreleased)
 - Fixed the macOS app icon rendering small/inset in Finder. The bundle previously shipped only a legacy loose `.icns` (`CFBundleIconFile`); Finder/IconServices prefer the modern asset-catalog path and fell back to a stale, undersized icon while the Dock looked correct. It now ships a compiled `Assets.car` + `AppIcon.icns` (copied in via `bundle.resources`) and sets `CFBundleIconName` through a merged `src-tauri/Info.plist`, so every build — local, CI, and the auto-updater payload — uses the correct full-size icon. The artwork is also normalized to Apple's ~82.9% squircle template (was ~80%).
 - Added `scripts/make-macos-appicon.sh` to regenerate the icon asset catalog from the source art (reshape to the template → generate size variants → compile with `actool`). Re-run it whenever the app artwork changes and commit the regenerated `Assets.car`, `AppIcon.icns`, and `AppIcon.appiconset/`.

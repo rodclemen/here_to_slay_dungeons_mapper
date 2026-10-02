@@ -6,6 +6,7 @@ set -euo pipefail
 # Prerequisites:
 #   - TAURI_SIGNING_PRIVATE_KEY or key file at ~/.tauri/signing-key.key
 #   - Developer ID Application certificate installed in keychain
+#     (G2 Sub-CA; renew every late March - see README "Releasing an Update")
 #   - Notarization credentials stored: xcrun notarytool store-credentials "HtSDMapper-notarize"
 #   - DMG Canvas installed with CLI tool linked at /usr/local/bin/dmgcanvas
 
